@@ -14,9 +14,14 @@ progress before assuming a component exists.
 
 - Full validation gate (run before pushing): `pre-commit run --all-files`
 - OpenTofu, once `infrastructure/modules/` or `infrastructure/compositions/`
-  exist: `tofu fmt -recursive infrastructure`, `tofu validate`,
-  `tflint --recursive`, `checkov -d infrastructure`, and `tofu test` for any
-  directory containing `*.tftest.hcl` (mirrors `.github/workflows/validate.yml`).
+  exist: `tofu fmt -recursive infrastructure`, `tflint --recursive`,
+  `checkov -d infrastructure`, and, **per module/composition directory**
+  (there's no root-level config to validate against): `cd` into each
+  directory containing `main.tf`, `tofu init -backend=false`, then
+  `tofu validate` — and `tofu test` for any directory containing
+  `*.tftest.hcl` (mirrors `.github/workflows/validate.yml`'s actual loop;
+  running `tofu validate` unqualified from the repo root validates nothing
+  useful once modules exist).
 - Markdown lint, matching CI (`.github/workflows/docs.yml`):
   `npx markdownlint-cli2 --config .markdownlint-cli2.yaml "docs/**/*.md" "README.md" "SECURITY.md" "CONTRIBUTING.md" ".github/**/*.md"`.
   Add `--fix` first — most findings are MD060 (tables must use the
@@ -24,10 +29,16 @@ progress before assuming a component exists.
   (every fenced code block needs a language tag, e.g. `bash` or `text`);
   `--fix` resolves MD060 automatically but not MD040.
 - Commits **must** be GPG-signed and DCO-attested: `git commit -s -S`.
-  Enforced locally by `.githooks/commit-msg` and in CI by
-  `.github/workflows/dco.yml`.
-- There is no application code, package manager, or test suite yet — don't
-  invent `npm test` / `make build` / similar.
+  Only the DCO trailer is actually verified by tooling — both
+  `.githooks/commit-msg` and `.github/workflows/dco.yml` check for a
+  `Signed-off-by:` line, not a valid GPG signature. GPG signing is a repo
+  convention enforced by discipline (and by GitHub's own commit-signature
+  UI), not by either of those checks.
+- There is no application code or test suite yet — don't invent
+  `npm test` / `make build` / similar. `package.json` exists solely for
+  `docs/` tooling (`@mermaid-js/mermaid-cli`, pinned and used by
+  `docs.yml`'s `mermaid` job and this repo's pre-commit hook) — it is not
+  an application package manager.
 
 ## How work is specified (read this before implementing anything)
 
@@ -75,7 +86,10 @@ only route in is administrator → OpenZiti public edge router (Edge) → Ziti
 fabric → Ziti private router (Management) → `kube-apiserver` (ADR-0003).
 `SPEC-NET-001` through `SPEC-NET-004` implement this zone by zone — check
 any network change against this model, particularly the "no public IP
-outside Edge" and "port 6443 reachable only from the Ziti NSG" invariants.
+outside Edge" and "port 6443 reachable only from the `ziti` NSG
+(administrative access) and the `worker` NSG (cluster nodes — kubelet and
+kube-proxy must reach `kube-apiserver` to function), never any other
+source" invariant (`SPEC-NET-004.md` REQ-NET-019).
 
 ## Planning system
 
