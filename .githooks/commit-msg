@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+COMMIT_MSG_FILE="$1"
+
+# Allow merge/squash/fixup commits or skip if automated rebase
+FIRST_LINE=$(head -n 1 "$COMMIT_MSG_FILE" || true)
+if [[ "$FIRST_LINE" =~ ^(Merge |fixup!|squash!) ]]; then
+  exit 0
+fi
+
+if ! grep -Eq "^Signed-off-by: .+ <.+@.+>" "$COMMIT_MSG_FILE"; then
+  echo "================================================================================" >&2
+  echo "ERROR: Missing Developer Certificate of Origin (DCO) sign-off." >&2
+  echo "" >&2
+  echo "This repository requires all commits to include a DCO trailer:" >&2
+  echo "  Signed-off-by: Name <email>" >&2
+  echo "" >&2
+  echo "Hint: Use 'git commit -s' (or 'git commit -s -S') to automatically append it." >&2
+  echo "================================================================================" >&2
+  exit 1
+fi

@@ -1,0 +1,8 @@
+rules:
+  secrets-outside-env:
+    ignore:
+      # GitHub Free cannot configure environments on private repositories
+      # (docs.github.com/en/actions/deployment/using-environments-for-deployment).
+      # OCI plan credentials are job-scoped env vars; upgrade path is OCI OIDC
+      # federation in plan.yml, after which id-token: write + environment are used.
+      - plan.yml

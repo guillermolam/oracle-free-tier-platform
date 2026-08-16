@@ -1,0 +1,33 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        exclude: ^(infrastructure/live|infrastructure/compositions)/
+      - id: check-added-large-files
+        args: ["--maxkb=2048"]
+      - id: check-merge-conflict
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+
+  - repo: https://github.com/antonbabenko/pre-commit-terraform
+    rev: v1.108.1
+    hooks:
+      - id: tofu_fmt
+      - id: tofu_validate
+        exclude: ^infrastructure/live/
+      - id: tflint
+      - id: checkov
+
+  - repo: local
+    hooks:
+      - id: check-dco
+        name: Developer Certificate of Origin (Signed-off-by)
+        entry: bash -c 'grep -q "^Signed-off-by:" "$1" || { echo "ERROR: Commit message missing Signed-off-by trailer. Use \"git commit -s\"."; exit 1; }' --
+        language: system
+        stages: [commit-msg]

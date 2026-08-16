@@ -1,0 +1,10 @@
+# Global owner
+* @guillermolam
+
+# Sensitive areas
+SECURITY.md @guillermolam
+bootstrap/sops/ @guillermolam
+bootstrap/talos/ @guillermolam
+platform/ @guillermolam
+infrastructure/live/ @guillermolam
+.github/workflows/ @guillermolam

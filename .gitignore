@@ -1,0 +1,93 @@
+# macOS / editors
+.DS_Store
+*.swp
+.idea/
+.vscode/
+*.iml
+
+# Environment files
+.env
+.env.*
+*.env
+!.env.example
+
+# Oracle Cloud (OCI) credentials
+.oci/
+oci_api_key.pem
+*privatekey*
+*.pem
+*.jks
+*.keystore
+ssh-key-*
+id_rsa
+id_ed25519
+
+# OpenTofu / Terraform
+.terraform/
+.terraform.lock.hcl.backup
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+!example.tfvars
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Terragrunt
+.terragrunt-cache/
+terragrunt-debug.tfvars.json
+terragrunt-dependency-*
+
+# Talos
+talosconfig
+talosconfig.*
+*.talosconfig
+controlplane.yaml
+worker.yaml
+
+# Kubernetes
+kubeconfig
+kubeconfig.*
+*.kubeconfig
+
+# SOPS / decrypted secrets
+bootstrap/sops/*.dec.yaml
+bootstrap/sops/secrets.dec.*
+**/*.dec.*
+age.key
+age.key.txt
+secrets.enc.*.yaml.dec
+*.sops.dec
+
+# Cloud CLI / tool caches
+.terraform.d/
+.tflint.d/
+.terraform-docs.yml
+.terraform-docs.yaml
+.tfsec/
+
+# Security scan artifacts
+trivy-results*
+gl-results*
+semgrep-results*
+checkov-report*
+tfplan
+*.tfplan
+plan.json
+artifact-*
+scan-results/
+security/sbom/*.spdx.json
+security/sbom/*.cdx.json
+
+# Build / test output
+bin/
+dist/
+build/
+coverage/
+*.test
+*.out

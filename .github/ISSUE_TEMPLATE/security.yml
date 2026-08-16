@@ -1,0 +1,51 @@
+name: Security
+description: Report a security concern, credential exposure, or risk
+title: "[Security] "
+labels: ["type/security", "risk/critical"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include live secrets in this issue. If credentials are already
+        exposed, rotate them first and reference the action taken.
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - critical
+        - high
+        - medium
+        - low
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What is the concern? What is the impact if exploited?
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence / reproduction
+      description: Steps, paths, or references. No secrets.
+    validations:
+      required: true
+  - type: textarea
+    id: remediation
+    attributes:
+      label: Suggested remediation
+      description: Rotation, patching, policy, or tooling changes.
+  - type: input
+    id: adr
+    attributes:
+      label: Affected ADR
+      description: Related ADR number, if any (e.g. ADR-0005)
+  - type: checkboxes
+    id: threat-model
+    attributes:
+      label: Threat model impact
+      options:
+        - label: Affects trust boundaries or DFD / risk register

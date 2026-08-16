@@ -1,0 +1,67 @@
+# area/*
+- name: area/network
+  color: "0e8a16"
+  description: VCN, subnets, gateways, routing, NSGs, DNS
+- name: area/compute
+  color: "0e8a16"
+  description: Talos nodes, control plane, workers, boot volumes
+- name: area/storage
+  color: "0e8a16"
+  description: Block volumes, object storage, backup, DR
+- name: area/identity
+  color: "0e8a16"
+  description: IAM, dynamic groups, policies, SPIRE, OpenBao
+- name: area/security
+  color: "0e8a16"
+  description: Network policy, secrets, PKI, supply chain, runtime security
+- name: area/gitops
+  color: "0e8a16"
+  description: Flux, repository bootstrap, GitOps reconciliation
+- name: area/observability
+  color: "0e8a16"
+  description: Metrics, logs, traces, dashboards, alerting
+- name: area/hybrid
+  color: "0e8a16"
+  description: DRG, on-prem and cross-cloud connectivity
+
+# type/*
+- name: type/feature
+  color: "c2e0c6"
+  description: New capability
+- name: type/bug
+  color: "d73a4a"
+  description: Defect
+- name: type/security
+  color: "d73a4a"
+  description: Security concern or hardening
+- name: type/architecture
+  color: "6f42c1"
+  description: Architectural decision
+- name: type/debt
+  color: "fbca04"
+  description: Technical debt
+
+# risk/*
+- name: risk/low
+  color: "bfe5bf"
+  description: Low risk
+- name: risk/medium
+  color: "fbca04"
+  description: Medium risk
+- name: risk/high
+  color: "f9d0c4"
+  description: High risk
+- name: risk/critical
+  color: "d73a4a"
+  description: Critical risk
+
+# stage/*
+- name: stage/day0
+  color: "c5def5"
+  description: Foundation and bootstrap
+- name: stage/day1
+  color: "c5def5"
+  description: Platform rollout
+- name: stage/day2
+  color: "c5def5"
+  description: Operations and lifecycle
