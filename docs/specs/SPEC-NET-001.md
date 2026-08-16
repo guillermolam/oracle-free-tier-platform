@@ -105,8 +105,11 @@ oci network vcn list --compartment-id $C \
 
 ## Diagram Impact
 
-None beyond the existing `docs/arch/cloud-deployment.mmd`, which this Spec
-implements as-is.
+Architecture Impact: `ARCH-NET-VCN`, `ARCH-ZONE-EDGE`, `ARCH-ZONE-MGMT`,
+`ARCH-ZONE-WORKLOAD`, `ARCH-ZONE-DATA`.
+Diagram: `docs/arch/cloud-deployment.mmd` (working-tree draft, not yet
+canonicalized — see
+[`docs/01-architecture/traceability.md`](../01-architecture/traceability.md)).
 
 ## ADR Impact
 

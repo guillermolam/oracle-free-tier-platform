@@ -12,9 +12,17 @@ Each ADR is one file: `ADR-NNNN-short-title.md`, status one of `Proposed`,
 | [ADR-0004](ADR-0004-kyverno-policy-engine.md) | Kyverno as the admission policy engine | Accepted |
 | [ADR-0005](ADR-0005-flux-gitops.md) | Flux as the sole Kubernetes GitOps controller | Accepted |
 | [ADR-0006](ADR-0006-trust-zone-network-segmentation.md) | Four-zone trust-boundary network segmentation | Accepted |
+| [ADR-0007](ADR-0007-terragrunt-state-boundaries.md) | Terragrunt state boundary architecture for OCI live environments | Accepted |
+| [ADR-0008](ADR-0008-drg-reserved-inert-m1.md) | Reserve the DRG in M1; defer hybrid routing to I21 | Accepted |
 
 ADR-0001 through ADR-0005 record decisions that were already implicit in
 `CONTRIBUTING.md`'s ownership model before any ADR existed; they catch the
 decision record up to reality rather than proposing something new. ADR-0006
 records the network shape already drawn in
-[`docs/arch/cloud-deployment.mmd`](../arch/cloud-deployment.mmd).
+[`docs/arch/cloud-deployment.mmd`](../arch/cloud-deployment.mmd). ADR-0007
+and ADR-0008 are genuine decisions-with-alternatives reached during M1
+specification and use a fuller field set (Options considered, Decision
+drivers, Security/Operational consequences, Reversibility, Related Specs) —
+use that richer shape for future ADRs that weigh real alternatives; the
+lighter shape stays fine for decisions that only need to be caught up to
+reality.

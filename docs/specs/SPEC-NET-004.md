@@ -136,8 +136,11 @@ network architecture doc started by `SPEC-NET-001`).
 
 ## Diagram Impact
 
-None beyond the existing `docs/arch/cloud-deployment.mmd`, which this Spec
-implements as-is.
+Architecture Impact: `ARCH-FLOW-ADMIN`, `ARCH-FLOW-CONTROL`,
+`ARCH-ZONE-EDGE`, `ARCH-ZONE-MGMT`, `ARCH-ZONE-WORKLOAD`, `ARCH-ZONE-DATA`.
+Diagram: `docs/arch/cloud-deployment.mmd` (working-tree draft, not yet
+canonicalized — see
+[`docs/01-architecture/traceability.md`](../01-architecture/traceability.md)).
 
 ## ADR Impact
 

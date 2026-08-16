@@ -62,15 +62,29 @@ Impact**, **Diagram Impact**, **ADR Impact**, **Threat Model Impact**,
 domain-specific additions or cites the global DoR/DoD below verbatim.
 "None" is a valid, explicit value for any Impact field — silence is not.
 
+**Diagram Impact** cites stable architecture concept IDs
+(`ARCH-*`, defined in
+[`docs/01-architecture/traceability.md`](../01-architecture/traceability.md))
+plus the artifact path — for example `Architecture Impact: ARCH-FLOW-INGRESS,
+ARCH-FLOW-EGRESS. Diagram: docs/arch/cloud-deployment.mmd`. It never cites a
+raw Mermaid node, group, or junction name: those are implementation details
+of one rendering and may be renamed or restructured without invalidating any
+Spec. See `docs/01-architecture/traceability.md` for the full rationale and
+the Requirement → `ARCH-*` ID → diagram artifact → Mermaid nodes chain.
+
 ## Current Specs
 
 | Spec | Title | Status | Initiative |
 | --- | --- | --- | --- |
 | [SPEC-OCI-001](SPEC-OCI-001.md) | OCI tenancy, compartment, IAM, and state foundation | Ready | I02 |
+| [SPEC-OCI-002](SPEC-OCI-002.md) | OCI Vault and KMS foundation | Ready | I02 |
+| [SPEC-OCI-003](SPEC-OCI-003.md) | OCI Logging, Monitoring, and Audit foundation | Ready | I02 |
 | [SPEC-NET-001](SPEC-NET-001.md) | OCI VCN and trust-zone subnet foundation | Ready | I03 |
 | [SPEC-NET-002](SPEC-NET-002.md) | Gateways: IGW / NAT / Service Gateway / DRG | Ready | I03 |
 | [SPEC-NET-003](SPEC-NET-003.md) | Trust-zone route tables | Ready | I03 |
 | [SPEC-NET-004](SPEC-NET-004.md) | Security Lists and purpose-built NSGs | Ready | I03 |
+| [SPEC-NET-005](SPEC-NET-005.md) | Traffic-flow invariants (verification only, no state unit) | Ready | I03 |
+| [SPEC-NET-006](SPEC-NET-006.md) | VCN DNS resolver and DHCP options | Ready | I03 |
 
 More Specs are added milestone by milestone rather than all at once — see
 [`docs/00-overview/roadmap.md`](../00-overview/roadmap.md) for the full

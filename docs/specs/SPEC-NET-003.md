@@ -111,8 +111,12 @@ oci network route-table list --compartment-id $C --vcn-id $VCN
 
 ## Diagram Impact
 
-None beyond the existing `docs/arch/cloud-deployment.mmd`, which already
-depicts this exact route-table-per-zone model.
+Architecture Impact: `ARCH-FLOW-INGRESS`, `ARCH-FLOW-EGRESS`,
+`ARCH-FLOW-SERVICE`, `ARCH-ZONE-EDGE`, `ARCH-ZONE-MGMT`,
+`ARCH-ZONE-WORKLOAD`, `ARCH-ZONE-DATA`.
+Diagram: `docs/arch/cloud-deployment.mmd` (working-tree draft, not yet
+canonicalized — see
+[`docs/01-architecture/traceability.md`](../01-architecture/traceability.md)).
 
 ## ADR Impact
 

@@ -115,7 +115,12 @@ oci network drg-route-table-route-rule list --drg-route-table-id "$DRG_RT" \
 
 ## Diagram Impact
 
-None beyond the existing `docs/arch/cloud-deployment.mmd`.
+Architecture Impact: `ARCH-NET-VCN`, `ARCH-FLOW-INGRESS`, `ARCH-FLOW-EGRESS`,
+`ARCH-FLOW-SERVICE`, `ARCH-FLOW-HYBRID` (reserved/inert — see
+[ADR-0008](../02-decisions/ADR-0008-drg-reserved-inert-m1.md)).
+Diagram: `docs/arch/cloud-deployment.mmd` (working-tree draft, not yet
+canonicalized — see
+[`docs/01-architecture/traceability.md`](../01-architecture/traceability.md)).
 
 ## ADR Impact
 

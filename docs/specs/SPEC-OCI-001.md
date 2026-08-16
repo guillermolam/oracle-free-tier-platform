@@ -152,8 +152,10 @@ policy scope, dynamic group match rules, state backend location.
 
 ## Diagram Impact
 
-None beyond `docs/arch/cloud-deployment.mmd`'s existing tenancy-level IAM/
-policies/dynamic-groups/tags depiction.
+Architecture Impact: `ARCH-GOV-TENANCY`.
+Diagram: `docs/arch/cloud-deployment.mmd` (working-tree draft, not yet
+canonicalized — see
+[`docs/01-architecture/traceability.md`](../01-architecture/traceability.md)).
 
 ## ADR Impact
 
