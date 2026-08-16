@@ -5,6 +5,9 @@
 .vscode/
 *.iml
 
+# Node (docs/ Mermaid validation tooling only — no application code)
+node_modules/
+
 # Environment files
 .env
 .env.*

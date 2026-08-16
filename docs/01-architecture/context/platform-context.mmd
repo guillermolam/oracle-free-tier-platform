@@ -1,0 +1,24 @@
+%% VIEW-CONTEXT-PLATFORM — L0 System Context
+%% Question: what is this platform and what external systems interact with it?
+%% Governing: docs/00-overview/vision.md, CONTRIBUTING.md, ADR-0005
+flowchart TB
+  subgraph EXT["Untrusted external"]
+    USERS["Internet users"]
+    ADMIN["Platform administrator"]
+    GH["GitHub — Specs, ADRs, GitOps source of truth"]
+    ONPREM["Future on-prem (I21, deferred)"]
+    OTHERCLOUD["Future other cloud (I21, deferred)"]
+  end
+
+  PLATFORM["Oracle Free Tier Platform"]
+  OCI["OCI Tenancy"]
+
+  USERS -->|"application traffic"| PLATFORM
+  ADMIN -->|"administrative access, ZTNA"| PLATFORM
+  GH -->|"Specs / ADRs / GitOps desired state"| PLATFORM
+  PLATFORM -->|"provisioned into"| OCI
+  PLATFORM -.->|"reserved, inert until I21"| ONPREM
+  PLATFORM -.->|"reserved, inert until I21"| OTHERCLOUD
+
+  classDef deferred stroke-dasharray: 4 3;
+  class ONPREM,OTHERCLOUD deferred;
