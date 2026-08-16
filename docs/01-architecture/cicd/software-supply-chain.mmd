@@ -6,18 +6,18 @@
 %% This repo has zero container workloads today — everything past "merge"
 %% is PLANNED, not invented. ARCH-CICD-SUPPLYCHAIN covers the whole chain.
 flowchart TB
-  DEV["Developer"] --> GH["GitHub — ARCH-GOV-GITHUB"] --> PR["Pull Request"] --> CI["CI — ARCH-CICD-IAC"]
+  DEV["Developer"] --> GH["GitHub — ARCH-GOV-GITHUB"] --> PR["Pull Request"] --> CI["CI — ARCH-CICD-SUPPLYCHAIN"]
   CI --> LINT["Lint — markdownlint (docs.yml), tflint (validate.yml)"]
   CI --> SAST["SAST — Semgrep (security.yml)"]
   CI --> SECRETS["Secret scan — gitleaks (security.yml)"]
-  CI --> IACSCAN["IaC scan — Checkov (validate.yml)"]
+  CI --> IACSCAN["IaC scan — Checkov (validate.yml) — DoD control; validate.yml is not yet a required branch-protection check, only runs on infrastructure/** changes"]
   CI --> WFLINT["Workflow lint — zizmor (security.yml)"]
   CI --> DIAGRAM["Diagram validation — mmdc (docs.yml)"]
 
   LINT --> MERGE["Merge — squash, DCO + GPG required"]
   SAST --> MERGE
   SECRETS --> MERGE
-  IACSCAN --> MERGE
+  IACSCAN -.->|"advisory today — see SPEC-OCI-001 Failure Modes"| MERGE
   WFLINT --> MERGE
   DIAGRAM --> MERGE
 

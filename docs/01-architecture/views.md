@@ -257,8 +257,9 @@ maps to Specs and ARCH-* concept IDs.
   repo has zero container workloads today.
 - **Out of scope:** Per-workload-class detail — see VIEW-CICD-IAC and the
   planned per-class views.
-- **Governing Specs:** none directly — `.github/workflows/{validate,
-  security,docs,dco}.yml`, ADR-0005.
+- **Governing Specs:** none directly — `.github/workflows/validate.yml`,
+  `.github/workflows/security.yml`, `.github/workflows/docs.yml`,
+  `.github/workflows/dco.yml`, ADR-0005.
 - **Related views:** VIEW-CICD-IAC, VIEW-GOV-PLATFORM
 - **Status:** Active
 

@@ -193,6 +193,7 @@ governing Spec.
   file's decoupling was designed to survive without any Spec needing to
   change. Untouched by the multi-view work described here.
 - `docs/01-architecture/context/platform-context.mmd` and everything under
-  `docs/01-architecture/network/` — new, committed, `mmdc`-validated views
-  introduced to answer questions `cloud-deployment.mmd` was being asked to
-  answer all at once. See [`views.md`](views.md) for the full catalog.
+  `docs/01-architecture/{network,identity,governance,cicd}/` — new,
+  committed, `mmdc`-validated views introduced to answer questions
+  `cloud-deployment.mmd` was being asked to answer all at once. See
+  [`views.md`](views.md) for the full catalog.

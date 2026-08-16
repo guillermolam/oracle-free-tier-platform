@@ -3,21 +3,24 @@
 %% behavior, and where does that chain currently stop?
 %% Governing: docs/specs/README.md (Spec->Feature->Story->PR->Verification
 %% chain), .github/workflows/*.yml (live CI), ADR-0004 (Kyverno, not yet
-%% installed), SPEC-OCI-003 REQ-OCI-014 (OCI Audit)
+%% installed), ADR-0005 (Flux is the only path to the cluster — Kyverno
+%% admission is reconciled through it, never applied by CI directly),
+%% SPEC-OCI-003 REQ-OCI-014 (OCI Audit)
 flowchart TB
   SPEC["Specification — docs/specs/*.md — ARCH-GOV-GITHUB"]
   PR["Pull Request — branch protection, signed + DCO commits"]
   CI["CI validation — validate.yml, security.yml, docs.yml, dco.yml"]
   IAC["IaC — OpenTofu/Terragrunt (tooling ready; infrastructure/ not yet populated)"]
-  POLICY_ADMISSION["Kyverno admission policy — PLANNED, I14 (ADR-0004 names the engine, not yet installed)"]
+  FLUX["Flux — ADR-0005, the only path to the cluster — PLANNED, I12 (not yet installed)"]
+  POLICY_ADMISSION["Kyverno admission policy — PLANNED, I14 (ADR-0004 names the engine, reconciled via Flux, not yet installed)"]
   ADMISSION["Kubernetes admission control — PLANNED (no cluster yet)"]
   RUNTIME["Runtime enforcement — Cilium NetworkPolicy (I07), Tetragon/Falco (I17) — PLANNED"]
   AUDIT_OCI["OCI Audit — ARCH-GOV-OCI (REQ-OCI-014) — PRESENT"]
   AUDIT_K8S["Kubernetes audit log — PLANNED"]
 
-  SPEC --> PR --> CI --> IAC --> POLICY_ADMISSION --> ADMISSION --> RUNTIME
+  SPEC --> PR --> CI --> IAC --> FLUX --> POLICY_ADMISSION --> ADMISSION --> RUNTIME
   IAC --> AUDIT_OCI
   RUNTIME -.-> AUDIT_K8S
 
   classDef planned fill:#f2f2f2,stroke:#888,stroke-dasharray: 4 3;
-  class POLICY_ADMISSION,ADMISSION,RUNTIME,AUDIT_K8S planned;
+  class FLUX,POLICY_ADMISSION,ADMISSION,RUNTIME,AUDIT_K8S planned;

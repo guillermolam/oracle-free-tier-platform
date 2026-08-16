@@ -26,7 +26,7 @@ flowchart TB
     D_LOG["Logging: log-content write — REQ-OCI-015 — PRESENT"]
     D_OBJ_STATE["Object Storage — state bucket: bootstrap identity only — REQ-OCI-005/006 — PRESENT"]
     D_OBJ_BACKUP["Object Storage — backup bucket — PLANNED, I19"]
-    D_NET["Network: VCN / NSG / route management — covered by general compartment policy, REQ-OCI-002 — PRESENT (not resource-type-specific yet)"]
+    D_NET["Network: VCN / NSG / route management — DECISION PENDING: REQ-OCI-002 requires policies to enumerate specific verbs/resource-types, it does not itself grant network permissions"]
     D_COMPUTE["Compute: Talos node lifecycle — PLANNED, I04"]
     D_MONITOR["Monitoring — DECISION PENDING: no policy Spec'd yet"]
     D_HYBRID["Hybrid / DRG route management — PLANNED, I21"]
@@ -36,7 +36,7 @@ flowchart TB
   POLICY --> D_LOG
   POLICY --> D_OBJ_STATE
   POLICY -.-> D_OBJ_BACKUP
-  POLICY --> D_NET
+  POLICY -.-> D_NET
   POLICY -.-> D_COMPUTE
   POLICY -.-> D_MONITOR
   POLICY -.-> D_HYBRID
@@ -44,4 +44,4 @@ flowchart TB
   classDef planned fill:#f2f2f2,stroke:#888,stroke-dasharray: 4 3;
   classDef pending fill:#fff6d9,stroke:#b58b00,stroke-dasharray: 4 3;
   class D_OBJ_BACKUP,D_COMPUTE,D_HYBRID,PRINCIPAL_INSTANCE planned;
-  class D_MONITOR pending;
+  class D_MONITOR,D_NET pending;
