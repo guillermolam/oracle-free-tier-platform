@@ -1,0 +1,466 @@
+---
+config:
+  architecture:
+    randomize: false
+    seed: 7
+    nodeSeparation: 40
+    idealEdgeLengthMultiplier: 0.8
+---
+architecture-beta
+
+%% =====================================================================
+%% OCI FOUNDATION AND NETWORK DEPLOYMENT
+%%
+%% VCN             10.10.0.0/16
+%% EDGE            10.10.10.0/24
+%% MANAGEMENT      10.10.20.0/24
+%% WORKLOAD        10.10.30.0/24
+%% DATA            10.10.40.0/24
+%%
+%% TRAFFIC CLASSES
+%% RED       Internet ingress
+%% GREEN     Private egress
+%% BLUE      OCI service and backup
+%% PURPLE    Administrator and control plane
+%% ORANGE    Hybrid connectivity
+%% =====================================================================
+
+
+%% =====================================================================
+%% EXTERNAL TRUST ZONE
+%% =====================================================================
+
+group external(internet)[UNTRUSTED EXTERNAL]
+
+service internet(internet)[Internet] in external
+service users(server)[Internet Users] in external
+service admin(server)[Platform Administrator] in external
+service git(server)[Git Provider] in external
+service onprem(server)[Future On Prem] in external
+service othercloud(cloud)[Future Cloud] in external
+
+
+%% =====================================================================
+%% OCI TENANCY
+%% =====================================================================
+
+group tenancy(cloud)[OCI TENANCY]
+
+service iam(server)[IAM] in tenancy
+service policies(server)[IAM Policies] in tenancy
+service dynamicgroups(server)[Dynamic Groups] in tenancy
+service tags(server)[Defined Tags] in tenancy
+service audit(server)[OCI Audit] in tenancy
+
+
+%% =====================================================================
+%% PLATFORM COMPARTMENT
+%% =====================================================================
+
+group compartment(cloud)[PLATFORM COMPARTMENT] in tenancy
+
+service publicdns(server)[OCI Public DNS] in compartment
+service bucket(disk)[OCI Backup Bucket] in compartment
+service kms(server)[OCI Vault KMS] in compartment
+service logging(server)[OCI Logging] in compartment
+service monitoring(server)[OCI Monitoring] in compartment
+
+
+%% =====================================================================
+%% OCI REGION
+%% =====================================================================
+
+group region(cloud)[OCI MADRID REGION] in compartment
+
+
+%% =====================================================================
+%% VCN SECURITY PERIMETER
+%% 10.10.0.0/16
+%% =====================================================================
+
+group vcn(cloud)[VCN SECURITY PERIMETER] in region
+
+service resolver(server)[VCN DNS Resolver] in vcn
+service dhcp(server)[DHCP Options] in vcn
+
+
+%% =====================================================================
+%% GATEWAYS
+%% =====================================================================
+
+group gateways(internet)[VCN GATEWAYS] in vcn
+
+service igw(internet)[Internet Gateway] in gateways
+service nat(internet)[NAT Gateway] in gateways
+service sgw(internet)[Service Gateway] in gateways
+service drg(internet)[Dynamic Routing Gateway] in gateways
+
+
+%% =====================================================================
+%% ROUTING
+%% =====================================================================
+
+group routing(server)[ROUTE TABLES] in vcn
+
+service edgeRT(server)[Edge Route Table] in routing
+service mgmtRT(server)[Management Route Table] in routing
+service workloadRT(server)[Workload Route Table] in routing
+service dataRT(server)[Data Route Table] in routing
+
+
+%% =====================================================================
+%% OCI NETWORK SECURITY
+%% =====================================================================
+
+group security(server)[OCI NETWORK SECURITY] in vcn
+
+service edgeSL(server)[Edge Security List] in security
+service mgmtSL(server)[Management Security List] in security
+service workloadSL(server)[Workload Security List] in security
+service dataSL(server)[Data Security List] in security
+
+service zitiNSG(server)[Ziti NSG] in security
+service ingressNSG(server)[Ingress NSG] in security
+service controlNSG(server)[Control Plane NSG] in security
+service workerNSG(server)[Worker NSG] in security
+service storageNSG(server)[Storage NSG] in security
+
+
+%% =====================================================================
+%% EDGE ZONE
+%% 10.10.10.0/24
+%% =====================================================================
+
+group edge(cloud)[RED ZONE EDGE SUBNET] in vcn
+
+service appIP(internet)[Ingress Public IP] in edge
+service ingressVNIC(server)[Ingress VNIC] in edge
+service ingressEndpoint(server)[Application Ingress] in edge
+
+service zitiIP(internet)[Ziti Public IP] in edge
+service zitiVNIC(server)[Ziti Edge VNIC] in edge
+service zitiEdge(server)[OpenZiti Edge Router] in edge
+
+
+%% =====================================================================
+%% MANAGEMENT ZONE
+%% 10.10.20.0/24
+%% =====================================================================
+
+group management(cloud)[PURPLE ZONE MANAGEMENT SUBNET] in vcn
+
+service cpVNIC(server)[Control Plane VNIC] in management
+service cpNode(server)[Talos Control Plane] in management
+service cpBoot(disk)[Control Boot Volume] in management
+
+service kubeAPI(server)[Kubernetes API] in management
+service etcd(database)[etcd] in management
+
+service zitiPrivate(server)[Ziti Private Router] in management
+
+
+%% =====================================================================
+%% WORKLOAD ZONE
+%% 10.10.30.0/24
+%% =====================================================================
+
+group workload(cloud)[GREEN ZONE WORKLOAD SUBNET] in vcn
+
+service w1VNIC(server)[Worker One VNIC] in workload
+service w1Node(server)[Talos Worker One] in workload
+service w1Boot(disk)[Worker One Boot] in workload
+
+service w2VNIC(server)[Worker Two VNIC] in workload
+service w2Node(server)[Talos Worker Two] in workload
+service w2Boot(disk)[Worker Two Boot] in workload
+
+
+%% =====================================================================
+%% DATA ZONE
+%% 10.10.40.0/24
+%% =====================================================================
+
+group data(cloud)[BLUE ZONE DATA SUBNET] in vcn
+
+service dataVNIC1(server)[Storage VNIC One] in data
+service dataVolume1(disk)[Block Volume One] in data
+
+service dataVNIC2(server)[Storage VNIC Two] in data
+service dataVolume2(disk)[Block Volume Two] in data
+
+service backupAgent(server)[Backup Endpoint] in data
+
+
+%% =====================================================================
+%% TRAFFIC FLOW MARKERS
+%% =====================================================================
+
+group flows(cloud)[TRAFFIC FLOWS] in region
+
+service ingressFlow(internet)[RED User Ingress] in flows
+service adminFlow(server)[PURPLE Admin Access] in flows
+service egressFlow(internet)[GREEN Private Egress] in flows
+service serviceFlow(server)[BLUE OCI Service Access] in flows
+service backupFlow(disk)[BLUE Backup Traffic] in flows
+service controlFlow(server)[PURPLE Control Plane] in flows
+service hybridFlow(internet)[ORANGE Hybrid Traffic] in flows
+
+
+%% =====================================================================
+%% JUNCTIONS
+%% =====================================================================
+
+junction ingressJunction in vcn
+junction egressJunction in vcn
+junction serviceJunction in vcn
+junction hybridJunction in vcn
+junction controlJunction in vcn
+junction backupJunction in vcn
+
+
+%% =====================================================================
+%% ALIGNMENT
+%% =====================================================================
+
+align row appIP zitiIP
+align row ingressVNIC zitiVNIC
+align row ingressEndpoint zitiEdge
+
+align row w1VNIC w2VNIC
+align row w1Node w2Node
+align row w1Boot w2Boot
+
+align row dataVNIC1 dataVNIC2
+align row dataVolume1 dataVolume2
+
+align column appIP ingressVNIC ingressEndpoint
+align column zitiIP zitiVNIC zitiEdge
+
+align column w1VNIC w1Node w1Boot
+align column w2VNIC w2Node w2Boot
+
+align column dataVNIC1 dataVolume1
+align column dataVNIC2 dataVolume2
+
+
+%% =====================================================================
+%% RED FLOW
+%% INTERNET USER INGRESS
+%%
+%% Internet
+%%   -> DNS
+%%   -> IGW
+%%   -> Edge Route Table
+%%   -> Public IP
+%%   -> VNIC
+%%   -> Ingress
+%%   -> Workers
+%% =====================================================================
+
+users:R --> L:ingressFlow
+
+ingressFlow:R --> L:publicdns
+
+publicdns{group}:R --> L:ingressJunction{group}
+
+internet{group}:R --> L:igw{group}
+
+igw:R --> L:edgeRT
+
+edgeRT:R --> L:appIP
+
+appIP:B --> T:ingressVNIC
+
+edgeSL:R --> L:ingressVNIC
+ingressNSG:R --> L:ingressVNIC
+
+ingressVNIC:B --> T:ingressEndpoint
+
+ingressEndpoint{group}:R --> L:w1VNIC{group}
+ingressEndpoint{group}:R --> L:w2VNIC{group}
+
+
+%% =====================================================================
+%% PURPLE FLOW
+%% ADMINISTRATOR ACCESS
+%%
+%% Administrator
+%%   -> Ziti Public Endpoint
+%%   -> Edge Router
+%%   -> Ziti Fabric
+%%   -> Private Router
+%%   -> Kubernetes API
+%% =====================================================================
+
+admin:R --> L:adminFlow
+
+adminFlow{group}:R --> L:zitiIP{group}
+
+zitiIP:B --> T:zitiVNIC
+
+edgeSL:R --> L:zitiVNIC
+zitiNSG:R --> L:zitiVNIC
+
+zitiVNIC:B --> T:zitiEdge
+
+zitiEdge{group}:R --> L:zitiPrivate{group}
+
+zitiPrivate:R --> L:kubeAPI
+
+controlNSG:R --> L:kubeAPI
+
+
+%% =====================================================================
+%% PURPLE FLOW
+%% CONTROL PLANE
+%% =====================================================================
+
+cpVNIC:B --> T:cpNode
+
+cpNode:R --> L:kubeAPI
+cpNode:B --> T:etcd
+cpNode:L --> R:cpBoot
+
+kubeAPI:R --> L:controlFlow
+
+controlFlow{group}:R --> L:controlJunction{group}
+
+controlJunction:R --> L:w1VNIC
+controlJunction:R --> L:w2VNIC
+
+mgmtSL:R --> L:cpVNIC
+controlNSG:R --> L:cpVNIC
+
+workloadSL:R --> L:w1VNIC
+workloadSL:R --> L:w2VNIC
+
+workerNSG:R --> L:w1VNIC
+workerNSG:R --> L:w2VNIC
+
+w1VNIC:B --> T:w1Node
+w1Node:B --> T:w1Boot
+
+w2VNIC:B --> T:w2Node
+w2Node:B --> T:w2Boot
+
+
+%% =====================================================================
+%% GREEN FLOW
+%% PRIVATE INTERNET EGRESS
+%%
+%% Private nodes
+%%   -> Workload Route Table
+%%   -> NAT Gateway
+%%   -> Internet
+%% =====================================================================
+
+cpVNIC{group}:R --> L:egressJunction{group}
+w1VNIC{group}:R --> L:egressJunction{group}
+w2VNIC{group}:R --> L:egressJunction{group}
+
+egressJunction{group}:R --> L:egressFlow{group}
+
+egressFlow{group}:R --> L:workloadRT{group}
+
+workloadRT:R --> L:nat
+
+nat{group}:R --> L:internet{group}
+
+
+%% =====================================================================
+%% BLUE FLOW
+%% OCI SERVICE ACCESS
+%%
+%% Private resources
+%%   -> Service Gateway
+%%   -> Oracle Services Network
+%%   -> Object Storage / KMS / Logging / Monitoring
+%% =====================================================================
+
+cpVNIC{group}:R --> L:serviceJunction{group}
+w1VNIC{group}:R --> L:serviceJunction{group}
+w2VNIC{group}:R --> L:serviceJunction{group}
+
+serviceJunction{group}:R --> L:serviceFlow{group}
+
+serviceFlow{group}:R --> L:sgw{group}
+
+sgw{group}:R --> L:bucket{group}
+sgw{group}:R --> L:kms{group}
+sgw{group}:R --> L:logging{group}
+sgw{group}:R --> L:monitoring{group}
+
+
+%% =====================================================================
+%% BLUE FLOW
+%% STORAGE AND BACKUP
+%% =====================================================================
+
+storageNSG:R --> L:dataVNIC1
+storageNSG:R --> L:dataVNIC2
+
+dataSL:R --> L:dataVNIC1
+dataSL:R --> L:dataVNIC2
+
+dataVNIC1:R --> L:dataVolume1
+dataVNIC2:R --> L:dataVolume2
+
+dataVolume1:R --> L:backupJunction
+dataVolume2:R --> L:backupJunction
+
+backupJunction:R --> L:backupAgent
+
+backupAgent{group}:R --> L:backupFlow{group}
+
+backupFlow{group}:R --> L:dataRT{group}
+
+dataRT:R --> L:sgw
+
+
+%% =====================================================================
+%% ORANGE FLOW
+%% HYBRID CONNECTIVITY
+%%
+%% OCI
+%%   -> Hybrid Route Table
+%%   -> DRG
+%%   -> On Prem / Other Cloud
+%% =====================================================================
+
+cpVNIC{group}:L --> R:hybridJunction{group}
+w1VNIC{group}:L --> R:hybridJunction{group}
+w2VNIC{group}:L --> R:hybridJunction{group}
+
+hybridJunction{group}:L --> R:hybridFlow{group}
+
+hybridFlow{group}:L --> R:mgmtRT{group}
+
+mgmtRT:L --> R:drg
+
+drg{group}:L --> R:onprem{group}
+drg{group}:L --> R:othercloud{group}
+
+
+%% =====================================================================
+%% OCI IDENTITY AND AUTHORIZATION
+%% =====================================================================
+
+iam:R --> L:policies
+iam:R --> L:dynamicgroups
+
+policies{group}:R --> L:bucket{group}
+policies{group}:R --> L:kms{group}
+
+dynamicgroups{group}:R --> L:bucket{group}
+dynamicgroups{group}:R --> L:kms{group}
+
+
+%% =====================================================================
+%% OCI GOVERNANCE
+%% =====================================================================
+
+tags{group}:R --> L:cpNode{group}
+tags{group}:R --> L:w1Node{group}
+tags{group}:R --> L:w2Node{group}
+
+audit{group}:R --> L:logging{group}

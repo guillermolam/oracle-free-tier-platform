@@ -1,0 +1,48 @@
+name: plan
+
+on:
+  pull_request:
+    paths:
+      - "infrastructure/live/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: plan-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  plan-lab:
+    name: OpenTofu plan (lab)
+    runs-on: ubuntu-latest
+    env:
+      OCI_TENANCY_OCID: ${{ secrets.OCI_TENANCY_OCID }}
+      OCI_USER_OCID: ${{ secrets.OCI_USER_OCID }}
+      OCI_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT }}
+      OCI_REGION: ${{ secrets.OCI_REGION }}
+      OCI_PRIVATE_KEY: ${{ secrets.OCI_PRIVATE_KEY }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
+        with:
+          tofu_version: "1.x"
+          cache: true
+      - name: Plan live/oci/eu-madrid-1/lab
+        if: env.OCI_TENANCY_OCID != ''
+        working-directory: infrastructure/live/oci/eu-madrid-1/lab
+        run: |
+          tofu init -input=false
+          tofu plan -input=false -out=plan.tfplan
+      - name: Upload plan artifact
+        if: env.OCI_TENANCY_OCID != ''
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: lab-plan
+          path: infrastructure/live/oci/eu-madrid-1/lab/plan.tfplan
+      - name: Notify missing credentials
+        if: env.OCI_TENANCY_OCID == ''
+        run: echo "OCI_TENANCY_OCID secret not configured; plan skipped. Configure GitHub Actions secrets or OCI OIDC federation."

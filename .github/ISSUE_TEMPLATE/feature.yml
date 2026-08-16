@@ -1,0 +1,56 @@
+name: Feature
+description: Request a new capability or component
+title: "[Feature] "
+labels: ["type/feature"]
+body:
+  - type: dropdown
+    id: domain
+    attributes:
+      label: Domain
+      options:
+        - network
+        - compute
+        - storage
+        - identity
+        - security
+        - gitops
+        - observability
+        - hybrid
+        - platform
+    validations:
+      required: true
+  - type: dropdown
+    id: stage
+    attributes:
+      label: SDLC stage
+      options:
+        - day0
+        - day1
+        - day2
+    validations:
+      required: true
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal / problem
+      description: What capability is needed and why?
+    validations:
+      required: true
+  - type: textarea
+    id: design
+    attributes:
+      label: Proposed approach
+      description: Modules, services, or architecture involved.
+  - type: input
+    id: adr
+    attributes:
+      label: Requires ADR
+      description: ADR number if a decision record is needed.
+  - type: checkboxes
+    id: impact
+    attributes:
+      label: Impact
+      options:
+        - label: Architecture impact
+        - label: Security / threat model impact
+        - label: New infrastructure state boundary

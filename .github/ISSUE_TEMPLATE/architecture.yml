@@ -1,0 +1,35 @@
+name: Architecture
+description: Propose or challenge an architectural decision
+title: "[Architecture] "
+labels: ["type/architecture"]
+body:
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Forces, constraints, and current state.
+    validations:
+      required: true
+  - type: textarea
+    id: decision
+    attributes:
+      label: Decision
+      description: The proposed decision and alternatives considered.
+    validations:
+      required: true
+  - type: textarea
+    id: consequences
+    attributes:
+      label: Consequences
+      description: Positive and negative trade-offs, ownership impact.
+    validations:
+      required: true
+  - type: checkboxes
+    id: impact
+    attributes:
+      label: Impact
+      options:
+        - label: Requires a new ADR
+        - label: Changes ownership boundaries
+        - label: Affects threat model / trust boundaries
+        - label: Adds a state boundary

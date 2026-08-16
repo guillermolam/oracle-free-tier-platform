@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: ADR index
+    url: https://github.com/guillermolam/oracle-free-tier-platform/tree/main/docs/02-decisions
+    about: Review existing decision records before proposing an architecture issue.

@@ -1,0 +1,66 @@
+name: dco
+
+on:
+  pull_request:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dco-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dco:
+    name: Developer Certificate of Origin (DCO)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify Signed-off-by trailer
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            COMMITS=$(git rev-list "${BASE_SHA}..${HEAD_SHA}")
+          else
+            COMMITS=$(git rev-list -n 20 HEAD)
+          fi
+
+          if [ -z "$COMMITS" ]; then
+            echo "No commits found to verify."
+            exit 0
+          fi
+
+          FAILED=0
+          for commit in $COMMITS; do
+            AUTHOR_NAME=$(git log -1 --format='%an' "$commit")
+            AUTHOR_EMAIL=$(git log -1 --format='%ae' "$commit")
+            BODY=$(git log -1 --format='%B' "$commit")
+            EXPECTED_DCO="Signed-off-by: $AUTHOR_NAME <$AUTHOR_EMAIL>"
+
+            if echo "$BODY" | grep -Fq "$EXPECTED_DCO"; then
+              echo "✓ Commit $commit satisfies DCO ($EXPECTED_DCO)"
+            elif echo "$BODY" | grep -Fiq "Signed-off-by:"; then
+              echo "::error::Commit $commit has Signed-off-by header but mismatches git author. Expected: '$EXPECTED_DCO'"
+              FAILED=1
+            else
+              echo "::error::Commit $commit is missing DCO sign-off. Expected trailer: '$EXPECTED_DCO'. Use 'git commit -s' or 'git commit -s --amend'."
+              FAILED=1
+            fi
+          done
+
+          if [ "$FAILED" -ne 0 ]; then
+            echo "DCO check failed. Every commit must include a Signed-off-by trailer matching the git author."
+            exit 1
+          fi
+
+          echo "All checked commits comply with the Developer Certificate of Origin."
