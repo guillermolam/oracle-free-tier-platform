@@ -1,0 +1,32 @@
+%% VIEW-NET-WORKLOAD — L3 Workload Zone detail
+%% Question: how is the Workload trust zone configured?
+%% Governing: SPEC-NET-001, SPEC-NET-003, SPEC-NET-004 (REQ-NET-017, REQ-NET-019)
+%% Compute/volume internals belong to I04/I15 and are marked unspecified.
+flowchart TB
+  subgraph WORKLOAD["Workload Zone — ARCH-ZONE-WORKLOAD — 10.10.30.0/24 — NO PUBLIC IP"]
+    WORKERS["Talos worker nodes"]
+    WORKERS_NOTE["Compute detail owned by I04 — not yet specified"]
+    PV["Persistent volume attachment"]
+    PV_NOTE["Detail owned by I15 — not yet specified"]
+    WORKLOAD_SL["Workload Security List — default-deny baseline"]
+    NSG_WORKER["worker NSG"]
+    WORKLOAD_RT["Workload Route Table"]
+  end
+
+  MGMT["Management Zone: Kubernetes API"]
+  NAT["NAT Gateway"]
+  SGW["Service Gateway"]
+  DATA["Data Zone: block volumes"]
+
+  WORKERS -->|"6443 — ARCH-FLOW-CONTROL, REQ-NET-019"| MGMT
+  WORKERS --> NSG_WORKER
+  WORKERS --> WORKLOAD_RT --> NAT
+  WORKLOAD_RT --> SGW
+  WORKERS -.-> PV
+  PV -.-> PV_NOTE
+  PV -.-> DATA
+  WORKERS -.-> WORKERS_NOTE
+  WORKLOAD_SL -.->|"default-deny backstop"| WORKERS
+
+  classDef unspecified fill:#f2f2f2,stroke:#888,stroke-dasharray: 4 3;
+  class WORKERS_NOTE,PV_NOTE unspecified;

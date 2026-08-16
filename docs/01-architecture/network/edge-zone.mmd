@@ -1,0 +1,34 @@
+%% VIEW-NET-EDGE — L3 Edge Zone detail
+%% Question: how is the Edge trust zone configured?
+%% Governing: SPEC-NET-001, SPEC-NET-002, SPEC-NET-004 (REQ-NET-016..020), ADR-0003
+%% Ingress technology is NOT decided — represented as an open decision point,
+%% not invented.
+flowchart TB
+  subgraph EDGE["Edge Zone — ARCH-ZONE-EDGE — 10.10.10.0/24"]
+    PUBIP1["Public IP: ingress"]
+    PUBIP2["Public IP: Ziti edge"]
+    ING["Application ingress component"]
+    ING_TBD["Ingress technology: NOT YET DECIDED — open architecture decision"]
+    ZITI["OpenZiti edge router"]
+    EDGE_SL["Edge Security List — default-deny baseline"]
+    NSG_ING["ingress NSG"]
+    NSG_ZITI["ziti NSG"]
+    EDGE_RT["Edge Route Table"]
+  end
+
+  IGW["Internet Gateway"]
+  INTERNET(("Internet"))
+  MGMT["Management Zone: Ziti private router"]
+  WORKLOAD["Workload Zone: application backends"]
+
+  INTERNET --> IGW --> EDGE_RT
+  EDGE_RT --> PUBIP1 --> NSG_ING --> ING
+  EDGE_RT --> PUBIP2 --> NSG_ZITI --> ZITI
+  ING -.-> ING_TBD
+  ING --> WORKLOAD
+  ZITI --> MGMT
+  EDGE_SL -.->|"default-deny backstop"| ING
+  EDGE_SL -.->|"default-deny backstop"| ZITI
+
+  classDef undecided fill:#fff6d9,stroke:#b58b00,stroke-dasharray: 4 3;
+  class ING_TBD undecided;

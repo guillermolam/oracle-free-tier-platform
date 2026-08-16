@@ -1,0 +1,40 @@
+%% VIEW-NET-OVERVIEW — L1/L2 OCI Network Overview
+%% Question: how is the VCN segmented, without Kubernetes/platform noise?
+%% Governing: SPEC-OCI-001, SPEC-NET-001, SPEC-NET-002, ADR-0006, ADR-0008
+%% Out of scope: explicit route-table objects (see routing.mmd)
+flowchart TB
+  INTERNET(("Internet"))
+  FUTURE_HYBRID["Future on-prem / other cloud (I21)"]
+
+  subgraph TENANCY["OCI Tenancy"]
+    subgraph COMPARTMENT["Platform Compartment"]
+      subgraph REGION["Region: eu-madrid-1"]
+        subgraph VCN["VCN — ARCH-NET-VCN — 10.10.0.0/16"]
+          EDGE["ARCH-ZONE-EDGE — Edge — 10.10.10.0/24"]
+          MGMT["ARCH-ZONE-MGMT — Management — 10.10.20.0/24"]
+          WORKLOAD["ARCH-ZONE-WORKLOAD — Workload — 10.10.30.0/24"]
+          DATA["ARCH-ZONE-DATA — Data — 10.10.40.0/24"]
+          IGW["ARCH-GW-IGW — Internet Gateway"]
+          NAT["ARCH-GW-NAT — NAT Gateway"]
+          SGW["ARCH-GW-SGW — Service Gateway"]
+          DRG["ARCH-GW-DRG — DRG, reserved/inert — ADR-0008"]
+        end
+        SVC["OCI Services Network — Object Storage / KMS / Logging / Monitoring"]
+      end
+    end
+  end
+
+  INTERNET --- IGW
+  IGW --- EDGE
+  NAT --- MGMT
+  NAT --- WORKLOAD
+  NAT --- DATA
+  NAT --- INTERNET
+  SGW --- MGMT
+  SGW --- WORKLOAD
+  SGW --- DATA
+  SGW --- SVC
+  DRG -.-> FUTURE_HYBRID
+
+  classDef reserved stroke-dasharray: 4 3;
+  class DRG,FUTURE_HYBRID reserved;

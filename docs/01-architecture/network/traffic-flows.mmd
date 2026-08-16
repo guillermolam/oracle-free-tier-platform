@@ -1,0 +1,50 @@
+%% VIEW-NET-TRAFFIC — L2 Traffic Flows
+%% Question: what are the security-relevant traffic classes, independent of
+%% OCI resource inventory?
+%% Governing: SPEC-NET-005 (REQ-NET-021..027), ADR-0008
+flowchart TB
+  subgraph RED["RED — ARCH-FLOW-INGRESS"]
+    direction LR
+    R1(("Internet")) --> R2["Internet Gateway"] --> R3["Edge: application ingress"]
+  end
+
+  subgraph GREEN["GREEN — ARCH-FLOW-EGRESS"]
+    direction LR
+    G1["Management / Workload / Data node"] --> G2["NAT Gateway"] --> G3(("Internet"))
+  end
+
+  subgraph BLUE1["BLUE — ARCH-FLOW-SERVICE"]
+    direction LR
+    B1["Management / Workload / Data resource"] --> B2["Service Gateway"] --> B3["OCI services: Object Storage / KMS / Logging / Monitoring"]
+  end
+
+  subgraph BLUE2["BLUE — ARCH-FLOW-BACKUP"]
+    direction LR
+    B4["Data-zone backup endpoint"] --> B5["Service Gateway"] --> B6["OCI Object Storage — ARCH-SVC-BACKUP-BUCKET, reserved for I19"]
+  end
+
+  subgraph PURPLE1["PURPLE — ARCH-FLOW-ADMIN"]
+    direction LR
+    P1["Administrator"] --> P2["Edge: Ziti public router"] --> P3["Ziti fabric"] --> P4["Management: Ziti private router"] --> P5["Kubernetes API"]
+  end
+
+  subgraph PURPLE2["PURPLE — ARCH-FLOW-CONTROL"]
+    direction LR
+    P6["Kubernetes API"] <--> P7["Worker nodes"]
+  end
+
+  subgraph ORANGE["ORANGE — ARCH-FLOW-HYBRID — reserved, inert until I21 (ADR-0008)"]
+    direction LR
+    O1["VCN"] -.-> O2["DRG, empty route table"] -.-> O3["Future on-prem / other cloud"]
+  end
+
+  classDef red fill:#ffdcdc,stroke:#c0392b;
+  classDef green fill:#dcffe0,stroke:#27ae60;
+  classDef blue fill:#dceeff,stroke:#2980b9;
+  classDef purple fill:#ecdcff,stroke:#8e44ad;
+  classDef orange fill:#ffe9d6,stroke:#d35400,stroke-dasharray: 4 3;
+  class RED red
+  class GREEN green
+  class BLUE1,BLUE2 blue
+  class PURPLE1,PURPLE2 purple
+  class ORANGE orange

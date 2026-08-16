@@ -1,0 +1,39 @@
+%% VIEW-NET-ROUTING — L3 Routing
+%% Question: which subnet reaches which destination through which next hop?
+%% Governing: SPEC-NET-002 (REQ-NET-006..010), SPEC-NET-003 (REQ-NET-011..015), ADR-0008
+%% Gateways and route tables are intentionally NOT collapsed in this view.
+flowchart LR
+  subgraph ROUTE_TABLES["Route Tables"]
+    EDGE_RT["Edge Route Table"]
+    MGMT_RT["Management Route Table"]
+    WORKLOAD_RT["Workload Route Table"]
+    DATA_RT["Data Route Table"]
+  end
+
+  subgraph GATEWAYS["Gateways"]
+    IGW["Internet Gateway — ARCH-GW-IGW"]
+    NAT["NAT Gateway — ARCH-GW-NAT"]
+    SGW["Service Gateway — ARCH-GW-SGW"]
+    DRG["DRG — ARCH-GW-DRG (reserved — ADR-0008)"]
+  end
+
+  INTERNET(("Internet"))
+
+  EDGE_RT -->|"0.0.0.0/0 — REQ-NET-012"| IGW
+  EDGE_RT -->|"OCI Services CIDR — REQ-NET-014"| SGW
+
+  MGMT_RT -->|"0.0.0.0/0 — REQ-NET-013"| NAT
+  MGMT_RT -->|"OCI Services CIDR — REQ-NET-014"| SGW
+  MGMT_RT -.->|"reserved slot, unpopulated — REQ-NET-015"| DRG
+
+  WORKLOAD_RT -->|"0.0.0.0/0 — REQ-NET-013"| NAT
+  WORKLOAD_RT -->|"OCI Services CIDR — REQ-NET-014"| SGW
+
+  DATA_RT -->|"0.0.0.0/0 — REQ-NET-013"| NAT
+  DATA_RT -->|"OCI Services CIDR — REQ-NET-014"| SGW
+
+  IGW --> INTERNET
+  NAT --> INTERNET
+
+  classDef reserved stroke-dasharray: 4 3;
+  class DRG reserved;
