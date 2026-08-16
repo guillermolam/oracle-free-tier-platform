@@ -56,6 +56,13 @@ between plan and apply.
   fingerprint, private key) MUST be supplied to CI exclusively via GitHub
   Actions encrypted secrets until EPIC-OCI-04 replaces them with OIDC
   federation.
+- **REQ-OCI-007** The platform MUST bootstrap the state backend in two
+  explicit phases: **phase 1**, a one-time `apply` using local state,
+  creates the state bucket; **phase 2**, run immediately after, is
+  `tofu init -migrate-state` against that bucket, after which this module
+  and every module that depends on it use the remote backend exclusively.
+  The phase-1 local state file MUST NOT be treated as a durable artifact
+  or committed — it exists only to bootstrap the bucket that replaces it.
 
 ## Constraints
 
@@ -64,6 +71,12 @@ initially (`eu-madrid-1`, per `plan.yml`); Terragrunt owns environment
 composition and state boundaries (ADR-0001) — this Spec's module is
 consumed once per environment under `infrastructure/live/oci/eu-madrid-1/
 <env>/`.
+
+State backend bootstrap is inherently chicken-and-egg: `tofu init` needs a
+backend to exist before `apply` can run, but the backend *is* this
+module's own output. REQ-OCI-007's two-phase sequence is the resolution —
+it is a one-time, explicitly-labeled operation performed once per
+environment, not a repeatable CI step.
 
 ## Interfaces
 
@@ -84,11 +97,18 @@ publicly accessible and must use server-side encryption.
 
 ## Failure Modes
 
-- State bucket accidentally made public → `checkov` policy scan (already in
-  `validate.yml`) must flag public Object Storage misconfiguration; this is
-  a merge-blocking failure, not a warning.
+- State bucket accidentally made public → `checkov` (`validate.yml`) is
+  configured to fail the job on public Object Storage misconfiguration
+  (`soft_fail: false`). Note `validate.yml` only runs when
+  `infrastructure/**` changes and is not (yet) a GitHub branch-protection
+  required check — see EPIC-CI-03 — so this is enforced by this repo's
+  Definition of Done, not by GitHub blocking the merge button directly.
 - Dynamic Group match rule omitted or wrong → instance principal auth fails
   closed (no access), never silently falls back to a broader grant.
+- Phase-1 bootstrap local state file retained/committed instead of migrated
+  (REQ-OCI-007) → a second bootstrap run would silently diverge from the
+  real remote state; the phase-1 file MUST be deleted immediately after a
+  successful `tofu init -migrate-state`.
 
 ## Observability Requirements
 
@@ -99,20 +119,30 @@ runtime signal exists yet — this Spec has no running component.
 
 ```text
 Given the OCI foundation module is applied in the lab environment
-When `tofu apply` completes
+When the REQ-OCI-007 bootstrap sequence completes (phase 1 local apply,
+  phase 2 migrate-state)
 Then a platform compartment exists as a child of the tenancy root compartment
 And IAM policies grant access scoped to that compartment only
-And `tofu state show` on the state resource confirms an OCI Object Storage
-  backend, not local state
+And no local `terraform.tfstate` file remains in the module directory
+And the state object is present in the OCI Object Storage state bucket
 ```
 
 ## Verification
 
 ```bash
 tofu validate
+
+# phase 1 — one-time bootstrap, local state only
+tofu apply -state=bootstrap.local.tfstate
+
+# phase 2 — migrate that state into the bucket phase 1 just created
+tofu init -migrate-state
+test ! -f terraform.tfstate && test ! -f bootstrap.local.tfstate
+
 oci iam compartment list --compartment-id-in-subtree true \
   --query "data[?name=='platform']"
-tofu state list  # confirms backend is remote (oci), not local
+oci os object list --bucket-name "$STATE_BUCKET" --namespace "$OCI_NS" \
+  --query "data[?starts_with(name, 'foundation/')]"  # remote state object exists
 ```
 
 ## Documentation Impact

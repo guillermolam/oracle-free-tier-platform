@@ -57,9 +57,10 @@ SHOULD/SHOULD NOT/MAY language only), **Constraints**, **Interfaces**,
 Modes**, **Observability Requirements**, **Acceptance Criteria**
 (Given/When/Then), **Verification** (exact commands), **Documentation
 Impact**, **Diagram Impact**, **ADR Impact**, **Threat Model Impact**,
-**Operational Impact**, **Rollback / Recovery**, **Definition of Ready**,
-**Definition of Done**. "None" is a valid, explicit value for any Impact
-field — silence is not.
+**Operational Impact**, **Rollback / Recovery**, and a combined
+**Definition of Ready / Definition of Done** section that either states
+domain-specific additions or cites the global DoR/DoD below verbatim.
+"None" is a valid, explicit value for any Impact field — silence is not.
 
 ## Current Specs
 

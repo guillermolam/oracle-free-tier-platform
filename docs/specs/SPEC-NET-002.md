@@ -41,9 +41,12 @@ all require dedicated gateways before any route table can reference them.
 - **REQ-NET-008** The platform MUST create a Service Gateway providing
   private access to OCI Object Storage, KMS, Logging, and Monitoring
   without traversing the public internet.
-- **REQ-NET-009** The platform MUST create a Dynamic Routing Gateway (DRG),
-  attached to the VCN, with no active route rules until I21 begins —
-  present but inert.
+- **REQ-NET-009** The platform MUST create a Dynamic Routing Gateway (DRG)
+  and attach it to the VCN. OCI requires every DRG attachment to reference
+  a DRG route table, so "inert" means that table contains zero route
+  rules and has route-table import/propagation disabled — not that the
+  attachment itself is absent. It stays empty until I21 begins populating
+  it.
 - **REQ-NET-010** No gateway other than the Internet Gateway MAY have a
   route enabling inbound internet-originated traffic.
 
@@ -89,8 +92,9 @@ Given the gateways module is applied in the lab environment
 When `tofu apply` completes
 Then an Internet Gateway, NAT Gateway, and Service Gateway exist attached
   to the VCN from SPEC-NET-001
-And a DRG exists and is attached to the VCN
-And the DRG has zero route distribution or route table associations
+And a DRG exists and is attached to the VCN via a DRG attachment
+And that attachment's DRG route table contains zero route rules
+And route-table import/propagation is disabled on that attachment
 ```
 
 ## Verification
@@ -100,6 +104,8 @@ tofu validate
 tofu test  # infrastructure/modules/network/*.tftest.hcl
 oci network internet-gateway list --compartment-id $C --vcn-id $VCN
 oci network drg list --compartment-id $C
+oci network drg-route-table-route-rule list --drg-route-table-id "$DRG_RT" \
+  --query "length(data)"  # expect 0
 ```
 
 ## Documentation Impact

@@ -1,7 +1,7 @@
 # SPEC-NET-001 — OCI VCN and Trust-Zone Subnet Foundation
 
 **Status:** Ready
-**Initiative:** I02 OCI Cloud Foundation / I03 Network & Trust-Zone Foundation
+**Initiative:** I03 Network & Trust-Zone Foundation
 **Epic:** EPIC-NET-01
 
 ## Context

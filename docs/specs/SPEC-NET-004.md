@@ -25,8 +25,10 @@ in the VCN by default.
 - Security Lists provide a default-deny baseline per trust-zone subnet.
 - Five NSGs (`ziti`, `ingress`, `control`, `worker`, `storage`) provide the
   actual fine-grained allow rules, matching the diagram exactly.
-- The Kubernetes API port is reachable from nowhere except the Ziti private
-  router NSG.
+- The Kubernetes API port is reachable only from the Ziti private router
+  (administrative access) and from cluster nodes themselves (kubelet,
+  kube-proxy, and other node components must reach `kube-apiserver` to
+  function) — from nowhere else.
 
 ## Non-Goals
 
@@ -48,8 +50,11 @@ in the VCN by default.
   level (e.g., VCN-internal DNS); NSGs are the actual enforcement point,
   Security Lists are the subnet-level backstop.
 - **REQ-NET-019** The `control` NSG MUST NOT permit ingress to the
-  Kubernetes API port (6443) from any source except the `ziti` NSG (Ziti
-  private router).
+  Kubernetes API port (6443) from any source except the `ziti` NSG
+  (administrative access via the Ziti private router) and the `worker`
+  NSG (cluster nodes — kubelet, kube-proxy, and other node components
+  must reach `kube-apiserver` to join and operate). No other NSG or CIDR
+  may source port 6443.
 - **REQ-NET-020** No NSG may permit ingress from `0.0.0.0/0` except
   `ingress` (application traffic, scoped to its documented application
   ports) and `ziti` (public Ziti edge listener, scoped to its documented
@@ -78,7 +83,10 @@ attach VNICs to the NSGs this Spec creates.
 This is the Spec's own subject matter in full: REQ-NET-019 is the single
 most security-critical requirement in I03 — it is the technical
 enforcement of [ADR-0003](../02-decisions/ADR-0003-openziti-ztna.md)'s
-"no direct public path to the Kubernetes API" decision. REQ-NET-020
+"no direct public path to the Kubernetes API" decision. Permitting the
+`worker` NSG on 6443 does not weaken that guarantee — cluster nodes are
+never internet-reachable (REQ-NET-003), so this is cluster-internal
+traffic, not a public path. REQ-NET-020
 enumerates the only two legitimate `0.0.0.0/0` ingress points in the entire
 platform; any third NSG requesting `0.0.0.0/0` ingress in review is a
 default-reject, not a judgment call.
@@ -104,8 +112,9 @@ noted for I16 to pick up.
 Given the security module is applied in the lab environment
 When `tofu apply` completes
 Then five NSGs exist named ziti, ingress, control, worker, storage
-And the control NSG's only ingress rule for port 6443 sources from the
-  ziti NSG
+And the control NSG's only ingress rules for port 6443 source from the
+  ziti NSG and the worker NSG
+And no other NSG or CIDR sources port 6443 against the control NSG
 And no NSG other than ingress and ziti has any rule sourcing 0.0.0.0/0
 And each of the four Security Lists denies all ingress not required for
   OCI platform function
@@ -117,7 +126,7 @@ And each of the four Security Lists denies all ingress not required for
 tofu validate
 tofu test  # infrastructure/modules/network/*.tftest.hcl, asserts REQ-NET-019/020
 oci network nsg list --compartment-id $C --vcn-id $VCN
-oci network nsg-rules list --nsg-id $CONTROL_NSG  # confirms 6443 source
+oci network nsg-rules list --nsg-id $CONTROL_NSG  # confirms 6443 sources: ziti, worker only
 ```
 
 ## Documentation Impact
