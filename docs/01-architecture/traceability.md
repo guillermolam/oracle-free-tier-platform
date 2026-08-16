@@ -31,7 +31,7 @@ SPEC-NET-005
 The diagram can rename `workers ×2` to `worker-pool`, split `gateways`
 back into four components, or be replaced by an entirely different
 renderer, without a single Spec needing to change. This file is the fixed
-point diagrams are redrawn *against*, not the other way around.
+point the diagrams are redrawn *against*, not the other way around.
 
 ## Mermaid validation authority
 
@@ -39,7 +39,7 @@ point diagrams are redrawn *against*, not the other way around.
 Source .mmd
      │
      ▼
-Pinned Mermaid CLI (mmdc)
+Mermaid CLI (mmdc)
      │
      ├── PASS → syntactically valid architecture artifact
      │
@@ -59,8 +59,8 @@ writing:** `@mermaid-js/mermaid-cli@11.16.0` (confirmed via `npm list -g`
 in the environment this was authored in). **This version is not currently
 pinned anywhere in the repository** — no `package.json`, no CI step runs
 `mmdc`. `docs.yml` only lints Markdown; it does not validate `.mmd` files.
-This is a real, open gap (see Coverage Gaps in the session report), not a
-claim that CI enforces it today.
+This is a real, open gap, not a claim that CI enforces it today — add a
+CI step or a `package.json` devDependency pin as a follow-up.
 
 ## Vocabulary
 
@@ -72,55 +72,55 @@ in [`views.md`](views.md).
 
 | ID | Meaning | Primary View | Detail View |
 | --- | --- | --- | --- |
-| `ARCH-OCI-TENANCY` | The OCI tenancy as the outermost structural boundary. | network-overview | — |
-| `ARCH-OCI-COMPARTMENT` | The platform compartment isolating platform resources from the tenancy root. | network-overview | — |
-| `ARCH-GOV-TENANCY` | Tenancy-level IAM, policies, dynamic groups, defined tags, audit — the governance *process*, distinct from the structural boundaries above. | cloud-deployment | — |
+| `ARCH-OCI-TENANCY` | The OCI tenancy as the outermost structural boundary. | VIEW-NET-OVERVIEW | — |
+| `ARCH-OCI-COMPARTMENT` | The platform compartment isolating platform resources from the tenancy root. | VIEW-NET-OVERVIEW | — |
+| `ARCH-GOV-TENANCY` | Tenancy-level IAM, policies, dynamic groups, defined tags, audit — the governance *process*, distinct from the structural boundaries above. | VIEW-CLOUD-DEPLOYMENT | — |
 
 ### Network core
 
 | ID | Meaning | Primary View | Detail View |
 | --- | --- | --- | --- |
-| `ARCH-NET-VCN` | The platform VCN (`10.10.0.0/16`) as a security perimeter. | network-overview | routing |
-| `ARCH-NET-DNS` | VCN-scoped DNS resolution and DHCP options. | cloud-deployment | — |
+| `ARCH-NET-VCN` | The platform VCN (`10.10.0.0/16`) as a security perimeter. | VIEW-NET-OVERVIEW | VIEW-NET-ROUTING |
+| `ARCH-NET-DNS` | VCN-scoped DNS resolution and DHCP options. | VIEW-CLOUD-DEPLOYMENT | — |
 
 ### Trust zones
 
 | ID | Meaning | Primary View | Detail View |
 | --- | --- | --- | --- |
-| `ARCH-ZONE-EDGE` | Public-facing subnet — the only zone permitted a public IP. | network-overview | edge-zone |
-| `ARCH-ZONE-MGMT` | Control-plane/administrative subnet — Kubernetes API, etcd, Ziti private router. | network-overview | management-zone |
-| `ARCH-ZONE-WORKLOAD` | Talos worker subnet. | network-overview | workload-zone |
-| `ARCH-ZONE-DATA` | Storage/backup subnet. | network-overview | data-zone |
+| `ARCH-ZONE-EDGE` | Public-facing subnet — the only zone permitted a public IP. | VIEW-NET-OVERVIEW | VIEW-NET-EDGE |
+| `ARCH-ZONE-MGMT` | Control-plane/administrative subnet — Kubernetes API, etcd, Ziti private router. | VIEW-NET-OVERVIEW | VIEW-NET-MANAGEMENT |
+| `ARCH-ZONE-WORKLOAD` | Talos worker subnet. | VIEW-NET-OVERVIEW | VIEW-NET-WORKLOAD |
+| `ARCH-ZONE-DATA` | Storage/backup subnet. | VIEW-NET-OVERVIEW | VIEW-NET-DATA |
 
 ### Gateways
 
 | ID | Meaning | Primary View | Detail View |
 | --- | --- | --- | --- |
-| `ARCH-GW-IGW` | Internet Gateway — Edge zone's sole internet-facing ingress point. | network-overview | routing |
-| `ARCH-GW-NAT` | NAT Gateway — private egress for Management/Workload/Data. | network-overview | routing |
-| `ARCH-GW-SGW` | Service Gateway — private OCI service access. | network-overview | routing |
-| `ARCH-GW-DRG` | Dynamic Routing Gateway — reserved, inert until I21 ([ADR-0008](../02-decisions/ADR-0008-drg-reserved-inert-m1.md)). | network-overview | routing |
+| `ARCH-GW-IGW` | Internet Gateway — Edge zone's sole internet-facing ingress point. | VIEW-NET-OVERVIEW | VIEW-NET-ROUTING |
+| `ARCH-GW-NAT` | NAT Gateway — private egress for Management/Workload/Data. | VIEW-NET-OVERVIEW | VIEW-NET-ROUTING |
+| `ARCH-GW-SGW` | Service Gateway — private OCI service access. | VIEW-NET-OVERVIEW | VIEW-NET-ROUTING |
+| `ARCH-GW-DRG` | Dynamic Routing Gateway — reserved, inert until I21 ([ADR-0008](../02-decisions/ADR-0008-drg-reserved-inert-m1.md)). | VIEW-NET-OVERVIEW | VIEW-NET-ROUTING |
 
 ### Traffic flows
 
 | ID | Meaning | Traffic-class color | Primary View | Detail View |
 | --- | --- | --- | --- | --- |
-| `ARCH-FLOW-INGRESS` | Internet → Edge → application ingress | RED | traffic-flows | edge-zone |
-| `ARCH-FLOW-EGRESS` | Private nodes → NAT Gateway → Internet | GREEN | traffic-flows | routing |
-| `ARCH-FLOW-SERVICE` | Private resources → Service Gateway → OCI services | BLUE | traffic-flows | routing |
-| `ARCH-FLOW-BACKUP` | Data-zone volumes → backup endpoint → Service Gateway | BLUE | traffic-flows | data-zone |
-| `ARCH-FLOW-ADMIN` | Administrator → Ziti public edge → Ziti fabric → Ziti private router | PURPLE | traffic-flows | edge-zone, management-zone |
-| `ARCH-FLOW-CONTROL` | Kubernetes API ↔ control plane ↔ worker nodes | PURPLE | traffic-flows | management-zone, workload-zone |
-| `ARCH-FLOW-HYBRID` | VCN → DRG → future on-prem/other-cloud (reserved, inert until I21) | ORANGE | traffic-flows | routing |
+| `ARCH-FLOW-INGRESS` | Internet → Edge → application ingress | RED | VIEW-NET-TRAFFIC | VIEW-NET-EDGE |
+| `ARCH-FLOW-EGRESS` | Private nodes → NAT Gateway → Internet | GREEN | VIEW-NET-TRAFFIC | VIEW-NET-ROUTING |
+| `ARCH-FLOW-SERVICE` | Any zone → Service Gateway → OCI services | BLUE | VIEW-NET-TRAFFIC | VIEW-NET-ROUTING |
+| `ARCH-FLOW-BACKUP` | Data-zone volumes → backup endpoint → Service Gateway | BLUE | VIEW-NET-TRAFFIC | VIEW-NET-DATA |
+| `ARCH-FLOW-ADMIN` | Administrator → Ziti public edge → Ziti fabric → Ziti private router | PURPLE | VIEW-NET-TRAFFIC | VIEW-NET-EDGE, VIEW-NET-MANAGEMENT |
+| `ARCH-FLOW-CONTROL` | Kubernetes API ↔ control plane ↔ worker nodes | PURPLE | VIEW-NET-TRAFFIC | VIEW-NET-MANAGEMENT, VIEW-NET-WORKLOAD |
+| `ARCH-FLOW-HYBRID` | VCN → DRG → future on-prem/other-cloud (reserved, inert until I21) | ORANGE | VIEW-NET-TRAFFIC | VIEW-NET-ROUTING |
 
 ### Platform services
 
 | ID | Meaning | Primary View | Detail View |
 | --- | --- | --- | --- |
-| `ARCH-SVC-KMS` | OCI Vault / KMS — encryption key management. | cloud-deployment | — (planned: VIEW-SECRETS, I11) |
-| `ARCH-SVC-LOGGING` | OCI Logging. | cloud-deployment | — (planned: VIEW-OBSERVABILITY, I16) |
-| `ARCH-SVC-MONITORING` | OCI Monitoring. | cloud-deployment | — (planned: VIEW-OBSERVABILITY, I16) |
-| `ARCH-SVC-BACKUP-BUCKET` | OCI Object Storage backup target — reserved for I19/M9, not yet specified. | data-zone | — (planned: VIEW-STORAGE, I15) |
+| `ARCH-SVC-KMS` | OCI Vault / KMS — encryption key management. | VIEW-CLOUD-DEPLOYMENT | — (planned: VIEW-SECRETS, I11) |
+| `ARCH-SVC-LOGGING` | OCI Logging. | VIEW-CLOUD-DEPLOYMENT | — (planned: VIEW-OBSERVABILITY, I16) |
+| `ARCH-SVC-MONITORING` | OCI Monitoring. | VIEW-CLOUD-DEPLOYMENT | — (planned: VIEW-OBSERVABILITY, I16) |
+| `ARCH-SVC-BACKUP-BUCKET` | OCI Object Storage backup target — reserved for I19/M9, not yet specified. | VIEW-NET-DATA | — (planned: VIEW-STORAGE, I15) |
 
 This list grows only when a Spec needs a concept it doesn't already cover.
 Don't pre-mint IDs for initiatives that haven't reached specification depth
@@ -163,11 +163,12 @@ governing Spec.
 
 ## Status of diagram artifacts
 
-- `docs/arch/cloud-deployment.mmd` — **working-tree draft, not yet
-  canonicalized.** A rework is present in the working tree (uncommitted)
-  that renames and collapses many nodes while preserving every CIDR, trust
-  zone, and traffic-flow class this vocabulary is built from. It remains
-  untouched by the multi-view work described here.
+- `docs/arch/cloud-deployment.mmd` — **canonicalized** (`6b997c1`, "compact
+  cloud-deployment.mmd for readability"). Renamed and collapsed many nodes
+  (~170x smaller render) while preserving every CIDR, trust zone, and
+  traffic-flow class this vocabulary is built from — exactly what this
+  file's decoupling was designed to survive without any Spec needing to
+  change. Untouched by the multi-view work described here.
 - `docs/01-architecture/context/platform-context.mmd` and everything under
   `docs/01-architecture/network/` — new, committed, `mmdc`-validated views
   introduced to answer questions `cloud-deployment.mmd` was being asked to

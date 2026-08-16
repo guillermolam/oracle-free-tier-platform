@@ -39,8 +39,7 @@ maps to Specs and ARCH-* concept IDs.
 - **Governing Specs:** all M1 Specs, transitively.
 - **Related views:** every view in this catalog is a narrower projection
   of what this view already shows.
-- **Status:** Active — working-tree draft, not yet canonicalized (see
-  `traceability.md`).
+- **Status:** Active — canonicalized (see `traceability.md`).
 
 ### VIEW-NET-OVERVIEW
 

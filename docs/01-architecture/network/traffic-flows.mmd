@@ -15,7 +15,7 @@ flowchart TB
 
   subgraph BLUE1["BLUE — ARCH-FLOW-SERVICE"]
     direction LR
-    B1["Management / Workload / Data resource"] --> B2["Service Gateway"] --> B3["OCI services: Object Storage / KMS / Logging / Monitoring"]
+    B1["Any zone: Edge / Management / Workload / Data resource"] --> B2["Service Gateway"] --> B3["OCI services: Object Storage / KMS / Logging / Monitoring"]
   end
 
   subgraph BLUE2["BLUE — ARCH-FLOW-BACKUP"]

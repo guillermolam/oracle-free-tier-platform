@@ -12,6 +12,7 @@ flowchart TB
     ETCD_NOTE["Detail owned by I05 — not yet specified"]
     ZITI_PRIV["OpenZiti private router"]
     MGMT_SL["Management Security List — default-deny baseline"]
+    NSG_ZITI["ziti NSG"]
     NSG_CONTROL["control NSG"]
     MGMT_RT["Management Route Table"]
   end
@@ -21,7 +22,8 @@ flowchart TB
   NAT["NAT Gateway"]
   SGW["Service Gateway"]
 
-  ZITI_EDGE --> ZITI_PRIV --> NSG_CONTROL --> API
+  ZITI_EDGE --> ZITI_PRIV --> NSG_ZITI
+  NSG_ZITI -->|"6443 — ARCH-FLOW-ADMIN, REQ-NET-019"| NSG_CONTROL --> API
   CP --- API
   CP --- ETCD
   CP -.-> CP_NOTE

@@ -38,7 +38,7 @@ on), it's expected to simplify over time toward a true L1 overview rather
 than growing further — but that's a future edit to that file by whoever
 owns it next, not something this pass performs. See
 [`traceability.md`](traceability.md#status-of-diagram-artifacts) for its
-current working-tree status.
+current commit status.
 
 ## Full catalog
 

@@ -1,4 +1,4 @@
-%% VIEW-NET-OVERVIEW — L1/L2 OCI Network Overview
+%% VIEW-NET-OVERVIEW — L2 OCI Network Overview
 %% Question: how is the VCN segmented, without Kubernetes/platform noise?
 %% Governing: SPEC-OCI-001, SPEC-NET-001, SPEC-NET-002, ADR-0006, ADR-0008
 %% Out of scope: explicit route-table objects (see routing.mmd)
@@ -30,6 +30,7 @@ flowchart TB
   NAT --- WORKLOAD
   NAT --- DATA
   NAT --- INTERNET
+  SGW --- EDGE
   SGW --- MGMT
   SGW --- WORKLOAD
   SGW --- DATA
