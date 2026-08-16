@@ -54,7 +54,9 @@ jobs:
             BODY=$(git log -1 --format='%B' "$commit")
             EXPECTED_DCO="Signed-off-by: $AUTHOR_NAME <$AUTHOR_EMAIL>"
 
-            if echo "$BODY" | grep -Fq "$EXPECTED_DCO"; then
+            if [ "$AUTHOR_NAME" = "dependabot[bot]" ] && echo "$BODY" | grep -Fq "Signed-off-by: dependabot[bot] <support@github.com>"; then
+              echo "✓ Commit $commit satisfies DCO (dependabot canonical sign-off)"
+            elif echo "$BODY" | grep -Fq "$EXPECTED_DCO"; then
               echo "✓ Commit $commit satisfies DCO ($EXPECTED_DCO)"
             elif echo "$BODY" | grep -Fiq "Signed-off-by:"; then
               echo "::error::Commit $commit has Signed-off-by header but mismatches git author. Expected: '$EXPECTED_DCO'"
