@@ -4,7 +4,7 @@ Empty until the components they operate exist. First runbooks land with I19
 (Backup & Disaster Recovery) and I24 (Operations & Day-2):
 
 | Runbook | Lands with |
-|---|---|
+| --- | --- |
 | `node-replacement.md` | I04/I24, after Talos compute exists |
 | `certificate-rotation.md` | I11 EPIC-SEC-03 |
 | `secret-rotation.md` | I11 EPIC-SEC-01/02 |

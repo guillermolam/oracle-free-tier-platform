@@ -34,7 +34,7 @@ docs/specs/SPEC-NET-007.md          <- canonical WHAT + WHY + contract
 ```
 
 | Artifact | Lives in | Owns |
-|---|---|---|
+| --- | --- | --- |
 | `SPEC-*.md` | `docs/specs/` (git) | The durable contract: WHAT + WHY, numbered `REQ-*` requirements, interfaces, constraints, security/threat-model/ADR/diagram impact, acceptance criteria, verification commands. |
 | GitHub Feature | GitHub Issues | Product framing — persona, milestone, priority, links to the Spec(s) it delivers. No requirements text duplicated here. |
 | GitHub Story / Enabler / Spike | GitHub Issues | A bounded execution contract for one agent session: Agent Context, Read First (the exact Spec path + section), Allowed Scope, Protected Scope, Required Outcome, Required Validation, Required Evidence, Stop Conditions. Points at the Spec; does not re-derive it. |
@@ -64,7 +64,7 @@ field — silence is not.
 ## Current Specs
 
 | Spec | Title | Status | Initiative |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | [SPEC-OCI-001](SPEC-OCI-001.md) | OCI tenancy, compartment, IAM, and state foundation | Ready | I02 |
 | [SPEC-NET-001](SPEC-NET-001.md) | OCI VCN and trust-zone subnet foundation | Ready | I03 |
 | [SPEC-NET-002](SPEC-NET-002.md) | Gateways: IGW / NAT / Service Gateway / DRG | Ready | I03 |

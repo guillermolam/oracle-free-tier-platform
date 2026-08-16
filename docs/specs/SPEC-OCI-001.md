@@ -97,7 +97,7 @@ runtime signal exists yet — this Spec has no running component.
 
 ## Acceptance Criteria
 
-```
+```text
 Given the OCI foundation module is applied in the lab environment
 When `tofu apply` completes
 Then a platform compartment exists as a child of the tenancy root compartment
@@ -108,7 +108,7 @@ And `tofu state show` on the state resource confirms an OCI Object Storage
 
 ## Verification
 
-```
+```bash
 tofu validate
 oci iam compartment list --compartment-id-in-subtree true \
   --query "data[?name=='platform']"

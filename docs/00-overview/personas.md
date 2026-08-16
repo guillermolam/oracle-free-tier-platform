@@ -5,7 +5,7 @@ need artificial human-user framing — see `ENABLER:` stories in
 [docs/specs/README.md](../specs/README.md).
 
 | Persona | Cares about |
-|---|---|
+| --- | --- |
 | Platform Engineer | The maintainer; end-to-end reproducibility from Git. |
 | Cloud Engineer | OCI resource shape, Free Tier envelope, IAM. |
 | DevSecOps Engineer | CI gates, supply-chain integrity, policy enforcement. |

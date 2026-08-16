@@ -8,7 +8,7 @@ doesn't exist yet would be speculative, not documentation.
 ## Planned contents
 
 | Doc | Populated when |
-|---|---|
+| --- | --- |
 | `upgrade-strategy.md` (Talos / Kubernetes / Cilium / Flux) | I24 EPIC-OPS-02, after I05/I07/I12 ship |
 | `credential-rotation.md` | I24 EPIC-OPS-01, after I11 (Secrets & PKI) ships |
 | `incident-response.md` | I24 EPIC-OPS-03 |

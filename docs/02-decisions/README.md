@@ -5,7 +5,7 @@ Each ADR is one file: `ADR-NNNN-short-title.md`, status one of `Proposed`,
 `Architecture` issue template (`.github/ISSUE_TEMPLATE/architecture.yml`).
 
 | ADR | Title | Status |
-|---|---|---|
+| --- | --- | --- |
 | [ADR-0001](ADR-0001-opentofu-terragrunt.md) | OpenTofu + Terragrunt for infrastructure as code | Accepted |
 | [ADR-0002](ADR-0002-talos-node-os.md) | Talos as the node operating system | Accepted |
 | [ADR-0003](ADR-0003-openziti-ztna.md) | OpenZiti for zero-trust administrative access | Accepted |

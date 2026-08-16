@@ -81,7 +81,7 @@ runtime signal — this Spec has no running component.
 
 ## Acceptance Criteria
 
-```
+```text
 Given the network module is applied in the lab environment
 When `tofu apply` completes
 Then exactly one VCN with CIDR 10.10.0.0/16 exists
@@ -92,7 +92,7 @@ And `oci network subnet get` reports prohibit-public-ip-on-vnic=true for
 
 ## Verification
 
-```
+```bash
 tofu validate
 tofu test  # infrastructure/modules/network/*.tftest.hcl
 oci network vcn list --compartment-id $C \

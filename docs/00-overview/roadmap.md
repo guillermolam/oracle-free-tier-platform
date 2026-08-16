@@ -31,7 +31,7 @@ are explicitly deferred past the MVP boundary — tracked, not omitted.
 ## Milestones
 
 | Milestone | Proves | Initiatives | MVP? |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | M0 | Repository & specification foundation | I01, I20 (kickoff), I25 (kickoff) | yes |
 | M1 | OCI network foundation | I02, I03 | yes |
 | M2 | Kubernetes bootstrap | I04, I05, I06 | yes |
@@ -67,7 +67,7 @@ OpenZiti, policy engine = Kyverno, GitOps controller = Flux. Recorded as
 ## Open spikes
 
 | Spike | Question | Blocks |
-|---|---|---|
+| --- | --- | --- |
 | SPIKE-STOR-01 | Longhorn vs Rook/Ceph vs OCI Block Volume CSI under the 200 GB / 2-worker envelope | I15 |
 | SPIKE-RT-01 | youki compatibility with Talos/containerd on ARM64 | I06 |
 | SPIKE-COMP-01 | Ampere A1 shape split within the 4 OCPU / 24 GB total | I04 |

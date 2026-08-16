@@ -17,7 +17,7 @@ Each is created by the PR that implements the Spec listed, not before —
 avoids documentation drifting ahead of what's actually built.
 
 | Diagram | Owning Spec / Initiative |
-|---|---|
+| --- | --- |
 | `network.md` (CIDR + zone-to-subnet reference table) | SPEC-NET-001 |
 | Kubernetes bootstrap sequence | I05 |
 | Identity architecture (SPIFFE + human IdP) | I09, I10 |

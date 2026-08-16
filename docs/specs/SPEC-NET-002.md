@@ -84,7 +84,7 @@ component.
 
 ## Acceptance Criteria
 
-```
+```text
 Given the gateways module is applied in the lab environment
 When `tofu apply` completes
 Then an Internet Gateway, NAT Gateway, and Service Gateway exist attached
@@ -95,7 +95,7 @@ And the DRG has zero route distribution or route table associations
 
 ## Verification
 
-```
+```bash
 tofu validate
 tofu test  # infrastructure/modules/network/*.tftest.hcl
 oci network internet-gateway list --compartment-id $C --vcn-id $VCN

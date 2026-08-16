@@ -17,7 +17,7 @@ The VCN is segmented into exactly four trust zones, each a dedicated
 subnet:
 
 | Zone | CIDR | Holds | Public IP allowed |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Edge | `10.10.10.0/24` | Ingress endpoint, OpenZiti public edge router | Yes — only these two |
 | Management | `10.10.20.0/24` | Talos control plane, `kube-apiserver`, etcd, OpenZiti private router | No |
 | Workload | `10.10.30.0/24` | Talos workers | No |

@@ -85,7 +85,7 @@ component.
 
 ## Acceptance Criteria
 
-```
+```text
 Given the route-tables module is applied in the lab environment
 When `tofu apply` completes
 Then the Edge route table's only 0.0.0.0/0 rule targets the Internet Gateway
@@ -98,7 +98,7 @@ And all four route tables include a rule targeting the Service Gateway for
 
 ## Verification
 
-```
+```bash
 tofu validate
 tofu test  # infrastructure/modules/network/*.tftest.hcl
 oci network route-table list --compartment-id $C --vcn-id $VCN

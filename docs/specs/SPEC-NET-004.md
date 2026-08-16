@@ -100,7 +100,7 @@ noted for I16 to pick up.
 
 ## Acceptance Criteria
 
-```
+```text
 Given the security module is applied in the lab environment
 When `tofu apply` completes
 Then five NSGs exist named ziti, ingress, control, worker, storage
@@ -113,7 +113,7 @@ And each of the four Security Lists denies all ingress not required for
 
 ## Verification
 
-```
+```bash
 tofu validate
 tofu test  # infrastructure/modules/network/*.tftest.hcl, asserts REQ-NET-019/020
 oci network nsg list --compartment-id $C --vcn-id $VCN

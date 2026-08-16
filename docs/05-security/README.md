@@ -7,7 +7,7 @@ security *architecture* documentation, not the reporting policy.
 ## Planned contents
 
 | Doc | Populated when |
-|---|---|
+| --- | --- |
 | `secrets-architecture.md` | I11 (OpenBao, External Secrets Operator, PKI) |
 | `pki-and-cert-lifecycle.md` | I11 EPIC-SEC-03 |
 | `supply-chain.md` | I18 (image signing, SBOM) |
