@@ -6,8 +6,8 @@ flowchart TB
   INTERNET(("Internet"))
   FUTURE_HYBRID["Future on-prem / other cloud (I21)"]
 
-  subgraph TENANCY["OCI Tenancy"]
-    subgraph COMPARTMENT["Platform Compartment"]
+  subgraph TENANCY["ARCH-OCI-TENANCY — OCI Tenancy"]
+    subgraph COMPARTMENT["ARCH-OCI-COMPARTMENT — Platform Compartment"]
       subgraph REGION["Region: eu-madrid-1"]
         subgraph VCN["VCN — ARCH-NET-VCN — 10.10.0.0/16"]
           EDGE["ARCH-ZONE-EDGE — Edge — 10.10.10.0/24"]

@@ -54,13 +54,11 @@ Editor Preview (VS Code Mermaid extensions, etc.)
 `mmdc` accepts is an editor limitation, not a reason to rewrite valid
 Mermaid.
 
-**Version used to validate every diagram in this repository as of this
-writing:** `@mermaid-js/mermaid-cli@11.16.0` (confirmed via `npm list -g`
-in the environment this was authored in). **This version is not currently
-pinned anywhere in the repository** — no `package.json`, no CI step runs
-`mmdc`. `docs.yml` only lints Markdown; it does not validate `.mmd` files.
-This is a real, open gap, not a claim that CI enforces it today — add a
-CI step or a `package.json` devDependency pin as a follow-up.
+**Pinned version:** `@mermaid-js/mermaid-cli@11.16.0` — `package.json`
+devDependency, enforced by the `mermaid` job in `docs.yml` (`npm ci &&
+npm run validate:mermaid`, walking every `.mmd` file under `docs/`). A
+Mermaid syntax regression now fails CI the same way a Markdown lint
+regression does.
 
 ## Vocabulary
 

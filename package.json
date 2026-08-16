@@ -1,0 +1,11 @@
+{
+  "name": "oracle-free-tier-platform-docs",
+  "private": true,
+  "description": "Tooling for validating docs/ architecture artifacts. No application code lives here.",
+  "scripts": {
+    "validate:mermaid": "find docs -name '*.mmd' -print0 | xargs -0 -I{} mmdc -i {} -o /tmp/mmdc-validate.svg"
+  },
+  "devDependencies": {
+    "@mermaid-js/mermaid-cli": "11.16.0"
+  }
+}
