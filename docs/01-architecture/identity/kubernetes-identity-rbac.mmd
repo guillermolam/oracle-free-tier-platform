@@ -1,0 +1,32 @@
+%% VIEW-ID-K8S-RBAC — L3 Kubernetes Identity and RBAC
+%% Question: how are Kubernetes principals authorized?
+%% Governing: standard Kubernetes RBAC mechanism, applied to the two
+%% identity sources this platform already names (VIEW-ID-HUMAN's OIDC
+%% subject, VIEW-ID-WORKLOAD's — no, ServiceAccount is distinct). No
+%% concrete Role/RoleBinding content exists yet — I05/I09/I10 unspec'd.
+%% Cluster-scoped privilege is visually distinct (red) from
+%% namespace-scoped privilege.
+flowchart TB
+  OIDC_USER["OIDC User — IdP DECISION PENDING, SPIKE-IDP-01"]
+  OIDC_GROUP["OIDC group claim"]
+  SA["Kubernetes ServiceAccount"]
+
+  ROLEBINDING_U["RoleBinding"]
+  ROLE_U["Role — no concrete roles defined yet"]
+  NS_U["Namespace resource — see governance/kubernetes-tenancy.mmd"]
+
+  ROLEBINDING_S["RoleBinding"]
+  ROLE_S["Role — no concrete roles defined yet"]
+  NS_S["Namespace resource"]
+
+  CLUSTERROLE["ClusterRole — cluster-scoped"]
+  CLUSTERROLEBINDING["ClusterRoleBinding — cluster-scoped"]
+
+  OIDC_USER --> OIDC_GROUP --> ROLEBINDING_U --> ROLE_U --> NS_U
+  SA --> ROLEBINDING_S --> ROLE_S --> NS_S
+  OIDC_GROUP -.->|"privileged, cluster-scoped"| CLUSTERROLEBINDING --> CLUSTERROLE
+
+  classDef pending fill:#fff6d9,stroke:#b58b00,stroke-dasharray: 4 3;
+  classDef privileged fill:#ffdcdc,stroke:#c0392b,stroke-dasharray: 4 3;
+  class OIDC_USER,ROLE_U,ROLE_S pending;
+  class CLUSTERROLE,CLUSTERROLEBINDING privileged;

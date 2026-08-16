@@ -1,0 +1,53 @@
+%% VIEW-K8S-DEPLOYMENT — L2 Kubernetes Deployment
+%% Question: what runs where inside the Kubernetes infrastructure?
+%% Governing: ADR-0002 (Talos/containerd), ADR-0003 (OpenZiti), ADR-0004
+%% (Kyverno), ADR-0005 (Flux), docs/00-overview/roadmap.md's MVP definition
+%% (Cilium, SPIFFE, OpenBao+ESO named as MVP components)
+%% Placement only — no subsystem is exploded internally. "Named" (blue)
+%% means roadmap/ADR-decided but not yet configured by any Spec;
+%% "unspecified" (grey) means zero evidence anywhere in this repo.
+flowchart TB
+  subgraph MGMT_ZONE["Management Zone (network layer — existing views)"]
+    CP["Talos Control Plane — ADR-0002"]
+    APISERVER["kube-apiserver"]
+    ETCD["etcd"]
+    ZITI_PRIV["OpenZiti private router — ADR-0003"]
+  end
+
+  subgraph WORKLOAD_ZONE["Workload Zone (network layer — existing views)"]
+    WORKERS["Talos Workers — ADR-0002"]
+  end
+
+  subgraph RUNTIME["Container runtime — see container-runtime.mmd"]
+    KUBELET["kubelet"]
+    CONTAINERD["containerd — Talos default, ADR-0002"]
+  end
+
+  subgraph PLATFORM_SUBSYSTEMS["Platform subsystems — named in roadmap.md's MVP definition"]
+    CILIUM["Cilium — CNI, NetworkPolicy"]
+    SPIRE["SPIRE — workload identity"]
+    FLUX["Flux — ADR-0005"]
+    OPENBAO["OpenBao"]
+    ESO["External Secrets Operator"]
+    KYVERNO["Kyverno — ADR-0004"]
+  end
+
+  UNDECIDED["cert-manager / runtime-security agent — no ADR, not named anywhere in this repo"]
+
+  CP --> APISERVER
+  CP --> ETCD
+  CP --> ZITI_PRIV
+  WORKERS --> KUBELET --> CONTAINERD
+
+  WORKERS -.-> CILIUM
+  WORKERS -.-> SPIRE
+  WORKERS -.-> FLUX
+  WORKERS -.-> OPENBAO
+  WORKERS -.-> ESO
+  WORKERS -.-> KYVERNO
+  WORKERS -.-> UNDECIDED
+
+  classDef unspecified fill:#f2f2f2,stroke:#888,stroke-dasharray: 4 3;
+  classDef named fill:#dceeff,stroke:#2980b9,stroke-dasharray: 4 3;
+  class UNDECIDED unspecified;
+  class CILIUM,SPIRE,FLUX,OPENBAO,ESO,KYVERNO named;
