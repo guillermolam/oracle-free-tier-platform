@@ -23,6 +23,15 @@
 - name: area/hybrid
   color: "0e8a16"
   description: DRG, on-prem and cross-cloud connectivity
+- name: area/policy
+  color: "0e8a16"
+  description: Admission policy, governance, Kyverno
+- name: area/platform
+  color: "0e8a16"
+  description: Cross-cutting platform work not owned by a single area
+- name: area/documentation
+  color: "0e8a16"
+  description: docs/, ADRs, runbooks, diagrams
 
 # type/*
 - name: type/feature
@@ -40,6 +49,43 @@
 - name: type/debt
   color: "fbca04"
   description: Technical debt
+- name: type/story
+  color: "c2e0c6"
+  description: User-facing executable increment under a Feature
+- name: type/enabler
+  color: "c2e0c6"
+  description: Technical enabler story under a Feature
+- name: type/spike
+  color: "fbca04"
+  description: Time-boxed research producing a decision artifact
+- name: type/adr
+  color: "6f42c1"
+  description: Architecture Decision Record work
+- name: type/docs
+  color: "0075ca"
+  description: Documentation-only change
+- name: type/operations
+  color: "5319e7"
+  description: Day-2 operational work — runbooks, upgrades, rotation
+
+# priority/*
+- name: priority/p0
+  color: "d73a4a"
+  description: Blocks critical path or mandatory foundation
+- name: priority/p1
+  color: "f9d0c4"
+  description: Required for MVP/platform usability
+- name: priority/p2
+  color: "fbca04"
+  description: Important but not blocking MVP
+- name: priority/p3
+  color: "bfe5bf"
+  description: Future optimization or enhancement
+
+# status/*
+- name: status/blocked
+  color: "5b6672"
+  description: Blocked on a dependency, decision, or spike
 
 # risk/*
 - name: risk/low
