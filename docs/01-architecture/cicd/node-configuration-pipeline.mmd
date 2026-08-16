@@ -1,0 +1,18 @@
+%% VIEW-CICD-NODE-CONFIG — L3 Talos Node Configuration Pipeline
+%% Question: how is a Talos node configuration change applied safely?
+%% Governing: ADR-0002 (Talos), CONTRIBUTING.md/CLAUDE.md ("no SSH, only
+%% talosctl / declarative machine config"). I04 has zero Spec depth for
+%% bootstrap/talos/ content — the pipeline SHAPE below follows from the
+%% ADR's explicit no-SSH constraint; the specifics are all PLANNED.
+flowchart TB
+  SRC["Talos machine-config source — bootstrap/talos/, not yet created, I04"] --> VALIDATE["Validation — not yet defined"]
+  VALIDATE --> SECRETS["Secret-material handling — SOPS-encrypted per CONTRIBUTING.md, not yet Spec'd for Talos specifically"]
+  SECRETS --> GEN["Machine config generation"]
+  GEN --> REVIEW["Review — PR, no dedicated CI job yet"]
+  REVIEW --> TALOSCTL["talosctl — no SSH, ever"]
+  TALOSCTL --> MACHINE["Machine"]
+  MACHINE --> HEALTH["Health verification — not yet defined"]
+  MACHINE -.-> UPGRADE["Upgrade lifecycle — separate concern, not yet Spec'd"]
+
+  classDef planned fill:#f2f2f2,stroke:#888,stroke-dasharray: 4 3;
+  class SRC,VALIDATE,GEN,REVIEW,HEALTH,UPGRADE planned;

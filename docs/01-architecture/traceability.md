@@ -144,6 +144,26 @@ in [`views.md`](views.md).
 | --- | --- | --- | --- |
 | `ARCH-CICD-SUPPLYCHAIN` | The common lifecycle every change goes through, independent of workload class. | VIEW-CICD-SUPPLYCHAIN | VIEW-CICD-IAC |
 | `ARCH-CICD-IAC` | The infrastructure-specific pipeline — the only workload-class pipeline with real, running content today. | VIEW-CICD-IAC | — |
+| `ARCH-CICD-PLATFORM` | The platform-manifest → Flux pipeline shape ADR-0005 mandates; specifics PLANNED, I12. | VIEW-CICD-PLATFORM-GITOPS | VIEW-GOV-PLATFORM |
+| `ARCH-CICD-POLICY` | The policy → Kyverno/Cilium enforcement pipeline shape ADR-0004 mandates; specifics PLANNED, I14. | VIEW-CICD-POLICY | — |
+| `ARCH-CICD-NODE` | The Talos machine-config → talosctl pipeline shape (no SSH, ever); specifics PLANNED, I04. | VIEW-CICD-NODE-CONFIG | — |
+
+### Kubernetes
+
+| ID | Meaning | Primary View | Detail View |
+| --- | --- | --- | --- |
+| `ARCH-K8S-CONTROL` | Kubernetes control-plane placement (kube-apiserver, etcd) — Talos-hosted, network layer already Active. | VIEW-K8S-DEPLOYMENT | VIEW-NET-MANAGEMENT |
+| `ARCH-K8S-WORKER` | Kubernetes worker placement — Talos-hosted. | VIEW-K8S-DEPLOYMENT | VIEW-NET-WORKLOAD |
+| `ARCH-K8S-NETWORK` | The pod/service network layer Cilium owns, distinct from the OCI/node network beneath it. | VIEW-K8S-NETWORK | — |
+| `ARCH-K8S-NAMESPACE` | The namespace boundary concept — every concrete namespace remains a candidate pending I05. | VIEW-GOV-K8S-TENANCY | VIEW-K8S-SECURITY-BOUNDARIES |
+
+### Identity (Kubernetes/workload)
+
+| ID | Meaning | Primary View | Detail View |
+| --- | --- | --- | --- |
+| `ARCH-ID-SPIFFE` | A SPIFFE ID/SVID — the workload identity SPIRE issues, distinct from a Kubernetes ServiceAccount. | VIEW-ID-WORKLOAD | — |
+| `ARCH-ID-SA` | A Kubernetes ServiceAccount — contributes to SPIFFE attestation but is not the SPIFFE identity itself. | VIEW-ID-K8S-RBAC | VIEW-ID-WORKLOAD |
+| `ARCH-ID-RBAC` | The Kubernetes RBAC authorization mechanism (Role/RoleBinding/ClusterRole/ClusterRoleBinding). | VIEW-ID-K8S-RBAC | VIEW-GOV-K8S-TENANCY |
 
 This list grows only when a Spec needs a concept it doesn't already cover.
 Don't pre-mint IDs for initiatives that haven't reached specification depth

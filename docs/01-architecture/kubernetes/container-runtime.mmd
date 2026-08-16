@@ -1,0 +1,13 @@
+%% VIEW-K8S-RUNTIME — L3 Container Runtime
+%% Question: what is the runtime hierarchy from kubelet down to the OCI runtime?
+%% Governing: ADR-0002 (containerd is Talos's default), SPIKE-RT-01 (youki, open)
+%% containerd, runc, and youki are NOT shown as equivalent peers — they sit
+%% at different abstraction layers (CRI shim vs. OCI runtime vs. an
+%% alternative OCI runtime still under evaluation).
+flowchart TB
+  KUBELET["kubelet"] -->|"CRI"| CONTAINERD["containerd — Talos default, ADR-0002"]
+  CONTAINERD -->|"OCI runtime"| RUNC["runc"]
+  CONTAINERD -.->|"experimental alternative — SPIKE-RT-01, open"| YOUKI["youki"]
+
+  classDef pending fill:#fff6d9,stroke:#b58b00,stroke-dasharray: 4 3;
+  class YOUKI pending;

@@ -1,0 +1,34 @@
+%% VIEW-K8S-NETWORK — L2 Kubernetes Network
+%% Question: how does traffic move through OCI, nodes, Cilium, services,
+%% and workloads?
+%% Governing: docs/00-overview/roadmap.md MVP definition (Cilium named),
+%% existing network/* views (OCI/node layer)
+%% OCI network, node network, pod network, and service network are kept
+%% as distinct layers. Pod/Service CIDR values are DECISION PENDING — no
+%% Spec sets them yet. OpenZiti's identity overlay is explicitly NOT
+%% conflated with Cilium's workload identity — see VIEW-ID-ZITI.
+flowchart TB
+  VCN["OCI VCN — see network/network-overview.mmd"] --> VNIC["Node VNIC"]
+  VNIC --> CILIUM["Cilium dataplane — named in roadmap.md MVP definition"]
+
+  CILIUM --> PODNET["Pod network — Pod CIDR: DECISION PENDING"]
+  CILIUM --> SVCNET["Service network — Service CIDR: DECISION PENDING"]
+
+  PODNET --> PODPOD["pod-to-pod"]
+  SVCNET --> PODSVC["pod-to-service"]
+  VNIC --> NODENODE["node-to-node"]
+  VNIC --> APINODE["API-to-node / node-to-API"]
+
+  CILIUM --> CILIUM_NP["Cilium NetworkPolicy — named in roadmap.md, rules not yet Spec'd"]
+  CILIUM --> CILIUM_ID["Cilium identity"]
+  CILIUM -.-> HUBBLE["Hubble — candidate, not decided anywhere in this repo"]
+  CILIUM -.-> GWAPI["Gateway API — not evaluated, zero evidence"]
+
+  VNIC -.->|"distinct identity plane — not conflated with Cilium identity"| ZITI["OpenZiti overlay — ADR-0003, see VIEW-ID-ZITI"]
+  VCN --> EGRESS["Private egress — NAT Gateway, SPEC-NET-002"]
+  VCN --> INGRESS["Public ingress — Edge zone, SPEC-NET-004"]
+
+  classDef pending fill:#fff6d9,stroke:#b58b00,stroke-dasharray: 4 3;
+  classDef unspecified fill:#f2f2f2,stroke:#888,stroke-dasharray: 4 3;
+  class PODNET,SVCNET,CILIUM_NP pending;
+  class HUBBLE,GWAPI unspecified;

@@ -1,0 +1,18 @@
+%% VIEW-CICD-POLICY — L3 Policy Pipeline
+%% Question: how does a policy change reach enforcement?
+%% Governing: ADR-0004 (Kyverno owns Kubernetes admission policy — not
+%% OPA/Gatekeeper), docs/00-overview/roadmap.md (Cilium policy named).
+%% I14 has zero Spec depth — the engine choice is decided, the actual
+%% policy content and CI wiring are PLANNED. Conftest/OPA are not shown:
+%% zero evidence they're used anywhere in this repo.
+flowchart TB
+  POLICIES["Policy source — Kyverno rules (ADR-0004), Cilium policy (roadmap.md)"] --> TESTS["Policy tests — not yet defined, I14"]
+  TESTS --> PR["Pull Request"]
+  PR --> CIVALIDATE["CI validation — no dedicated job yet"]
+  CIVALIDATE --> MERGE["Merge"]
+  MERGE --> FLUX["Flux — ADR-0005"]
+  FLUX --> ADMISSION["Kyverno admission enforcement — PLANNED"]
+  FLUX --> NETENFORCE["Cilium network enforcement — PLANNED"]
+
+  classDef planned fill:#f2f2f2,stroke:#888,stroke-dasharray: 4 3;
+  class TESTS,CIVALIDATE,ADMISSION,NETENFORCE planned;
