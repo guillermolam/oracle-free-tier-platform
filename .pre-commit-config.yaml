@@ -28,13 +28,13 @@ repos:
     hooks:
       - id: mermaid-validate
         name: Mermaid diagram validation (mmdc)
-        entry: bash -c 'if [ ! -x node_modules/.bin/mmdc ]; then echo "ERROR: @mermaid-js/mermaid-cli not installed. Run: npm ci"; exit 1; fi; for f in "$@"; do echo "validating $f"; node_modules/.bin/mmdc -p docs/mermaid-puppeteer-config.json -i "$f" -o /tmp/mmdc-precommit.svg >/dev/null || exit 1; done' --
+        entry: scripts/validate-mermaid.sh
         language: system
         files: '\.mmd$'
         pass_filenames: true
 
       - id: check-dco
         name: Developer Certificate of Origin (Signed-off-by)
-        entry: bash -c 'grep -q "^Signed-off-by:" "$1" || { echo "ERROR: Commit message missing Signed-off-by trailer. Use \"git commit -s\"."; exit 1; }' --
+        entry: "bash -c 'grep -q \"^Signed-off-by:\" \"$1\" || { echo \"ERROR - Commit message missing Signed-off-by trailer. Use git commit -s.\"; exit 1; }' --"
         language: system
         stages: [commit-msg]
