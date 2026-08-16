@@ -1,0 +1,24 @@
+%% VIEW-CICD-IAC — L3 Infrastructure CI/CD
+%% Question: what happens to an OpenTofu/Terragrunt change from commit to
+%% applied infrastructure?
+%% Governing: .github/workflows/validate.yml, plan.yml (live),
+%% SPEC-OCI-001 REQ-OCI-005..007, ADR-0001, ADR-0007
+%% GitHub Actions never applies — matches ADR-0005's constraint that CI
+%% only validates and plans.
+flowchart TB
+  SRC["OpenTofu / Terragrunt source — ARCH-CICD-IAC"] --> FMT["tofu fmt -check"]
+  FMT --> VALIDATE["tofu validate"]
+  VALIDATE --> TEST["tofu test (*.tftest.hcl)"]
+  TEST --> TFLINT["TFLint"]
+  TFLINT --> SECSCAN["Security scan — gitleaks, semgrep, zizmor, trivy (security.yml)"]
+  SECSCAN --> POLICY["Checkov policy scan — hard-fail (validate.yml)"]
+  POLICY --> PLAN["tofu plan — plan.yml, gated on infrastructure/live/**"]
+  PLAN --> AUTH["OCI auth: static keys via GitHub Actions secrets (REQ-OCI-006) — OIDC federation PLANNED, EPIC-OCI-04"]
+  PLAN --> STATEBACKEND["State backend — REQ-OCI-005/007, two-phase bootstrap"]
+  PLAN --> ARTIFACT["Plan artifact uploaded for review"]
+  ARTIFACT --> REVIEW["PR review — 0 required approvals, solo maintainer; CI checks required"]
+  REVIEW --> APPLY["Controlled apply — manual, outside CI (GitHub Actions never applies)"]
+  APPLY --> DRIFT["Drift detection — PLANNED, I23"]
+
+  classDef planned fill:#f2f2f2,stroke:#888,stroke-dasharray: 4 3;
+  class DRIFT planned;
