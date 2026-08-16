@@ -1,0 +1,35 @@
+%% VIEW-NET-DATA — L3 Data Zone detail
+%% Question: how is the Data trust zone configured, and where does it end?
+%% Governing: SPEC-NET-001, SPEC-NET-003, SPEC-NET-004
+%% Explicitly separates: network data-zone concepts (specified, M1) from
+%% compute block-volume attachment mechanics (I15, unspecified) from OCI
+%% Object Storage backup access (I19, reserved). Ambiguity is exposed, not
+%% resolved by invention.
+flowchart TB
+  subgraph DATA["Data Zone — ARCH-ZONE-DATA — 10.10.40.0/24 — NO INTERNET INGRESS"]
+    STORAGE_VNIC["Storage-attached compute"]
+    STORAGE_NOTE["Detail owned by I15 — not yet specified"]
+    BACKUP_EP["Backup endpoint"]
+    BACKUP_NOTE["Detail owned by I19 — not yet specified"]
+    DATA_SL["Data Security List — default-deny baseline"]
+    NSG_STORAGE["storage NSG"]
+    DATA_RT["Data Route Table"]
+  end
+
+  SGW["Service Gateway"]
+  OBJSTORE["OCI Object Storage backup target — ARCH-SVC-BACKUP-BUCKET, reserved for I19/M9"]
+  BLOCKVOL["OCI Block Volume service — attachment mechanics not yet specified (I15)"]
+
+  STORAGE_VNIC --> NSG_STORAGE
+  STORAGE_VNIC --> DATA_RT --> SGW
+  BACKUP_EP --> DATA_RT
+  SGW -.-> OBJSTORE
+  STORAGE_VNIC -.->|"ambiguous — not yet specified"| BLOCKVOL
+  STORAGE_VNIC -.-> STORAGE_NOTE
+  BACKUP_EP -.-> BACKUP_NOTE
+  DATA_SL -.->|"default-deny backstop"| STORAGE_VNIC
+
+  classDef unspecified fill:#f2f2f2,stroke:#888,stroke-dasharray: 4 3;
+  classDef reserved fill:#ffe9d6,stroke:#d35400,stroke-dasharray: 4 3;
+  class STORAGE_VNIC,BACKUP_EP,BLOCKVOL,STORAGE_NOTE,BACKUP_NOTE unspecified;
+  class OBJSTORE reserved;
