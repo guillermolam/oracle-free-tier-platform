@@ -27,12 +27,19 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.event.after }}
         run: |
           set -euo pipefail
           if [ "$EVENT_NAME" = "pull_request" ]; then
             COMMITS=$(git rev-list "${BASE_SHA}..${HEAD_SHA}")
+          elif [ -n "$BEFORE_SHA" ] && [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]; then
+            # Check only new commits in the push (not the entire history)
+            COMMITS=$(git rev-list "${BEFORE_SHA}..${AFTER_SHA}")
           else
-            COMMITS=$(git rev-list -n 20 HEAD)
+            # Initial push or no previous commits; skip DCO check
+            echo "Initial push or no previous commits; skipping DCO check."
+            exit 0
           fi
 
           if [ -z "$COMMITS" ]; then
