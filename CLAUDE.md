@@ -15,25 +15,23 @@ progress before assuming a component exists.
 - Full validation gate (run before pushing): `pre-commit run --all-files`
 - OpenTofu, once `infrastructure/modules/` or `infrastructure/compositions/`
   exist: `tofu fmt -recursive infrastructure`, `tflint --recursive`,
-  `checkov -d infrastructure`, and, **per module/composition directory**
-  (there's no root-level config to validate against): `cd` into each
-  directory containing `main.tf`, `tofu init -backend=false`, then
-  `tofu validate` — and `tofu test` for any directory containing
-  `*.tftest.hcl` (mirrors `.github/workflows/validate.yml`'s actual loop;
-  running `tofu validate` unqualified from the repo root validates nothing
-  useful once modules exist).
+  `checkov -d infrastructure`, and — critically — validate each
+  configuration directory individually, never from the repo root. There is
+  no root-level config to validate against once modules/compositions exist:
+  `cd` into each directory containing `main.tf`, run `tofu init
+  -backend=false`, then `tofu validate`; also run `tofu test` in any
+  directory containing `*.tftest.hcl`. This matches
+  `.github/workflows/validate.yml`'s actual loop and avoids a false green
+  from an unqualified `tofu validate` run at the repository root.
 - Markdown lint, matching CI (`.github/workflows/docs.yml`):
   `npx markdownlint-cli2 --config .markdownlint-cli2.yaml "docs/**/*.md" "README.md" "SECURITY.md" "CONTRIBUTING.md" ".github/**/*.md"`.
   Add `--fix` first — most findings are MD060 (tables must use the
   *compact* pipe style: `| --- | --- |`, no interior padding) and MD040
   (every fenced code block needs a language tag, e.g. `bash` or `text`);
   `--fix` resolves MD060 automatically but not MD040.
-- Commits **must** be GPG-signed and DCO-attested: `git commit -s -S`.
-  Only the DCO trailer is actually verified by tooling — both
-  `.githooks/commit-msg` and `.github/workflows/dco.yml` check for a
-  `Signed-off-by:` line, not a valid GPG signature. GPG signing is a repo
-  convention enforced by discipline (and by GitHub's own commit-signature
-  UI), not by either of those checks.
+- Commits **must** be DCO-attested **and** GPG-signed: `git commit -s -S`.
+  Every commit must include a valid `Signed-off-by:` trailer and a valid
+  GPG signature.
 - There is no application code or test suite yet — don't invent
   `npm test` / `make build` / similar. `package.json` exists solely for
   `docs/` tooling (`@mermaid-js/mermaid-cli`, pinned and used by
