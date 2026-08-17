@@ -36,6 +36,14 @@ repos:
         pass_filenames: false
         stages: [pre-commit]
 
+      - id: check-gpg-signing-test
+        name: GPG commit-signing checker self-test
+        entry: scripts/check-gpg-signing.test.sh
+        language: system
+        files: '^scripts/check-gpg-signing(\.test)?\.sh$'
+        pass_filenames: false
+        stages: [pre-commit]
+
       - id: mermaid-validate
         name: Mermaid diagram validation (mmdc)
         entry: scripts/validate-mermaid.sh
