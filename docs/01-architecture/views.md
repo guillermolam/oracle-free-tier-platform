@@ -280,6 +280,158 @@ maps to Specs and ARCH-* concept IDs.
 - **Related views:** VIEW-CICD-SUPPLYCHAIN
 - **Status:** Active
 
+### VIEW-K8S-DEPLOYMENT
+
+- **File:** `kubernetes/kubernetes-deployment.mmd`
+- **Level:** L2 — Domain Architecture (Kubernetes)
+- **Purpose:** What runs where inside the Kubernetes infrastructure?
+- **Audience:** Platform Engineers, autonomous agents implementing I04/I05.
+- **Scope:** Placement only. Talos control plane/workers (ADR-0002),
+  containerd (ADR-0002), OpenZiti private router (ADR-0003) are real;
+  Cilium/SPIRE/Flux/OpenBao/ESO/Kyverno are named in `roadmap.md`'s MVP
+  definition but not yet configured; cert-manager and a runtime-security
+  agent are named nowhere in this repo and shown as explicitly undecided.
+- **Out of scope:** Internal configuration of any subsystem — this is
+  placement, not application flow.
+- **Governing Specs:** none directly — ADR-0002, ADR-0003, ADR-0004,
+  ADR-0005, `docs/00-overview/roadmap.md`.
+- **Related views:** VIEW-K8S-RUNTIME, VIEW-NET-MANAGEMENT, VIEW-NET-WORKLOAD
+- **Status:** Active
+
+### VIEW-K8S-RUNTIME
+
+- **File:** `kubernetes/container-runtime.mmd`
+- **Level:** L3 — Component Detail
+- **Purpose:** What is the runtime hierarchy from kubelet to the OCI runtime?
+- **Audience:** Platform Engineers.
+- **Scope:** kubelet → containerd (ADR-0002) → runc, with youki shown as
+  the still-open `SPIKE-RT-01` alternative — never as an equivalent peer.
+- **Out of scope:** Kata/gVisor — zero evidence either is being considered.
+- **Governing Specs:** none directly — ADR-0002, `SPIKE-RT-01`.
+- **Related views:** VIEW-K8S-DEPLOYMENT
+- **Status:** Active
+
+### VIEW-K8S-NETWORK
+
+- **File:** `kubernetes/kubernetes-network.mmd`
+- **Level:** L2 — Domain Architecture (Kubernetes)
+- **Purpose:** How does traffic move through OCI, nodes, Cilium, services,
+  and workloads?
+- **Audience:** Platform/Security Engineers, autonomous agents implementing I07.
+- **Scope:** OCI/node/pod/service network kept as distinct layers; Cilium
+  named (roadmap.md); Pod/Service CIDR marked DECISION PENDING (no Spec
+  sets them); Hubble and Gateway API marked as zero-evidence candidates.
+  OpenZiti's identity overlay explicitly not conflated with Cilium identity.
+- **Out of scope:** OpenZiti policy internals (see VIEW-ID-ZITI).
+- **Governing Specs:** none directly — `docs/00-overview/roadmap.md`.
+- **Related views:** VIEW-ID-ZITI, VIEW-NET-OVERVIEW
+- **Status:** Active
+
+### VIEW-K8S-SECURITY-BOUNDARIES
+
+- **File:** `kubernetes/kubernetes-security-boundaries.mmd`
+- **Level:** L3 — Component Detail
+- **Purpose:** Where are the major Kubernetes security boundaries?
+- **Audience:** Security Engineers, future threat-model phase (EPIC-TM-01).
+- **Scope:** A boundary inventory (OCI VCN through runtime security),
+  each boundary labeled by its actual evidence status — not a
+  configuration.
+- **Out of scope:** Configuring any boundary — that's each owning Spec's job.
+- **Governing Specs:** SPEC-NET-* (transitively), ADR-0002/0003/0004.
+- **Related views:** VIEW-K8S-DEPLOYMENT, VIEW-K8S-NETWORK, VIEW-ID-K8S-RBAC
+- **Status:** Active
+
+### VIEW-ID-WORKLOAD
+
+- **File:** `identity/workload-identity.mmd`
+- **Level:** L2 — Domain Architecture (Identity)
+- **Purpose:** How does a Kubernetes workload obtain and use workload identity?
+- **Audience:** Security Engineers, autonomous agents implementing I09.
+- **Scope:** SPIFFE Trust Domain → SPIRE Server/Agent → attestation → SPIFFE
+  ID/SVID, named in `roadmap.md`'s MVP definition. ServiceAccount and Pod
+  shown contributing to attestation, never as the identity itself.
+  Cross-cluster federation marked DECISION PENDING (`SPIKE-SPIFFE-01`).
+- **Out of scope:** Kubernetes RBAC (see VIEW-ID-K8S-RBAC) — a
+  ServiceAccount is a separate principal from a SPIFFE ID.
+- **Governing Specs:** none directly — `docs/00-overview/roadmap.md`,
+  `SPIKE-SPIFFE-01`.
+- **Related views:** VIEW-ID-K8S-RBAC
+- **Status:** Active
+
+### VIEW-ID-K8S-RBAC
+
+- **File:** `identity/kubernetes-identity-rbac.mmd`
+- **Level:** L3 — Component Detail
+- **Purpose:** How are Kubernetes principals authorized?
+- **Audience:** Security Engineers, future IAM/RBAC-optimization phase.
+- **Scope:** The standard Kubernetes RBAC mechanism (OIDC subject/group and
+  ServiceAccount → RoleBinding → Role, plus cluster-scoped
+  ClusterRole/ClusterRoleBinding shown as visually distinct/privileged).
+  No concrete Role content exists — I05/I09/I10 unspec'd.
+- **Out of scope:** Which namespaces/roles actually exist (see
+  VIEW-GOV-K8S-TENANCY).
+- **Governing Specs:** none directly — standard Kubernetes RBAC applied to
+  this platform's named identity sources.
+- **Related views:** VIEW-ID-HUMAN, VIEW-ID-WORKLOAD, VIEW-GOV-K8S-TENANCY
+- **Status:** Active
+
+### VIEW-GOV-K8S-TENANCY
+
+- **File:** `governance/kubernetes-tenancy.mmd`
+- **Level:** L3 — Component Detail
+- **Purpose:** Where are namespace, policy, identity, and ownership boundaries?
+- **Audience:** Platform Engineers, future IAM/RBAC-optimization phase.
+- **Scope:** A candidate namespace taxonomy (none Spec'd — I05 has zero
+  depth) plus the generic per-namespace structure (ServiceAccount, RBAC,
+  NetworkPolicy, admission, quota, secrets, ownership) every real
+  namespace will carry once specified.
+- **Out of scope:** Asserting any namespace as decided.
+- **Governing Specs:** none — explicitly provisional pending I05.
+- **Related views:** VIEW-ID-K8S-RBAC, VIEW-K8S-SECURITY-BOUNDARIES
+- **Status:** Active
+
+### VIEW-CICD-PLATFORM-GITOPS
+
+- **File:** `cicd/platform-gitops-pipeline.mmd`
+- **Level:** L3 — Component Detail
+- **Purpose:** How does a platform-manifest change reach the cluster?
+- **Audience:** Platform Engineers, autonomous agents implementing I12.
+- **Scope:** The pipeline shape ADR-0005 already mandates (Flux
+  reconciles, GitHub Actions never deploys); every stage's specifics
+  (validation job, policy check, `platform/` layout) marked PLANNED.
+- **Out of scope:** Kyverno policy content (see VIEW-CICD-POLICY).
+- **Governing Specs:** none directly — ADR-0005.
+- **Related views:** VIEW-CICD-POLICY, VIEW-GOV-PLATFORM
+- **Status:** Active
+
+### VIEW-CICD-POLICY
+
+- **File:** `cicd/policy-pipeline.mmd`
+- **Level:** L3 — Component Detail
+- **Purpose:** How does a policy change reach enforcement?
+- **Audience:** Security Engineers, autonomous agents implementing I14.
+- **Scope:** Kyverno (ADR-0004) and Cilium policy (roadmap.md) named as
+  the engines; policy content, tests, and CI wiring all marked PLANNED.
+  Conftest/OPA not shown — zero evidence either is used in this repo.
+- **Out of scope:** Namespace-level policy assignment (see
+  VIEW-GOV-K8S-TENANCY).
+- **Governing Specs:** none directly — ADR-0004.
+- **Related views:** VIEW-CICD-PLATFORM-GITOPS
+- **Status:** Active
+
+### VIEW-CICD-NODE-CONFIG
+
+- **File:** `cicd/node-configuration-pipeline.mmd`
+- **Level:** L3 — Component Detail
+- **Purpose:** How is a Talos node configuration change applied safely?
+- **Audience:** Platform Engineers, autonomous agents implementing I04.
+- **Scope:** The pipeline shape ADR-0002's explicit "no SSH, only
+  talosctl" constraint mandates; every stage's specifics marked PLANNED.
+- **Out of scope:** Compute provisioning itself (see `SPEC-OCI-*`).
+- **Governing Specs:** none directly — ADR-0002, `CONTRIBUTING.md`.
+- **Related views:** VIEW-K8S-DEPLOYMENT
+- **Status:** Active
+
 ## Planned views
 
 Registered so they aren't reinvented ad hoc later, and so their absence is
@@ -288,22 +440,13 @@ reaches specification depth — see `docs/00-overview/roadmap.md`.
 
 | View ID | Domain | Owning initiative | Elaborated at |
 | --- | --- | --- | --- |
-| VIEW-ID-WORKLOAD | SPIFFE/SPIRE workload identity issuance/consumption | I09 | M4 |
-| VIEW-ID-K8S-RBAC | OIDC subject/ServiceAccount → RoleBinding → Role/ClusterRole | I05, I09, I10 | M2/M4 |
-| VIEW-GOV-K8S-TENANCY | Namespace boundaries, quotas, admission scope | I05 | M2 |
-| VIEW-K8S-DEPLOYMENT | What Kubernetes/platform component runs where | I04, I05, I06 | M2 |
-| VIEW-K8S-NETWORK | Cilium/CNI, Pod/Service CIDR, NetworkPolicy | I07 | M3 |
-| VIEW-K8S-SECURITY-BOUNDARIES | Cross-cutting K8s trust boundaries (depends on the four rows above existing first) | I05, I07, I09 | M3/M4 |
 | VIEW-SECURITY-ZTNA-POLICY | OpenZiti dial/bind/service policy objects (network-identity intersection is already Active — see VIEW-ID-ZITI) | I08 | M3 |
 | VIEW-SERVICE-MESH | Service mesh / mTLS layer ownership | **undecided — no initiative names this decision yet** | unscheduled |
 | VIEW-SECRETS | OpenBao, ESO, PKI | I11 | M4 |
 | VIEW-SECURITY-TRUST-BOUNDARIES | DFD-derived trust boundaries | I20 (EPIC-TM-01) | ongoing from M0, first artifact expected around M3 |
 | VIEW-STORAGE | Longhorn/SeaweedFS/backup topology | I15 | M6 |
 | VIEW-OBSERVABILITY | Metrics/logs/traces architecture | I16 | M7 |
-| VIEW-CICD-PLATFORM-GITOPS | Flux reconciliation pipeline | I12 | M5 |
 | VIEW-CICD-APPLICATION | Application container pipeline | **no owning initiative — this program's I01-I25 model has no application-workload initiative; may never apply unless one is added** | unscheduled |
-| VIEW-CICD-POLICY | Kyverno/Cilium/Conftest policy pipeline | I14 | M8 |
-| VIEW-CICD-NODE-CONFIG | Talos node configuration pipeline | I04 | M2 |
 | VIEW-CICD-SECURITY-CONTENT | Tetragon/Falco security-content pipeline | I17 | M7 |
 | VIEW-SUPPLY-CHAIN-CONTENT | SBOM/signing/provenance detail populating VIEW-CICD-SUPPLYCHAIN's already-scaffolded shape | I18 | M8 |
 | VIEW-HYBRID | Real DRG peering/routing once active | I21 | M11 |

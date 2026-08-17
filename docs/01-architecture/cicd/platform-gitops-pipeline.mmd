@@ -1,0 +1,19 @@
+%% VIEW-CICD-PLATFORM-GITOPS — L3 Platform GitOps Pipeline
+%% Question: how does a platform-manifest change reach the cluster?
+%% Governing: ADR-0005 (Flux owns K8s desired state, GitHub Actions never
+%% deploys). I12 has zero Spec depth — the shape below follows directly
+%% from ADR-0005 and CONTRIBUTING.md's ownership rule; the specifics
+%% (validation job, policy check, platform/ layout) are all PLANNED.
+flowchart TB
+  CONFIG["Platform config — platform/ directory, not yet created, I12"] --> PR["Pull Request"]
+  PR --> VALIDATION["Validation — CI job not yet defined for platform/"]
+  VALIDATION --> POLICY["Policy — Kyverno pre-admission check, not yet Spec'd"]
+  POLICY --> MERGE["Merge"]
+  MERGE --> FLUXSRC["Flux source-controller — ADR-0005"]
+  FLUXSRC --> RECONCILE["Reconciliation — kustomize/helm-controller"]
+  RECONCILE --> K8SAPI["Kubernetes API"]
+  K8SAPI --> HEALTH["Health status"]
+  HEALTH -.-> REMEDIATION["Rollback / remediation — conceptual, not yet implemented"]
+
+  classDef planned fill:#f2f2f2,stroke:#888,stroke-dasharray: 4 3;
+  class CONFIG,VALIDATION,POLICY,RECONCILE,HEALTH,REMEDIATION planned;

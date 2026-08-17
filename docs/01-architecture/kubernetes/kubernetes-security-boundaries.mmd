@@ -1,0 +1,32 @@
+%% VIEW-K8S-SECURITY-BOUNDARIES — L3 Kubernetes Security Boundaries
+%% Question: where are the major Kubernetes security boundaries?
+%% Governing: everything below it in the chain — SPEC-NET-*, ADR-0002/3/4,
+%% VIEW-K8S-DEPLOYMENT, VIEW-K8S-NETWORK, VIEW-ID-* (all Active or above)
+%% This is a boundary inventory, not a configuration — it names each
+%% boundary and its evidence status without asserting specific rules.
+%% Primary future threat-model input (EPIC-TM-01).
+flowchart TB
+  B1["OCI VCN boundary — SPEC-NET-001..006"]
+  B2["Node boundary — Talos, ADR-0002"]
+  B3["Control-plane boundary — Management zone, REQ-NET-019"]
+  B4["Namespace boundary — candidate only, see governance/kubernetes-tenancy.mmd"]
+  B5["Pod boundary"]
+  B6["ServiceAccount boundary — mechanism only, no roles Spec'd"]
+  B7["NetworkPolicy boundary — Cilium named, rules not Spec'd"]
+  B8["SPIFFE trust domain — named in roadmap.md, federation open (SPIKE-SPIFFE-01)"]
+  B9["Secret boundary — OpenBao named, policy not Spec'd"]
+  B10["Admission boundary — Kyverno, ADR-0004, policy not Spec'd"]
+  B11["Runtime security boundary — no tool named anywhere in this repo"]
+
+  B1 --> B2 --> B3
+  B2 --> B4 --> B5 --> B6
+  B5 --> B7
+  B5 --> B8
+  B5 --> B9
+  B3 --> B10
+  B5 --> B11
+
+  classDef pending fill:#fff6d9,stroke:#b58b00,stroke-dasharray: 4 3;
+  classDef unspecified fill:#f2f2f2,stroke:#888,stroke-dasharray: 4 3;
+  class B4,B6,B7,B8,B9,B10 pending;
+  class B11 unspecified;

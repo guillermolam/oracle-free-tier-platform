@@ -19,8 +19,8 @@ with conflicting architecture, that's drift: a bug, not a style choice.
 | --- | --- | --- |
 | **L0 — System Context** | What is this platform and what external systems interact with it? | `context/platform-context.mmd` |
 | **L1 — Cloud Deployment** | Where are the major platform components deployed? | `docs/arch/cloud-deployment.mmd` |
-| **L2 — Domain Architecture** | How does one platform domain work? | `network/network-overview.mmd`, `network/traffic-flows.mmd`, `identity/oci-identity-governance.mmd`, `identity/human-identity.mmd`, `governance/platform-governance.mmd`, `cicd/software-supply-chain.mmd` |
-| **L3 — Component / Zone Detail** | How is this particular domain or trust zone configured? | `network/routing.mmd`, `network/edge-zone.mmd`, `network/management-zone.mmd`, `network/workload-zone.mmd`, `network/data-zone.mmd`, `governance/oci-access-control.mmd`, `identity/openziti-identity-network.mmd`, `cicd/iac-pipeline.mmd` |
+| **L2 — Domain Architecture** | How does one platform domain work? | `network/network-overview.mmd`, `network/traffic-flows.mmd`, `identity/oci-identity-governance.mmd`, `identity/human-identity.mmd`, `identity/workload-identity.mmd`, `governance/platform-governance.mmd`, `cicd/software-supply-chain.mmd`, `kubernetes/kubernetes-deployment.mmd`, `kubernetes/kubernetes-network.mmd` |
+| **L3 — Component / Zone Detail** | How is this particular domain or trust zone configured? | `network/routing.mmd`, `network/edge-zone.mmd`, `network/management-zone.mmd`, `network/workload-zone.mmd`, `network/data-zone.mmd`, `governance/oci-access-control.mmd`, `governance/kubernetes-tenancy.mmd`, `identity/openziti-identity-network.mmd`, `identity/kubernetes-identity-rbac.mmd`, `cicd/iac-pipeline.mmd`, `cicd/platform-gitops-pipeline.mmd`, `cicd/policy-pipeline.mmd`, `cicd/node-configuration-pipeline.mmd`, `kubernetes/container-runtime.mmd`, `kubernetes/kubernetes-security-boundaries.mmd` |
 | **L4 — Dynamic / Flow View** | What happens during a particular operation? | none yet — see `views.md`'s Dynamic flow views note |
 
 Diagrams may intentionally repeat architectural concepts across levels —
@@ -44,7 +44,12 @@ current commit status.
 
 See [`views.md`](views.md) for every active view (ID, level, purpose,
 audience, scope, out-of-scope, governing Specs, status) and every
-registered-but-not-yet-elaborated planned view.
+registered-but-not-yet-elaborated planned view. See
+[`identity-reconciliation.md`](identity-reconciliation.md) for the
+delivery identity matrix, governance matrix, and cross-domain identity
+reconciliation — the durable record behind every identity claim these
+views make, including where two similarly-named principals are
+deliberately *not* the same one.
 
 ## Navigation
 
@@ -66,26 +71,27 @@ Architecture
     │     ├── OCI Identity      (identity/oci-identity-governance.mmd)
     │     ├── Human Identity      (identity/human-identity.mmd)
     │     ├── OpenZiti              (identity/openziti-identity-network.mmd)
-    │     ├── Workload Identity        — planned, I09 (views.md)
-    │     └── Kubernetes RBAC             — planned, I05/I09/I10 (views.md)
+    │     ├── Workload Identity        (identity/workload-identity.mmd)
+    │     └── Kubernetes RBAC             (identity/kubernetes-identity-rbac.mmd)
     │
     ├── Governance
     │     ├── OCI Access Control   (governance/oci-access-control.mmd)
     │     ├── Platform Governance    (governance/platform-governance.mmd)
-    │     └── Kubernetes Tenancy        — planned, I05 (views.md)
+    │     └── Kubernetes Tenancy        (governance/kubernetes-tenancy.mmd)
     │
     ├── Kubernetes
-    │     ├── Deployment   — planned, I04/I05/I06 (views.md)
-    │     ├── Network        — planned, I07 (views.md)
-    │     └── Security Boundaries — planned, I05/I07/I09 (views.md)
+    │     ├── Deployment   (kubernetes/kubernetes-deployment.mmd)
+    │     ├── Runtime         (kubernetes/container-runtime.mmd)
+    │     ├── Network            (kubernetes/kubernetes-network.mmd)
+    │     └── Security Boundaries   (kubernetes/kubernetes-security-boundaries.mmd)
     │
     ├── CI/CD
     │     ├── Supply Chain   (cicd/software-supply-chain.mmd)
     │     ├── IaC              (cicd/iac-pipeline.mmd)
-    │     ├── Platform GitOps    — planned, I12 (views.md)
+    │     ├── Platform GitOps    (cicd/platform-gitops-pipeline.mmd)
     │     ├── Application          — no owning initiative (views.md)
-    │     ├── Policy                 — planned, I14 (views.md)
-    │     ├── Node Configuration       — planned, I04 (views.md)
+    │     ├── Policy                 (cicd/policy-pipeline.mmd)
+    │     ├── Node Configuration       (cicd/node-configuration-pipeline.mmd)
     │     └── Security Content           — planned, I17 (views.md)
     │
     ├── Security         — planned trust-boundaries synthesis, I08/I20 (views.md)

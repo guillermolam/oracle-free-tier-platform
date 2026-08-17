@@ -1,0 +1,33 @@
+%% VIEW-ID-WORKLOAD — L2 SPIFFE/SPIRE Workload Identity
+%% Question: how does a Kubernetes workload obtain and use workload identity?
+%% Governing: docs/00-overview/roadmap.md MVP definition (SPIFFE named),
+%% roadmap.md SPIKE-SPIFFE-01 (federation model, open)
+%% ServiceAccount and Pod are shown contributing to attestation, never as
+%% the SPIFFE identity itself — a Kubernetes ServiceAccount != a SPIFFE ID.
+flowchart TB
+  TRUSTDOMAIN["SPIFFE Trust Domain — named in roadmap.md MVP definition"]
+  SPIRE_SERVER["SPIRE Server"]
+  SPIRE_AGENT["SPIRE Agent"]
+  NODE_ATTEST["Node attestation — mechanism not yet Spec'd"]
+  WORKLOAD_ATTEST["Workload attestation — mechanism not yet Spec'd"]
+  SPIFFE_ID["SPIFFE ID"]
+  SVID["SVID"]
+  POD["Kubernetes Pod"]
+  SA["Kubernetes ServiceAccount"]
+  OPENBAO["OpenBao — integration PLANNED, I11"]
+  MTLS["mTLS consumer — PLANNED"]
+  FEDERATION["Cross-cluster federation — DECISION PENDING, SPIKE-SPIFFE-01"]
+
+  TRUSTDOMAIN --> SPIRE_SERVER --> SPIRE_AGENT
+  SPIRE_AGENT --> NODE_ATTEST --> WORKLOAD_ATTEST
+  WORKLOAD_ATTEST --> SPIFFE_ID --> SVID
+  POD -.->|"contributes to attestation — is NOT this identity"| WORKLOAD_ATTEST
+  SA -.->|"contributes to attestation — is NOT this identity"| WORKLOAD_ATTEST
+  SVID -.-> OPENBAO
+  SVID -.-> MTLS
+  TRUSTDOMAIN -.-> FEDERATION
+
+  classDef pending fill:#fff6d9,stroke:#b58b00,stroke-dasharray: 4 3;
+  classDef planned fill:#f2f2f2,stroke:#888,stroke-dasharray: 4 3;
+  class NODE_ATTEST,WORKLOAD_ATTEST,FEDERATION pending;
+  class OPENBAO,MTLS planned;
