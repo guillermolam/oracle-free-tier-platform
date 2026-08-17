@@ -1,0 +1,39 @@
+%% VIEW-GOV-K8S-TENANCY — L3 Kubernetes Tenancy and Namespace Governance
+%% Question: where are namespace, policy, identity, and ownership boundaries?
+%% Governing: none — I05 has zero Spec depth. Every namespace name below is
+%% a CANDIDATE, not a decision; none exists in any Spec or ADR yet.
+flowchart TB
+  subgraph CANDIDATES["Candidate namespace taxonomy — none Spec'd, I05"]
+    NS_FLUX["flux-system"]
+    NS_NET["networking"]
+    NS_ID["identity"]
+    NS_SEC["security"]
+    NS_SECRETS["secrets"]
+    NS_STOR["storage"]
+    NS_OBS["observability"]
+    NS_DELIVERY["delivery"]
+    NS_PLATFORM["platform-system"]
+    NS_WORKLOAD["workload namespaces"]
+  end
+
+  NS_EXAMPLE["Namespace (generic — structure below applies once real)"]
+  SA_EXAMPLE["ServiceAccount"]
+  RBAC_EXAMPLE["RBAC — see identity/kubernetes-identity-rbac.mmd"]
+  NP_EXAMPLE["NetworkPolicy — Cilium named, rules not Spec'd"]
+  ADM_EXAMPLE["Admission policy — Kyverno named, not Spec'd"]
+  QUOTA_EXAMPLE["ResourceQuota — not Spec'd"]
+  LIMIT_EXAMPLE["LimitRange — not Spec'd"]
+  SECRET_EXAMPLE["Secrets boundary — OpenBao/ESO named, not Spec'd"]
+  OWNER_EXAMPLE["Workload ownership — not Spec'd"]
+
+  NS_EXAMPLE --> SA_EXAMPLE --> RBAC_EXAMPLE
+  NS_EXAMPLE --> NP_EXAMPLE
+  NS_EXAMPLE --> ADM_EXAMPLE
+  NS_EXAMPLE --> QUOTA_EXAMPLE
+  NS_EXAMPLE --> LIMIT_EXAMPLE
+  NS_EXAMPLE --> SECRET_EXAMPLE
+  NS_EXAMPLE --> OWNER_EXAMPLE
+
+  classDef candidate fill:#f2f2f2,stroke:#888,stroke-dasharray: 4 3;
+  class NS_FLUX,NS_NET,NS_ID,NS_SEC,NS_SECRETS,NS_STOR,NS_OBS,NS_DELIVERY,NS_PLATFORM,NS_WORKLOAD candidate;
+  class NP_EXAMPLE,ADM_EXAMPLE,QUOTA_EXAMPLE,LIMIT_EXAMPLE,SECRET_EXAMPLE,OWNER_EXAMPLE candidate;
