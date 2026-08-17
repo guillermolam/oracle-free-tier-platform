@@ -92,8 +92,8 @@
     },
     "locationRef": {
       "type": "string",
-      "pattern": "^(ARCH-[A-Z0-9-]+|EXTERNAL)$",
-      "description": "A trust-zone or scope location: an ARCH-ZONE-*/ARCH-NET-*/ARCH-OCI-* concept, or EXTERNAL."
+      "pattern": "^(ARCH-[A-Z0-9-]+|SCOPE-[A-Z0-9-]+|EXTERNAL)$",
+      "description": "A trust-zone or scope location: an ARCH-ZONE-*/ARCH-NET-*/ARCH-OCI-* concept, a SCOPE-* fallback (a scope with no matching ARCH-* concept), or EXTERNAL."
     },
     "identityRef": { "type": "string", "pattern": "^IDENT-[A-Z0-9-]+$" },
     "principalRef": { "type": "string", "pattern": "^(IDENT-[A-Z0-9-]+|ACTOR-[A-Z0-9-]+)$" },

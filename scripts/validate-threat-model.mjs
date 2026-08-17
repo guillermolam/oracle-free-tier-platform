@@ -57,7 +57,7 @@ const COLLECTION_KEYS = [
 // Top-level scalar fields on any collection item that must resolve to a known ID.
 const REF_SCALAR_FIELDS = [
   "trust_zone_ref", "source_ref", "destination_ref", "class_ref", "traffic_class_ref",
-  "parent_ref", "subject_ref", "subject_identity_ref",
+  "parent_ref", "subject_ref", "subject_identity_ref", "scope_ref",
   "technical_owner_ref", "security_owner_ref", "data_owner_ref",
 ];
 // Top-level array fields (of plain string refs) that must resolve.
