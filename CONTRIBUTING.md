@@ -5,12 +5,14 @@ source of truth for what is deployed. Treat every change as a reviewable unit.
 
 ## Workflow
 
-1. Branch from `main` using a short descriptive name: `feat/`, `fix/`, `docs/`.
-2. Commit with GPG-signed commits and Developer Certificate of Origin (`git commit -s -S`).
+1. Enable repository hooks once with `git config core.hooksPath .githooks` and
+   install `pre-commit`.
+2. Branch from `main` using a short descriptive name: `feat/`, `fix/`, `docs/`.
+3. Commit with GPG-signed commits and Developer Certificate of Origin (`git commit -s -S`).
    Signing and DCO sign-off (`Signed-off-by:`) are mandatory.
-3. Open a Pull Request. The PR template lists the required checks.
-4. CI must pass before merging: `validate`, `security`, `docs`, `dco`, and `plan`.
-5. Merge via squash.
+4. Open a Pull Request. The PR template lists the required checks.
+5. CI must pass before merging: `validate`, `security`, `docs`, `dco`, and `plan`.
+6. Merge via squash.
 
 ## Ownership model
 
@@ -24,6 +26,7 @@ source of truth for what is deployed. Treat every change as a reviewable unit.
 Run before pushing:
 
 ```sh
+scripts/check-gpg-signing.sh
 pre-commit run --all-files
 tofu fmt -recursive infrastructure
 tofu validate
