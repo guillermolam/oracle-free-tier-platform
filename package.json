@@ -4,7 +4,8 @@
   "description": "Tooling for validating docs/ architecture artifacts. No application code lives here.",
   "scripts": {
     "validate:mermaid": "find docs -name '*.mmd' -print0 | xargs -0 -I{} mmdc -p docs/mermaid-puppeteer-config.json -i {} -o /tmp/mmdc-validate.svg",
-    "validate:threat-model": "node scripts/validate-threat-model.mjs"
+    "validate:threat-model": "node scripts/validate-threat-model.mjs",
+    "test:threat-model": "node scripts/validate-threat-model.test.mjs"
   },
   "devDependencies": {
     "@mermaid-js/mermaid-cli": "11.16.0",

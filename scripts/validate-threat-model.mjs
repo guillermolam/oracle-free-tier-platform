@@ -1,16 +1,30 @@
 #!/usr/bin/env node
 // Validates every docs/03-threat-model/model/instances/*.yaml file against
 // docs/03-threat-model/model/schema/threat-model.schema.json, then checks
-// corpus-wide referential integrity: no duplicate IDs across files, and
-// every *_ref field resolves to a real ID (a corpus element, a known
-// ARCH-* concept from traceability.md, or the literal 'EXTERNAL').
+// corpus-wide invariants beyond what JSON Schema alone can express:
 //
-// Known limitation: ref resolution checks *existence*, not *type* —
+//   1. No duplicate IDs across files.
+//   2. Every *_ref field resolves to a real ID (a corpus element, a known
+//      ARCH-* concept read live from traceability.md — not a separately
+//      maintained copy that could drift — or the literal 'EXTERNAL').
+//   3. No two identities' maps_to entries disagree about same_principal
+//      for the same pair.
+//   4. Every element with state=implemented has >=1 evidence entry with
+//      status=implemented — an element's curated state can't outrun what
+//      any of its sources actually assert.
+//   5. Every element with state=decision-pending has >=1 gaps[] entry
+//      whose subject_ref names it (scoped to top-level element state
+//      only, not nested authn/authz-mechanism/transport state — see
+//      README for why that's a deliberate v2 scope limit, not an
+//      oversight).
+//
+// Known limitation: ref resolution (#2) checks *existence*, not *type* —
 // e.g. a `trust_zone_ref` pointing at an ASSET-* id would pass this check
 // even though it's semantically wrong. Schema `pattern` constraints catch
-// the common case (most ref fields are typed by ID prefix); the free-form
-// ref fields (trust_zone_ref, source_ref, destination_ref, owner_refs,
-// separates) are existence-checked only.
+// the common case; policy.resource_refs and credential issuer_ref/
+// storage_ref are intentionally NOT existence-checked, since they may
+// legitimately name something outside this corpus (an OCI resource path,
+// an external system) rather than another corpus element.
 import { readFileSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -27,15 +41,30 @@ try {
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "..");
 const MODEL_DIR = join(REPO_ROOT, "docs/03-threat-model/model");
-const INSTANCES_DIR = join(MODEL_DIR, "instances");
-const SCHEMA_PATH = join(MODEL_DIR, "schema/threat-model.schema.json");
-const TRACEABILITY_PATH = join(REPO_ROOT, "docs/01-architecture/traceability.md");
 
-const REF_ARRAY_FIELDS = [
-  "identity_refs", "maps_to", "owner_refs", "asset_refs",
-  "data_asset_refs", "crosses_boundary_refs", "separates",
+// Overridable for testing against fixture corpora (see check-gpg-signing.sh
+// for the equivalent pattern used elsewhere in this repo: isolate, don't
+// mock the logic under test).
+const INSTANCES_DIR = process.env.THREAT_MODEL_INSTANCES_DIR || join(MODEL_DIR, "instances");
+const SCHEMA_PATH = process.env.THREAT_MODEL_SCHEMA_PATH || join(MODEL_DIR, "schema/threat-model.schema.json");
+const TRACEABILITY_PATH = process.env.THREAT_MODEL_TRACEABILITY_PATH || join(REPO_ROOT, "docs/01-architecture/traceability.md");
+
+const COLLECTION_KEYS = [
+  "scopes", "trust_zones", "trust_boundaries", "actors", "identities", "credentials",
+  "components", "processes", "data_stores", "assets", "data_flows", "policies", "controls", "gaps",
 ];
-const REF_SCALAR_FIELDS = ["trust_zone_ref", "source_ref", "destination_ref", "class_ref", "traffic_class_ref"];
+
+// Top-level scalar fields on any collection item that must resolve to a known ID.
+const REF_SCALAR_FIELDS = [
+  "trust_zone_ref", "source_ref", "destination_ref", "class_ref", "traffic_class_ref",
+  "parent_ref", "subject_ref", "subject_identity_ref", "scope_ref",
+  "technical_owner_ref", "security_owner_ref", "data_owner_ref",
+];
+// Top-level array fields (of plain string refs) that must resolve.
+const REF_ARRAY_FIELDS = [
+  "identity_refs", "owner_refs", "asset_refs", "data_asset_refs", "crosses_boundary_refs",
+  "side_a_refs", "side_b_refs", "implements_refs", "principal_refs",
+];
 
 function loadArchIds() {
   const text = readFileSync(TRACEABILITY_PATH, "utf8");
@@ -43,11 +72,32 @@ function loadArchIds() {
 }
 
 function collectionKeys(doc) {
-  return ["trust_zones", "trust_boundaries", "actors", "identities", "processes", "data_stores", "assets", "data_flows"]
-    .filter((k) => Array.isArray(doc[k]));
+  return COLLECTION_KEYS.filter((k) => Array.isArray(doc[k]));
 }
 
-function main() {
+function checkRef(file, item, label, ref, allKnownIds, errors) {
+  if (ref && !allKnownIds.has(ref)) {
+    errors.push(`FAILED (dangling ref) - ${file}: ${item.id}.${label} -> '${ref}' not found`);
+  }
+}
+
+function checkMechanisms(file, item, fieldName, mechanisms, allKnownIds, errors) {
+  if (!Array.isArray(mechanisms)) return;
+  mechanisms.forEach((m, i) => {
+    checkRef(file, item, `${fieldName}.mechanisms[${i}].identity_ref`, m.identity_ref, allKnownIds, errors);
+    for (const ref of m.policy_refs || []) {
+      checkRef(file, item, `${fieldName}.mechanisms[${i}].policy_refs[]`, ref, allKnownIds, errors);
+    }
+    for (const ref of m.principal_refs || []) {
+      checkRef(file, item, `${fieldName}.mechanisms[${i}].principal_refs[]`, ref, allKnownIds, errors);
+    }
+    // authority_ref is intentionally not existence-checked: it may name an
+    // ARCH-* concept, a component, or (per the schema's own description)
+    // something not yet minted as a corpus element.
+  });
+}
+
+async function main() {
   const schema = JSON.parse(readFileSync(SCHEMA_PATH, "utf8"));
   const ajv = new Ajv2020({ allErrors: true, strict: true });
   const validate = ajv.compile(schema);
@@ -60,8 +110,9 @@ function main() {
     process.exit(1);
   }
 
-  let failed = false;
+  const errors = [];
   const idOwner = new Map(); // id -> file it was first seen in
+  const idToItem = new Map(); // id -> item, for the same_principal/state checks
   const allKnownIds = new Set(["EXTERNAL", ...archIds]);
   const perFileDocs = [];
 
@@ -73,10 +124,9 @@ function main() {
 
     const ok = validate(doc);
     if (!ok) {
-      failed = true;
-      console.error(`FAILED (schema) - ${file}`);
+      errors.push(`FAILED (schema) - ${file}`);
       for (const err of validate.errors) {
-        console.error(`  ${err.instancePath || "(root)"} ${err.message}`);
+        errors.push(`  ${err.instancePath || "(root)"} ${err.message}`);
       }
       continue;
     }
@@ -84,10 +134,10 @@ function main() {
     for (const key of collectionKeys(doc)) {
       for (const item of doc[key]) {
         if (idOwner.has(item.id)) {
-          failed = true;
-          console.error(`FAILED (duplicate id) - ${item.id} in ${file} already defined in ${idOwner.get(item.id)}`);
+          errors.push(`FAILED (duplicate id) - ${item.id} in ${file} already defined in ${idOwner.get(item.id)}`);
         } else {
           idOwner.set(item.id, file);
+          idToItem.set(item.id, item);
           allKnownIds.add(item.id);
         }
       }
@@ -95,8 +145,9 @@ function main() {
     console.log(`PASS (schema) - ${file}`);
   }
 
-  if (failed) {
-    console.error("\nSchema/duplicate-id errors found — skipping referential-integrity pass.");
+  if (errors.length > 0) {
+    console.error(errors.join("\n"));
+    console.error("\nSchema/duplicate-id errors found — skipping remaining checks.");
     process.exit(1);
   }
 
@@ -105,33 +156,74 @@ function main() {
     for (const key of collectionKeys(doc)) {
       for (const item of doc[key]) {
         for (const field of REF_SCALAR_FIELDS) {
-          const val = item[field];
-          if (val && !allKnownIds.has(val)) {
-            failed = true;
-            console.error(`FAILED (dangling ref) - ${file}: ${item.id}.${field} -> '${val}' not found`);
-          }
+          checkRef(file, item, field, item[field], allKnownIds, errors);
         }
         for (const field of REF_ARRAY_FIELDS) {
-          const arr = item[field];
-          if (!Array.isArray(arr)) continue;
-          for (const entry of arr) {
-            const ref = typeof entry === "string" ? entry : entry.identity_ref;
-            if (ref && !allKnownIds.has(ref)) {
-              failed = true;
-              console.error(`FAILED (dangling ref) - ${file}: ${item.id}.${field}[] -> '${ref}' not found`);
-            }
+          for (const ref of item[field] || []) checkRef(file, item, `${field}[]`, ref, allKnownIds, errors);
+        }
+        for (const entry of item.maps_to || []) {
+          checkRef(file, item, "maps_to[].identity_ref", entry.identity_ref, allKnownIds, errors);
+        }
+        if (item.authentication) checkMechanisms(file, item, "authentication", item.authentication.mechanisms, allKnownIds, errors);
+        if (item.authorization) checkMechanisms(file, item, "authorization", item.authorization.mechanisms, allKnownIds, errors);
+      }
+    }
+  }
+
+  // Pass 3: same_principal consistency — if A says (B, same_principal=X) and
+  // B also says (A, same_principal=Y), X must equal Y.
+  for (const { file, doc } of perFileDocs) {
+    for (const identity of doc.identities || []) {
+      for (const entry of identity.maps_to || []) {
+        const target = idToItem.get(entry.identity_ref);
+        if (!target || !Array.isArray(target.maps_to)) continue;
+        const reverse = target.maps_to.find((e) => e.identity_ref === identity.id);
+        if (reverse && reverse.same_principal !== entry.same_principal) {
+          errors.push(
+            `FAILED (contradictory same_principal) - ${file}: ${identity.id} says same_principal=${entry.same_principal} ` +
+              `for ${entry.identity_ref}, but ${entry.identity_ref} says same_principal=${reverse.same_principal} for ${identity.id}`
+          );
+        }
+      }
+    }
+  }
+
+  // Pass 4: state=implemented requires >=1 evidence entry with status=implemented.
+  for (const { file, doc } of perFileDocs) {
+    for (const key of collectionKeys(doc)) {
+      for (const item of doc[key]) {
+        if (item.state === "implemented") {
+          const hasImplementedEvidence = (item.evidence || []).some((e) => e.status === "implemented");
+          if (!hasImplementedEvidence) {
+            errors.push(`FAILED (unsupported implemented) - ${file}: ${item.id} has state=implemented but no evidence entry has status=implemented`);
           }
         }
       }
     }
   }
 
-  if (failed) {
-    console.error("\nReferential-integrity errors found.");
+  // Pass 5: state=decision-pending requires a gaps[] entry naming this element.
+  const gapSubjects = new Set();
+  for (const { doc } of perFileDocs) {
+    for (const gap of doc.gaps || []) gapSubjects.add(gap.subject_ref);
+  }
+  for (const { file, doc } of perFileDocs) {
+    for (const key of collectionKeys(doc)) {
+      if (key === "gaps") continue;
+      for (const item of doc[key]) {
+        if (item.state === "decision-pending" && !gapSubjects.has(item.id)) {
+          errors.push(`FAILED (undocumented decision-pending) - ${file}: ${item.id} has state=decision-pending but no gaps[] entry has subject_ref='${item.id}'`);
+        }
+      }
+    }
+  }
+
+  if (errors.length > 0) {
+    console.error(errors.join("\n"));
     process.exit(1);
   }
 
-  console.log(`\nAll ${files.length} instance file(s) valid. ${idOwner.size} corpus IDs, all references resolve.`);
+  console.log(`\nAll ${files.length} instance file(s) valid. ${idOwner.size} corpus IDs, all invariants hold.`);
 }
 
 main();

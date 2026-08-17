@@ -1,27 +1,43 @@
 domain: network
-model_version: 0.1.0
+schema_version: 2.0.0
+model_version: 0.2.0
 generated_from:
-  - source_type: arch-view
-    ref: VIEW-NET-OVERVIEW
-    status: specified
-  - source_type: arch-view
-    ref: VIEW-NET-TRAFFIC
-    status: specified
-  - source_type: spec
-    ref: SPEC-NET-001.md
-    status: specified
-  - source_type: spec
-    ref: SPEC-NET-002.md
-    status: specified
-  - source_type: spec
-    ref: SPEC-NET-004.md
-    status: specified
-  - source_type: adr
-    ref: ADR-0003
-    status: specified
-  - source_type: adr
-    ref: ADR-0006
-    status: specified
+  - { source_type: arch-view, ref: VIEW-NET-OVERVIEW, status: specified }
+  - { source_type: arch-view, ref: VIEW-NET-TRAFFIC, status: specified }
+  - { source_type: spec, ref: "SPEC-NET-001.md", status: specified }
+  - { source_type: spec, ref: "SPEC-NET-002.md", status: specified }
+  - { source_type: spec, ref: "SPEC-NET-004.md", status: specified }
+  - { source_type: adr, ref: ADR-0003, status: specified }
+  - { source_type: adr, ref: ADR-0006, status: specified }
+  - { source_type: adr, ref: ADR-0008, status: specified }
+
+scopes:
+  - id: ARCH-OCI-TENANCY
+    name: OCI tenancy
+    description: The OCI tenancy as the outermost administrative containment scope.
+    scope_type: tenancy
+    state: specified
+    evidence:
+      - { source_type: arch-view, ref: VIEW-NET-OVERVIEW, status: specified }
+
+  - id: ARCH-OCI-COMPARTMENT
+    name: Platform compartment
+    description: Isolates platform resources from the tenancy root via compartment-scoped IAM policy.
+    scope_type: compartment
+    parent_ref: ARCH-OCI-TENANCY
+    state: specified
+    evidence:
+      - { source_type: arch-view, ref: VIEW-NET-OVERVIEW, status: specified }
+      - { source_type: spec, ref: "SPEC-OCI-001.md", status: specified }
+
+  - id: ARCH-NET-VCN
+    name: Platform VCN
+    description: The platform VCN (10.10.0.0/16), containing all four trust zones. Also a network security perimeter — see trust_boundaries for its actual crossing points, not this containment relationship.
+    scope_type: network-perimeter
+    parent_ref: ARCH-OCI-COMPARTMENT
+    state: specified
+    evidence:
+      - { source_type: spec, ref: "SPEC-NET-001.md", status: specified }
 
 trust_zones:
   - id: ARCH-ZONE-EDGE
@@ -29,6 +45,8 @@ trust_zones:
     description: Public-facing subnet — the only zone permitted a public IP.
     network_cidr: 10.10.10.0/24
     public_ip_allowed: true
+    parent_ref: ARCH-NET-VCN
+    state: specified
     evidence:
       - { source_type: spec, ref: "SPEC-NET-001.md", status: specified }
       - { source_type: adr, ref: ADR-0006, status: specified }
@@ -38,6 +56,8 @@ trust_zones:
     description: Control-plane/administrative subnet — Kubernetes API, etcd, Ziti private router.
     network_cidr: 10.10.20.0/24
     public_ip_allowed: false
+    parent_ref: ARCH-NET-VCN
+    state: specified
     evidence:
       - { source_type: spec, ref: "SPEC-NET-001.md", status: specified }
       - { source_type: adr, ref: ADR-0006, status: specified }
@@ -47,6 +67,8 @@ trust_zones:
     description: Talos worker subnet.
     network_cidr: 10.10.30.0/24
     public_ip_allowed: false
+    parent_ref: ARCH-NET-VCN
+    state: specified
     evidence:
       - { source_type: spec, ref: "SPEC-NET-001.md", status: specified }
       - { source_type: adr, ref: ADR-0006, status: specified }
@@ -56,54 +78,27 @@ trust_zones:
     description: Storage/backup subnet.
     network_cidr: 10.10.40.0/24
     public_ip_allowed: false
+    parent_ref: ARCH-NET-VCN
+    state: specified
     evidence:
       - { source_type: spec, ref: "SPEC-NET-001.md", status: specified }
       - { source_type: adr, ref: ADR-0006, status: specified }
 
 trust_boundaries:
-  - id: ARCH-OCI-TENANCY
-    name: OCI tenancy boundary
-    description: The OCI tenancy as the outermost structural/administrative boundary.
-    boundary_type: administrative-domain
-    separates: ["EXTERNAL", "ARCH-OCI-COMPARTMENT"]
-    evidence:
-      - { source_type: arch-view, ref: VIEW-NET-OVERVIEW, status: specified }
-
-  - id: ARCH-OCI-COMPARTMENT
-    name: Platform compartment boundary
-    description: Isolates platform resources from the tenancy root via compartment-scoped IAM policy.
-    boundary_type: administrative-domain
-    separates: ["ARCH-OCI-TENANCY", "ARCH-NET-VCN"]
-    evidence:
-      - { source_type: arch-view, ref: VIEW-NET-OVERVIEW, status: specified }
-      - { source_type: spec, ref: "SPEC-OCI-001.md", status: specified }
-
-  - id: ARCH-NET-VCN
-    name: VCN perimeter
-    description: The platform VCN (10.10.0.0/16) as a network security perimeter around all four trust zones.
-    boundary_type: network-perimeter
-    separates: ["ARCH-OCI-COMPARTMENT", "ARCH-ZONE-EDGE", "ARCH-ZONE-MGMT", "ARCH-ZONE-WORKLOAD", "ARCH-ZONE-DATA"]
-    evidence:
-      - { source_type: spec, ref: "SPEC-NET-001.md", status: specified }
-
   - id: TB-INTERNET-EDGE
-    name: Internet-to-Edge boundary
-    description: The Internet Gateway — the only path from the public internet into the VCN, terminating in the Edge zone.
+    name: Internet-to-Edge boundary (Internet Gateway)
+    description: >-
+      The Internet Gateway — the only path from the public internet into the
+      VCN, terminating in the Edge zone. A genuine two-sided crossing point,
+      not a containment relationship (compare scopes[] for tenancy/
+      compartment/VCN containment, which is NOT modeled as a boundary here).
     boundary_type: network-perimeter
-    separates: ["EXTERNAL", "ARCH-ZONE-EDGE"]
+    side_a_refs: ["EXTERNAL"]
+    side_b_refs: ["ARCH-ZONE-EDGE"]
+    state: specified
     evidence:
       - { source_type: spec, ref: "SPEC-NET-002.md", status: specified }
       - { source_type: arch-view, ref: ARCH-GW-IGW, status: specified }
-
-  - id: TB-ZONE-ISOLATION
-    name: Inter-zone isolation boundary
-    description: NSG/Security-List-enforced isolation between the four trust zones — the control NSG's 6443 restriction (REQ-NET-019) is the security-critical instance of this boundary.
-    boundary_type: network-perimeter
-    separates: ["ARCH-ZONE-EDGE", "ARCH-ZONE-MGMT", "ARCH-ZONE-WORKLOAD", "ARCH-ZONE-DATA"]
-    evidence:
-      - { source_type: spec, ref: "SPEC-NET-004.md#REQ-NET-018", status: specified }
-      - { source_type: spec, ref: "SPEC-NET-004.md#REQ-NET-019", status: specified }
-      - { source_type: spec, ref: "SPEC-NET-004.md#REQ-NET-020", status: specified }
 
 actors:
   - id: ACTOR-ADMINISTRATOR
@@ -113,6 +108,7 @@ actors:
       The sole human actor with administrative access to the Kubernetes API.
       Reaches it only via OpenZiti — never a direct network path (ADR-0003).
     identity_refs: ["IDENT-ZITI-ADMIN"]
+    state: specified
     evidence:
       - { source_type: adr, ref: ADR-0003, status: specified }
       - { source_type: arch-view, ref: ARCH-FLOW-ADMIN, status: specified }
@@ -127,116 +123,270 @@ identities:
       The OpenZiti identity a dial/bind policy authorizes to reach the
       Kubernetes API via the Ziti private router. OpenZiti application
       configuration itself (enrollment, specific dial/bind policy content)
-      is out of scope for I03/SPEC-NET-004 — owned by I08, not yet at Spec
-      depth (roadmap.md).
+      is owned by I08, not yet at Spec depth.
+    state: planned
     evidence:
       - { source_type: adr, ref: ADR-0003, status: specified }
       - { source_type: spec, ref: "SPEC-NET-004.md#REQ-NET-019", status: specified }
       - { source_type: roadmap, ref: "roadmap.md#I08", status: planned }
 
-processes:
-  - id: PROC-ZITI-PUBLIC-ROUTER
-    name: OpenZiti public edge router
+credentials:
+  - id: CRED-ZITI-ADMIN-IDENTITY
+    name: Administrator's OpenZiti identity material
+    credential_type: openziti-identity-material
+    subject_identity_ref: IDENT-ZITI-ADMIN
+    state: planned
+    evidence:
+      - { source_type: adr, ref: ADR-0003, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I08", status: planned }
+
+  - id: CRED-K8S-API-CREDENTIAL
+    name: Kubernetes-side administrative credential
+    credential_type: other
+    subject_identity_ref: IDENT-ZITI-ADMIN
     description: >-
-      Internet-facing OpenZiti fabric ingress point in the Edge zone. Router
-      placement/existence is named by ADR-0003 and docs/arch/cloud-deployment.mmd;
+      Whatever Kubernetes-side credential the administrator presents after
+      the Ziti hop — kubeconfig client cert, OIDC token, or something else,
+      genuinely undecided pending I09/I10's identity-provider choice.
+    state: decision-pending
+    evidence:
+      - { source_type: roadmap, ref: "roadmap.md#I10", status: planned }
+
+components:
+  - id: COMP-ZITI-PUBLIC-ROUTER
+    name: OpenZiti public edge router
+    component_type: network-control
+    description: >-
+      Internet-facing OpenZiti fabric ingress point in the Edge zone.
+      Placement/existence named by ADR-0003 and cloud-deployment.mmd;
       OpenZiti-specific configuration is owned by I08, not yet Spec'd.
     trust_zone_ref: ARCH-ZONE-EDGE
+    state: planned
     evidence:
       - { source_type: adr, ref: ADR-0003, status: specified }
       - { source_type: roadmap, ref: "roadmap.md#I08", status: planned }
 
-  - id: PROC-ZITI-PRIVATE-ROUTER
+  - id: COMP-ZITI-PRIVATE-ROUTER
     name: OpenZiti private router
-    description: >-
-      Management-zone OpenZiti router the public router's fabric hands
-      administrative traffic to before it reaches the Kubernetes API.
+    component_type: network-control
+    description: Management-zone OpenZiti router the public router's fabric hands administrative traffic to.
     trust_zone_ref: ARCH-ZONE-MGMT
+    state: planned
     evidence:
       - { source_type: adr, ref: ADR-0003, status: specified }
       - { source_type: roadmap, ref: "roadmap.md#I08", status: planned }
 
-  - id: PROC-KUBE-APISERVER
+  - id: COMP-KUBE-APISERVER
     name: kube-apiserver
+    component_type: control-plane
     description: >-
       Kubernetes API server — Talos-hosted control-plane process in the
-      Management zone. This file specifies its network-layer placement and
-      ingress restriction only; the Kubernetes bootstrap itself is I05,
-      not yet at Spec depth.
+      Management zone. Network-layer placement/ingress-restriction is
+      specified here; the Kubernetes bootstrap itself is I05, not yet at
+      Spec depth.
     trust_zone_ref: ARCH-ZONE-MGMT
+    state: specified
     evidence:
       - { source_type: spec, ref: "SPEC-NET-004.md#REQ-NET-019", status: specified }
       - { source_type: arch-view, ref: ARCH-K8S-CONTROL, status: specified }
       - { source_type: roadmap, ref: "roadmap.md#I05", status: planned }
 
-  - id: PROC-WORKER-NODE
+  - id: COMP-WORKER-NODE
     name: Talos worker node
+    component_type: compute
     description: >-
-      Talos worker in the Workload zone. Must reach kube-apiserver on 6443
-      (kubelet, kube-proxy, and other node components) — the reason the
-      control NSG permits the worker NSG on that port (REQ-NET-019).
+      Talos worker in the Workload zone. kubelet/kube-proxy must reach
+      kube-apiserver on 6443 — the reason the control NSG permits the
+      worker NSG on that port (REQ-NET-019).
     trust_zone_ref: ARCH-ZONE-WORKLOAD
+    state: specified
     evidence:
       - { source_type: spec, ref: "SPEC-NET-004.md#REQ-NET-019", status: specified }
       - { source_type: arch-view, ref: ARCH-K8S-WORKER, status: specified }
 
-  - id: PROC-INTERNET-GATEWAY
+  - id: COMP-INTERNET-GATEWAY
     name: Internet Gateway
+    component_type: network-gateway
     description: Edge zone's sole internet-facing ingress point.
     trust_zone_ref: ARCH-NET-VCN
+    state: specified
     evidence:
       - { source_type: spec, ref: "SPEC-NET-002.md", status: specified }
       - { source_type: arch-view, ref: ARCH-GW-IGW, status: specified }
 
-  - id: PROC-NAT-GATEWAY
+  - id: COMP-NAT-GATEWAY
     name: NAT Gateway
+    component_type: network-gateway
     description: Private egress for Management/Workload/Data zones.
     trust_zone_ref: ARCH-NET-VCN
+    state: specified
     evidence:
       - { source_type: spec, ref: "SPEC-NET-002.md", status: specified }
       - { source_type: arch-view, ref: ARCH-GW-NAT, status: specified }
 
-  - id: PROC-SERVICE-GATEWAY
+  - id: COMP-SERVICE-GATEWAY
     name: Service Gateway
-    description: Private OCI service access for all four zones (Object Storage, KMS, Logging, Monitoring).
+    component_type: network-gateway
+    description: Private OCI service access for all four zones.
     trust_zone_ref: ARCH-NET-VCN
+    state: specified
     evidence:
       - { source_type: spec, ref: "SPEC-NET-002.md", status: specified }
       - { source_type: arch-view, ref: ARCH-GW-SGW, status: specified }
+
+  - id: COMP-ZITI-NSG
+    name: ziti NSG
+    component_type: security-control
+    description: One of the five purpose-built NSGs (REQ-NET-017) — Ziti routers' membership.
+    state: specified
+    evidence:
+      - { source_type: spec, ref: "SPEC-NET-004.md#REQ-NET-017", status: specified }
+
+  - id: COMP-INGRESS-NSG
+    name: ingress NSG
+    component_type: security-control
+    description: One of the five purpose-built NSGs (REQ-NET-017) — application ingress membership.
+    state: specified
+    evidence:
+      - { source_type: spec, ref: "SPEC-NET-004.md#REQ-NET-017", status: specified }
+
+  - id: COMP-CONTROL-NSG
+    name: control NSG
+    component_type: security-control
+    description: >-
+      One of the five purpose-built NSGs (REQ-NET-017) — protects
+      kube-apiserver. REQ-NET-019's 6443 restriction is enforced here.
+    state: specified
+    evidence:
+      - { source_type: spec, ref: "SPEC-NET-004.md#REQ-NET-017", status: specified }
+      - { source_type: spec, ref: "SPEC-NET-004.md#REQ-NET-019", status: specified }
+
+  - id: COMP-WORKER-NSG
+    name: worker NSG
+    component_type: security-control
+    description: One of the five purpose-built NSGs (REQ-NET-017) — Talos worker membership.
+    state: specified
+    evidence:
+      - { source_type: spec, ref: "SPEC-NET-004.md#REQ-NET-017", status: specified }
+
+  - id: COMP-STORAGE-NSG
+    name: storage NSG
+    component_type: security-control
+    description: One of the five purpose-built NSGs (REQ-NET-017) — data-zone VNIC membership.
+    state: specified
+    evidence:
+      - { source_type: spec, ref: "SPEC-NET-004.md#REQ-NET-017", status: specified }
 
 assets:
   - id: ASSET-K8S-API-ACCESS
     name: Kubernetes API administrative access
     asset_type: credential
-    confidentiality: high
-    integrity: high
-    availability: moderate
+    security_requirements:
+      confidentiality: high
+      integrity: high
+      availability: moderate
+      authenticity: high
     description: >-
       The combination of Ziti dial/bind authorization plus whatever
-      Kubernetes-side credential is presented after the Ziti hop. REQ-NET-019
-      is the network-layer control protecting this asset; the credential
-      material itself (kubeconfig, OIDC token, etc.) is owned by I09/I10,
-      not yet Spec'd.
+      Kubernetes-side credential is presented after the Ziti hop.
+      REQ-NET-019 is the network-layer control protecting this asset.
     owner_refs: ["ACTOR-ADMINISTRATOR"]
+    state: specified
     evidence:
       - { source_type: adr, ref: ADR-0003, status: specified }
       - { source_type: spec, ref: "SPEC-NET-004.md#REQ-NET-019", status: specified }
+
+policies:
+  - id: POLICY-CONTROL-NSG-6443
+    name: control NSG — 6443 ingress restriction
+    policy_type: oci-nsg-rule
+    resource_refs: ["COMP-KUBE-APISERVER"]
+    actions: ["ingress:tcp:6443"]
+    scope_ref: COMP-CONTROL-NSG
+    effect: allow
+    state: specified
+    evidence:
+      - { source_type: spec, ref: "SPEC-NET-004.md#REQ-NET-019", status: specified }
+      - { source_type: adr, ref: ADR-0003, status: specified }
+
+controls:
+  - id: CTRL-DEFAULT-DENY-SECURITY-LIST
+    name: Per-zone default-deny Security List baseline
+    control_type: preventive
+    description: >-
+      Security Lists provide a default-deny ingress baseline per
+      trust-zone subnet; NSGs are the actual fine-grained enforcement
+      point (REQ-NET-016/018).
+    state: specified
+    evidence:
+      - { source_type: spec, ref: "SPEC-NET-004.md#REQ-NET-016", status: specified }
+      - { source_type: spec, ref: "SPEC-NET-004.md#REQ-NET-018", status: specified }
+
+  - id: CTRL-K8S-API-INGRESS-RESTRICTION
+    name: Kubernetes API ingress restriction to ziti+worker NSGs only
+    control_type: preventive
+    description: >-
+      The control NSG restricts 6443 ingress to only the ziti and worker
+      NSGs — the technical enforcement of ADR-0003's no-direct-public-path
+      guarantee, and SPEC-NET-004's single most security-critical
+      requirement.
+    implements_refs: ["POLICY-CONTROL-NSG-6443"]
+    state: specified
+    evidence:
+      - { source_type: spec, ref: "SPEC-NET-004.md#REQ-NET-019", status: specified }
+      - { source_type: adr, ref: ADR-0003, status: specified }
+
+gaps:
+  - id: GAP-NET-001
+    subject_ref: FLOW-INTERNET-TO-IGW
+    field: "transport.ports"
+    reason: >-
+      Edge-zone ingress technology has not been selected. No SPIKE
+      currently tracks this decision in roadmap.md's Open Spikes table —
+      a real planning gap, not just an unresolved value.
+    blocking: false
+    evidence:
+      - { source_type: arch-view, ref: ARCH-ZONE-EDGE, status: decision-pending }
+      - { source_type: spec, ref: "SPEC-NET-004.md#REQ-NET-020", status: specified }
+
+  - id: GAP-NET-002
+    subject_ref: FLOW-IGW-TO-EDGE-INGRESS
+    field: "destination_ref specificity, transport.ports"
+    reason: >-
+      Same root cause as GAP-NET-001 — this flow terminates at the zone
+      rather than a named ingress component because none is chosen yet.
+    blocking: false
+    evidence:
+      - { source_type: arch-view, ref: ARCH-ZONE-EDGE, status: decision-pending }
+
+  - id: GAP-NET-003
+    subject_ref: CRED-K8S-API-CREDENTIAL
+    field: credential_type
+    reason: >-
+      The Kubernetes-side credential presented after the Ziti hop depends
+      on I09/I10 identity decisions, blocked on SPIKE-IDP-01 (self-hosted
+      vs external IdP).
+    blocking: true
+    resolution_ref: SPIKE-IDP-01
+    evidence:
+      - { source_type: roadmap, ref: "roadmap.md#SPIKE-IDP-01", status: decision-pending }
 
 data_flows:
   - id: FLOW-INTERNET-TO-IGW
     name: Internet ingress to Internet Gateway
     description: Public internet traffic entering via the Internet Gateway toward Edge-zone application ingress.
     source_ref: EXTERNAL
-    destination_ref: PROC-INTERNET-GATEWAY
-    protocol: IP
-    port: "undecided — ingress technology/application ports not yet chosen (edge-zone.mmd marks this an open decision point; SPEC-NET-004 REQ-NET-020 scopes the ingress NSG to 'its documented application ports', not yet documented)"
+    destination_ref: COMP-INTERNET-GATEWAY
+    transport: { network_protocol: unknown, ports: [], state: decision-pending }
     direction: inbound
-    authentication: none
-    authorization: nsg-security-list
-    confidentiality_requirement: low
-    integrity_requirement: moderate
+    authentication: { required: false, mechanisms: [{ type: none, state: specified }] }
+    authorization:
+      required: true
+      mechanisms: [{ type: nsg-security-list, authority_ref: COMP-INGRESS-NSG, state: specified }]
+    security_requirements: { confidentiality: low, integrity: moderate, availability: low }
     crosses_boundary_refs: ["TB-INTERNET-EDGE"]
     traffic_class_ref: ARCH-FLOW-INGRESS
+    state: decision-pending
     evidence:
       - { source_type: spec, ref: "SPEC-NET-002.md", status: specified }
       - { source_type: spec, ref: "SPEC-NET-004.md#REQ-NET-020", status: specified }
@@ -245,20 +395,20 @@ data_flows:
   - id: FLOW-IGW-TO-EDGE-INGRESS
     name: Internet Gateway to Edge application ingress
     description: >-
-      Edge-zone application ingress. No specific ingress process (load
-      balancer, reverse proxy, etc.) is named yet — edge-zone.mmd marks the
-      ingress technology itself as an open decision point, so this flow
-      terminates at the zone rather than an invented process.
-    source_ref: PROC-INTERNET-GATEWAY
+      Edge-zone application ingress. No specific ingress component is
+      named yet — edge-zone.mmd marks the ingress technology itself as an
+      open decision point, so this flow terminates at the zone.
+    source_ref: COMP-INTERNET-GATEWAY
     destination_ref: ARCH-ZONE-EDGE
-    protocol: IP
-    port: "undecided — see FLOW-INTERNET-TO-IGW"
+    transport: { network_protocol: unknown, ports: [], state: decision-pending }
     direction: inbound
-    authentication: none
-    authorization: nsg-security-list
-    confidentiality_requirement: low
-    integrity_requirement: moderate
+    authentication: { required: false, mechanisms: [{ type: none, state: specified }] }
+    authorization:
+      required: true
+      mechanisms: [{ type: nsg-security-list, authority_ref: COMP-INGRESS-NSG, state: specified }]
+    security_requirements: { confidentiality: low, integrity: moderate, availability: low }
     traffic_class_ref: ARCH-FLOW-INGRESS
+    state: decision-pending
     evidence:
       - { source_type: arch-view, ref: ARCH-FLOW-INGRESS, status: specified }
       - { source_type: arch-view, ref: ARCH-ZONE-EDGE, status: decision-pending }
@@ -267,36 +417,41 @@ data_flows:
     name: Administrator to Ziti public router
     description: Administrator's Ziti client dials the public edge router.
     source_ref: ACTOR-ADMINISTRATOR
-    destination_ref: PROC-ZITI-PUBLIC-ROUTER
-    protocol: TLS
-    port: 443
+    destination_ref: COMP-ZITI-PUBLIC-ROUTER
+    transport: { network_protocol: tcp, application_protocol: tls, ports: [443], encrypted: true }
     direction: inbound
-    authentication: mtls
-    authorization: openziti-policy
+    authentication:
+      required: true
+      mechanisms:
+        - { type: openziti-identity, identity_ref: IDENT-ZITI-ADMIN, authority_ref: COMP-ZITI-PUBLIC-ROUTER, state: planned }
+        - { type: mtls, state: planned }
+    authorization:
+      required: true
+      mechanisms: [{ type: openziti-policy, authority_ref: COMP-ZITI-PUBLIC-ROUTER, state: planned }]
     data_asset_refs: ["ASSET-K8S-API-ACCESS"]
-    confidentiality_requirement: high
-    integrity_requirement: high
+    security_requirements: { confidentiality: high, integrity: high, availability: moderate }
     crosses_boundary_refs: ["TB-INTERNET-EDGE"]
     traffic_class_ref: ARCH-FLOW-ADMIN
+    state: planned
     evidence:
       - { source_type: adr, ref: ADR-0003, status: specified }
       - { source_type: arch-view, ref: ARCH-FLOW-ADMIN, status: specified }
 
   - id: FLOW-ADMIN-02-FABRIC
     name: Ziti public router to private router (fabric)
-    description: OpenZiti fabric carries the session from the public router to the private router, crossing from Edge into Management.
-    source_ref: PROC-ZITI-PUBLIC-ROUTER
-    destination_ref: PROC-ZITI-PRIVATE-ROUTER
-    protocol: TLS
-    port: "fabric-internal — not a fixed documented port"
+    description: OpenZiti fabric carries the session from the public router to the private router, Edge into Management.
+    source_ref: COMP-ZITI-PUBLIC-ROUTER
+    destination_ref: COMP-ZITI-PRIVATE-ROUTER
+    transport: { network_protocol: tcp, application_protocol: tls, ports: [], encrypted: true }
     direction: bidirectional
-    authentication: mtls
-    authorization: openziti-policy
+    authentication: { required: true, mechanisms: [{ type: mtls, state: planned }] }
+    authorization:
+      required: true
+      mechanisms: [{ type: openziti-policy, authority_ref: COMP-ZITI-PRIVATE-ROUTER, state: planned }]
     data_asset_refs: ["ASSET-K8S-API-ACCESS"]
-    confidentiality_requirement: high
-    integrity_requirement: high
-    crosses_boundary_refs: ["TB-ZONE-ISOLATION"]
+    security_requirements: { confidentiality: high, integrity: high, availability: moderate }
     traffic_class_ref: ARCH-FLOW-ADMIN
+    state: planned
     evidence:
       - { source_type: adr, ref: ADR-0003, status: specified }
       - { source_type: arch-view, ref: ARCH-FLOW-ADMIN, status: specified }
@@ -304,37 +459,38 @@ data_flows:
   - id: FLOW-ADMIN-03-PRIVATE-ROUTER-TO-API
     name: Ziti private router to kube-apiserver
     description: The only path to the Kubernetes API's administrative surface — REQ-NET-019's ziti-NSG allowance.
-    source_ref: PROC-ZITI-PRIVATE-ROUTER
-    destination_ref: PROC-KUBE-APISERVER
-    protocol: HTTPS
-    port: 6443
+    source_ref: COMP-ZITI-PRIVATE-ROUTER
+    destination_ref: COMP-KUBE-APISERVER
+    transport: { network_protocol: tcp, application_protocol: https, ports: [6443], encrypted: true }
     direction: outbound
-    authentication: mtls
-    authorization: nsg-security-list
+    authentication: { required: true, mechanisms: [{ type: mtls, state: specified }] }
+    authorization:
+      required: true
+      mechanisms: [{ type: nsg-security-list, authority_ref: COMP-CONTROL-NSG, policy_refs: ["POLICY-CONTROL-NSG-6443"], state: specified }]
     data_asset_refs: ["ASSET-K8S-API-ACCESS"]
-    confidentiality_requirement: high
-    integrity_requirement: high
+    data_semantics: ["control-plane-api-request"]
+    security_requirements: { confidentiality: high, integrity: high, availability: moderate }
     traffic_class_ref: ARCH-FLOW-ADMIN
+    state: specified
     evidence:
       - { source_type: spec, ref: "SPEC-NET-004.md#REQ-NET-019", status: specified }
       - { source_type: adr, ref: ADR-0003, status: specified }
 
   - id: FLOW-CONTROL-WORKER-TO-API
     name: Worker node to kube-apiserver
-    description: >-
-      kubelet/kube-proxy on Talos workers reaching the API server — the
-      worker-NSG allowance in REQ-NET-019, the other legitimate 6443 source.
-    source_ref: PROC-WORKER-NODE
-    destination_ref: PROC-KUBE-APISERVER
-    protocol: HTTPS
-    port: 6443
+    description: kubelet/kube-proxy reaching the API server — the worker-NSG allowance in REQ-NET-019.
+    source_ref: COMP-WORKER-NODE
+    destination_ref: COMP-KUBE-APISERVER
+    transport: { network_protocol: tcp, application_protocol: https, ports: [6443], encrypted: true }
     direction: bidirectional
-    authentication: kubeconfig-cert
-    authorization: nsg-security-list
-    confidentiality_requirement: high
-    integrity_requirement: high
-    crosses_boundary_refs: ["TB-ZONE-ISOLATION"]
+    authentication: { required: true, mechanisms: [{ type: kubeconfig-cert, state: specified }] }
+    authorization:
+      required: true
+      mechanisms: [{ type: nsg-security-list, authority_ref: COMP-CONTROL-NSG, policy_refs: ["POLICY-CONTROL-NSG-6443"], state: specified }]
+    data_semantics: ["control-plane-api-request"]
+    security_requirements: { confidentiality: high, integrity: high, availability: high }
     traffic_class_ref: ARCH-FLOW-CONTROL
+    state: specified
     evidence:
       - { source_type: spec, ref: "SPEC-NET-004.md#REQ-NET-019", status: specified }
       - { source_type: arch-view, ref: ARCH-FLOW-CONTROL, status: specified }
@@ -344,19 +500,18 @@ data_flows:
     description: >-
       Representative of the EGRESS traffic class, which also covers
       Management- and Data-zone nodes reaching the internet via the same
-      NAT Gateway (traffic-flows.mmd draws these as one class; modeled here
-      as the Workload-zone instance, the dominant case — e.g. pulling
-      container images).
+      NAT Gateway.
     source_ref: ARCH-ZONE-WORKLOAD
-    destination_ref: PROC-NAT-GATEWAY
-    protocol: IP
-    port: "any (outbound only)"
+    destination_ref: COMP-NAT-GATEWAY
+    transport: { network_protocol: unknown, ports: [] }
     direction: outbound
-    authentication: none
-    authorization: nsg-security-list
-    confidentiality_requirement: low
-    integrity_requirement: low
+    authentication: { required: false, mechanisms: [{ type: none, state: specified }] }
+    authorization:
+      required: true
+      mechanisms: [{ type: nsg-security-list, authority_ref: COMP-WORKER-NSG, state: specified }]
+    security_requirements: { confidentiality: low, integrity: low, availability: low }
     traffic_class_ref: ARCH-FLOW-EGRESS
+    state: specified
     evidence:
       - { source_type: spec, ref: "SPEC-NET-002.md", status: specified }
       - { source_type: arch-view, ref: ARCH-FLOW-EGRESS, status: specified }
@@ -364,55 +519,50 @@ data_flows:
   - id: FLOW-NAT-TO-INTERNET
     name: NAT Gateway to internet
     description: Egress traffic's final hop to the public internet.
-    source_ref: PROC-NAT-GATEWAY
+    source_ref: COMP-NAT-GATEWAY
     destination_ref: EXTERNAL
-    protocol: IP
-    port: "any (outbound only)"
+    transport: { network_protocol: unknown, ports: [] }
     direction: outbound
-    authentication: none
-    authorization: nsg-security-list
-    confidentiality_requirement: low
-    integrity_requirement: low
-    crosses_boundary_refs: ["TB-INTERNET-EDGE"]
+    authentication: { required: false, mechanisms: [{ type: none, state: specified }] }
+    authorization: { required: false, mechanisms: [] }
+    security_requirements: { confidentiality: low, integrity: low, availability: low }
     traffic_class_ref: ARCH-FLOW-EGRESS
+    state: specified
     evidence:
       - { source_type: spec, ref: "SPEC-NET-002.md", status: specified }
 
   - id: FLOW-SERVICE-ANY-ZONE-TO-SGW
     name: Any zone to Service Gateway
     description: >-
-      Representative of the SERVICE traffic class (any zone reaching OCI
-      services privately). Modeled as the Management-zone instance since
-      OCI Vault/KMS access (I11, not yet Spec'd) is its most security-relevant use.
+      Representative of the SERVICE traffic class. Modeled as the
+      Management-zone instance since OCI Vault/KMS access (I11, not yet
+      Spec'd) is its most security-relevant use.
     source_ref: ARCH-ZONE-MGMT
-    destination_ref: PROC-SERVICE-GATEWAY
-    protocol: HTTPS
-    port: 443
+    destination_ref: COMP-SERVICE-GATEWAY
+    transport: { network_protocol: tcp, application_protocol: https, ports: [443], encrypted: true }
     direction: outbound
-    authentication: oci-signing-key
-    authorization: oci-iam-policy
-    confidentiality_requirement: moderate
-    integrity_requirement: moderate
+    authentication: { required: true, mechanisms: [{ type: oci-signing-key, state: specified }] }
+    authorization: { required: true, mechanisms: [{ type: oci-iam-policy, state: specified }] }
+    security_requirements: { confidentiality: moderate, integrity: moderate, availability: moderate }
     traffic_class_ref: ARCH-FLOW-SERVICE
+    state: specified
     evidence:
       - { source_type: spec, ref: "SPEC-NET-002.md", status: specified }
       - { source_type: arch-view, ref: ARCH-FLOW-SERVICE, status: specified }
 
   - id: FLOW-BACKUP-DATA-TO-SGW
     name: Data-zone backup to Service Gateway
-    description: >-
-      Data-zone volumes to the (not yet Spec'd, I19/M9) backup endpoint via
-      the Service Gateway to OCI Object Storage.
+    description: Data-zone volumes to the (not yet Spec'd, I19/M9) backup endpoint via the Service Gateway to OCI Object Storage.
     source_ref: ARCH-ZONE-DATA
-    destination_ref: PROC-SERVICE-GATEWAY
-    protocol: HTTPS
-    port: 443
+    destination_ref: COMP-SERVICE-GATEWAY
+    transport: { network_protocol: tcp, application_protocol: https, ports: [443], encrypted: true }
     direction: outbound
-    authentication: oci-signing-key
-    authorization: oci-iam-policy
-    confidentiality_requirement: high
-    integrity_requirement: high
+    authentication: { required: true, mechanisms: [{ type: oci-signing-key, state: planned }] }
+    authorization: { required: true, mechanisms: [{ type: oci-iam-policy, state: planned }] }
+    data_semantics: ["backup-data"]
+    security_requirements: { confidentiality: high, integrity: high, availability: moderate }
     traffic_class_ref: ARCH-FLOW-BACKUP
+    state: planned
     evidence:
       - { source_type: arch-view, ref: ARCH-FLOW-BACKUP, status: specified }
       - { source_type: arch-view, ref: ARCH-SVC-BACKUP-BUCKET, status: planned }
@@ -422,20 +572,18 @@ data_flows:
     name: VCN to DRG (reserved, inert)
     description: >-
       Reserved hybrid-connectivity path. The DRG is provisioned with an
-      empty route table and propagation disabled (ADR-0008) — this flow
-      does not carry traffic until I21, explicitly deferred past the MVP
-      boundary.
+      empty route table and propagation disabled (ADR-0008) — a settled
+      decision to stay inert until I21, not an open question.
     source_ref: ARCH-NET-VCN
     destination_ref: EXTERNAL
-    protocol: unknown
-    port: "n/a — inert"
+    transport: { network_protocol: unknown, ports: [] }
     direction: outbound
-    authentication: none
-    authorization: none
-    confidentiality_requirement: none
-    integrity_requirement: none
+    authentication: { required: false, mechanisms: [] }
+    authorization: { required: false, mechanisms: [] }
+    security_requirements: { confidentiality: none, integrity: none, availability: none }
     traffic_class_ref: ARCH-FLOW-HYBRID
+    state: planned
     evidence:
       - { source_type: adr, ref: ADR-0008, status: specified }
-      - { source_type: arch-view, ref: ARCH-FLOW-HYBRID, status: decision-pending }
-      - { source_type: roadmap, ref: "roadmap.md#I21", status: decision-pending }
+      - { source_type: arch-view, ref: ARCH-FLOW-HYBRID, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I21", status: planned }
