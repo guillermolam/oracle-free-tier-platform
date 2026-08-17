@@ -51,6 +51,13 @@ repos:
         files: '\.mmd$'
         pass_filenames: true
 
+      - id: threat-model-validate
+        name: Threat-model corpus validation (schema + referential integrity)
+        entry: scripts/validate-threat-model.mjs
+        language: system
+        files: '^docs/03-threat-model/model/'
+        pass_filenames: false
+
       - id: check-dco
         name: Developer Certificate of Origin (Signed-off-by)
         entry: .githooks/commit-msg
