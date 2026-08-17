@@ -1,0 +1,41 @@
+%% VIEW-ID-HUMAN — L2 Human Identity / OIDC
+%% Question: how do human actors authenticate, and to what?
+%% Governing: ADR-0003 (OpenZiti ZTNA), CONTRIBUTING.md (GitHub identity),
+%% roadmap.md SPIKE-IDP-01 (IdP selection — open, not yet decided)
+%% Authentication is shown separately from authorization. The IdP is NOT
+%% assumed to be any specific product — SPIKE-IDP-01 is still open.
+flowchart TB
+  ADMIN["Platform Administrator — ARCH-ID-HUMAN"]
+  GH["GitHub account — signed commits, DCO — ARCH-GOV-GITHUB"]
+  IDP["FOSS OIDC IdP — DECISION PENDING, SPIKE-IDP-01"]
+  ZITI_ADMIN["OpenZiti identity — administrative enrollment (ADR-0003) — ARCH-ID-ZITI"]
+
+  subgraph AUTHN["Authentication"]
+    OIDC_TOKEN["OIDC token — ARCH-ID-OIDC (mechanism decided, provider pending)"]
+  end
+
+  subgraph TARGETS["Authentication targets"]
+    K8SAPI["Kubernetes API — OIDC integration PLANNED, I10"]
+    ZITI_CTRL["OpenZiti controller — administrative enrollment, ADR-0003"]
+    OPENBAO["OpenBao — auth backend PLANNED, I11"]
+    OBSERVABILITY["Observability login (e.g. dashboards) — PLANNED, I16"]
+  end
+
+  subgraph AUTHZ["Authorization (separate concern)"]
+    RBAC["Kubernetes RBAC — PLANNED, I05/I09/I10"]
+  end
+
+  ADMIN --> GH
+  ADMIN --> IDP
+  ADMIN --> ZITI_ADMIN
+  IDP --> OIDC_TOKEN
+  ZITI_ADMIN --> ZITI_CTRL
+  OIDC_TOKEN -.-> K8SAPI
+  OIDC_TOKEN -.-> OPENBAO
+  OIDC_TOKEN -.-> OBSERVABILITY
+  K8SAPI -.-> RBAC
+
+  classDef pending fill:#fff6d9,stroke:#b58b00,stroke-dasharray: 4 3;
+  classDef planned fill:#f2f2f2,stroke:#888,stroke-dasharray: 4 3;
+  class IDP,OIDC_TOKEN pending;
+  class K8SAPI,OPENBAO,OBSERVABILITY,RBAC planned;

@@ -1,0 +1,27 @@
+%% VIEW-CICD-IAC — L3 Infrastructure CI/CD
+%% Question: what happens to an OpenTofu/Terragrunt change from commit to
+%% applied infrastructure?
+%% Governing: .github/workflows/validate.yml, .github/workflows/plan.yml
+%% (both live), SPEC-OCI-001 REQ-OCI-005..007, ADR-0001, ADR-0007
+%% GitHub Actions never applies — matches ADR-0005's constraint that CI
+%% only validates and plans.
+flowchart TB
+  SRC["OpenTofu / Terragrunt source — ARCH-CICD-IAC"] --> FMT["tofu fmt -check"]
+  FMT --> VALIDATE["tofu validate"]
+  VALIDATE --> TEST["tofu test (*.tftest.hcl)"]
+  TEST --> TFLINT["TFLint"]
+  TFLINT --> SECSCAN["Security scan — gitleaks, semgrep, zizmor, trivy (security.yml)"]
+  SECSCAN --> POLICY["Checkov policy scan — hard-fail (validate.yml)"]
+  POLICY --> AUTH["OCI auth: static keys via GitHub Actions secrets (REQ-OCI-006) — OIDC federation PLANNED, EPIC-OCI-04"]
+  AUTH -->|"credentials present"| STATEBACKEND["tofu init — state backend, REQ-OCI-005/007 two-phase bootstrap"]
+  AUTH -.->|"credentials absent — fork PRs, missing secrets"| NOCREDS["Notify missing credentials — plan.yml skips plan, no artifact produced"]
+  STATEBACKEND --> PLAN["tofu plan — plan.yml, gated on infrastructure/live/**"]
+  PLAN --> ARTIFACT["Plan artifact uploaded for review"]
+  ARTIFACT --> REVIEW["PR review — 0 required approvals, solo maintainer; CI checks required"]
+  REVIEW --> APPLY["Controlled apply — manual, outside CI (GitHub Actions never applies)"]
+  APPLY --> DRIFT["Drift detection — PLANNED, I23"]
+
+  classDef planned fill:#f2f2f2,stroke:#888,stroke-dasharray: 4 3;
+  classDef pending fill:#fff6d9,stroke:#b58b00,stroke-dasharray: 4 3;
+  class DRIFT planned;
+  class NOCREDS pending;

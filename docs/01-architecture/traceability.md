@@ -1,7 +1,8 @@
 # Architecture traceability
 
 `docs/arch/cloud-deployment.mmd` and every file under
-`docs/01-architecture/{context,network}/` are visualizations. Their Mermaid
+`docs/01-architecture/{context,network,identity,governance,cicd}/` are
+visualizations. Their Mermaid
 node/group/junction IDs are implementation details of *that rendering* —
 free to be renamed, collapsed, expanded, or replaced entirely whenever a
 diagram is redrawn for clarity. `cloud-deployment.mmd` has already been
@@ -120,6 +121,30 @@ in [`views.md`](views.md).
 | `ARCH-SVC-MONITORING` | OCI Monitoring. | VIEW-CLOUD-DEPLOYMENT | — (planned: VIEW-OBSERVABILITY, I16) |
 | `ARCH-SVC-BACKUP-BUCKET` | OCI Object Storage backup target — reserved for I19/M9, not yet specified. | VIEW-NET-DATA | — (planned: VIEW-STORAGE, I15) |
 
+### Identity
+
+| ID | Meaning | Primary View | Detail View |
+| --- | --- | --- | --- |
+| `ARCH-ID-HUMAN` | A human actor (the platform administrator) as a distinct identity class from machine/workload identity. | VIEW-ID-HUMAN | VIEW-ID-ZITI |
+| `ARCH-ID-OIDC` | An OIDC token/identity as a mechanism — decoupled from which IdP issues it (SPIKE-IDP-01 is still open). | VIEW-ID-HUMAN | — |
+| `ARCH-ID-ZITI` | An OpenZiti identity — the principal Ziti's dial/bind policies authorize, distinct from the human or device behind it. | VIEW-ID-ZITI | — |
+| `ARCH-ID-OCI-PRINCIPAL` | An OCI principal generically — user, instance, or resource principal (OCI's own identity primitive). | VIEW-ID-OCI | VIEW-GOV-OCI-ACCESS |
+| `ARCH-ID-DYNAMIC-GROUP` | An OCI Dynamic Group — matches instance principals by rule (REQ-OCI-003), the mechanism machine identity is granted policy through. | VIEW-ID-OCI | VIEW-GOV-OCI-ACCESS |
+
+### Governance
+
+| ID | Meaning | Primary View | Detail View |
+| --- | --- | --- | --- |
+| `ARCH-GOV-OCI` | The OCI policy-enforcement mechanism — compartment-scoped IAM policy statements binding principals/groups to permitted actions. | VIEW-GOV-OCI-ACCESS | VIEW-ID-OCI |
+| `ARCH-GOV-GITHUB` | GitHub as a governance control plane — branch protection, required signed/DCO commits, Specs/ADRs/Issues as the durable record. | VIEW-GOV-PLATFORM | VIEW-ID-HUMAN |
+
+### CI/CD
+
+| ID | Meaning | Primary View | Detail View |
+| --- | --- | --- | --- |
+| `ARCH-CICD-SUPPLYCHAIN` | The common lifecycle every change goes through, independent of workload class. | VIEW-CICD-SUPPLYCHAIN | VIEW-CICD-IAC |
+| `ARCH-CICD-IAC` | The infrastructure-specific pipeline — the only workload-class pipeline with real, running content today. | VIEW-CICD-IAC | — |
+
 This list grows only when a Spec needs a concept it doesn't already cover.
 Don't pre-mint IDs for initiatives that haven't reached specification depth
 yet (see `docs/00-overview/roadmap.md`'s rolling-wave planning note and
@@ -168,6 +193,7 @@ governing Spec.
   file's decoupling was designed to survive without any Spec needing to
   change. Untouched by the multi-view work described here.
 - `docs/01-architecture/context/platform-context.mmd` and everything under
-  `docs/01-architecture/network/` — new, committed, `mmdc`-validated views
-  introduced to answer questions `cloud-deployment.mmd` was being asked to
-  answer all at once. See [`views.md`](views.md) for the full catalog.
+  `docs/01-architecture/{network,identity,governance,cicd}/` — new,
+  committed, `mmdc`-validated views introduced to answer questions
+  `cloud-deployment.mmd` was being asked to answer all at once. See
+  [`views.md`](views.md) for the full catalog.
