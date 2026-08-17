@@ -1,0 +1,217 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oracle-free-tier-platform.internal/schemas/threat-model/v1/threat-model.schema.json",
+  "title": "Threat-model normalized corpus (v1)",
+  "description": "One instance document per architecture domain (network, identity, governance, cicd, kubernetes, context). Every element requires >=1 evidence entry — this schema enforces the same 'no invented content' discipline as docs/01-architecture: an element with no Spec/ADR/ARCH-view/roadmap backing must be marked evidence.status=decision-pending or candidate, never asserted as fact.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["domain", "model_version", "generated_from"],
+  "properties": {
+    "domain": {
+      "type": "string",
+      "enum": ["context", "network", "identity", "governance", "cicd", "kubernetes"],
+      "description": "Mirrors the docs/01-architecture/<domain>/ directory this instance was derived from."
+    },
+    "model_version": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$",
+      "description": "Semver for this instance file's content. Bump minor on additive changes, major on a breaking rename/removal of a stable ID."
+    },
+    "generated_from": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/evidence" },
+      "description": "Which architecture views/Specs/ADRs this file was normalized from, at the file level."
+    },
+    "trust_zones": { "type": "array", "items": { "$ref": "#/$defs/trustZone" }, "default": [] },
+    "trust_boundaries": { "type": "array", "items": { "$ref": "#/$defs/trustBoundary" }, "default": [] },
+    "actors": { "type": "array", "items": { "$ref": "#/$defs/actor" }, "default": [] },
+    "identities": { "type": "array", "items": { "$ref": "#/$defs/identity" }, "default": [] },
+    "processes": { "type": "array", "items": { "$ref": "#/$defs/process" }, "default": [] },
+    "data_stores": { "type": "array", "items": { "$ref": "#/$defs/dataStore" }, "default": [] },
+    "assets": { "type": "array", "items": { "$ref": "#/$defs/asset" }, "default": [] },
+    "data_flows": { "type": "array", "items": { "$ref": "#/$defs/dataFlow" }, "default": [] }
+  },
+  "$defs": {
+    "ciaLevel": {
+      "type": "string",
+      "enum": ["none", "low", "moderate", "high"]
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_type", "ref", "status"],
+      "properties": {
+        "source_type": {
+          "type": "string",
+          "enum": ["spec", "adr", "arch-view", "roadmap", "contributing", "security-md"]
+        },
+        "ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "e.g. 'SPEC-NET-004.md#REQ-NET-019', 'ADR-0003', 'ARCH-FLOW-ADMIN', 'roadmap.md#I05'."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["implemented", "specified", "planned", "candidate", "decision-pending"]
+        }
+      }
+    },
+    "trustZone": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "description", "public_ip_allowed", "evidence"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^ARCH-ZONE-[A-Z0-9-]+$" },
+        "name": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 },
+        "network_cidr": { "type": "string" },
+        "public_ip_allowed": { "type": "boolean" },
+        "evidence": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/evidence" } }
+      }
+    },
+    "trustBoundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "description", "boundary_type", "separates", "evidence"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^(ARCH-[A-Z0-9-]+|TB-[A-Z0-9-]+)$" },
+        "name": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 },
+        "boundary_type": {
+          "type": "string",
+          "enum": ["network-perimeter", "identity-domain", "administrative-domain", "physical", "other"]
+        },
+        "separates": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "type": "string", "minLength": 1 },
+          "description": "IDs (or the literal 'EXTERNAL' for outside-the-system) on each side of the boundary."
+        },
+        "evidence": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/evidence" } }
+      }
+    },
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "actor_type", "description", "evidence"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^ACTOR-[A-Z0-9-]+$" },
+        "name": { "type": "string", "minLength": 1 },
+        "actor_type": { "type": "string", "enum": ["human", "external-system", "automated-agent"] },
+        "description": { "type": "string", "minLength": 1 },
+        "identity_refs": { "type": "array", "items": { "type": "string", "pattern": "^IDENT-[A-Z0-9-]+$" }, "default": [] },
+        "evidence": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/evidence" } }
+      }
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "system", "principal_type", "description", "evidence"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^IDENT-[A-Z0-9-]+$" },
+        "name": { "type": "string", "minLength": 1 },
+        "system": {
+          "type": "string",
+          "enum": ["github", "oci-iam", "human-idp", "openziti", "kubernetes-rbac", "kubernetes-serviceaccount", "spiffe", "openbao", "flux", "other"]
+        },
+        "class_ref": { "type": "string", "pattern": "^ARCH-ID-[A-Z0-9-]+$", "description": "The ARCH-ID-* conceptual identity class this is an instance of, if one exists." },
+        "principal_type": { "type": "string", "enum": ["user", "service", "machine", "group", "role"] },
+        "maps_to": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["identity_ref", "mapping_mechanism", "same_principal"],
+            "properties": {
+              "identity_ref": { "type": "string", "pattern": "^IDENT-[A-Z0-9-]+$" },
+              "mapping_mechanism": { "type": "string", "minLength": 1, "description": "HOW they map — never leave implicit." },
+              "same_principal": { "type": "boolean", "description": "false = federated/related but deliberately NOT the same principal." }
+            }
+          },
+          "default": []
+        },
+        "description": { "type": "string", "minLength": 1 },
+        "evidence": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/evidence" } }
+      }
+    },
+    "process": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "description", "trust_zone_ref", "evidence"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^PROC-[A-Z0-9-]+$" },
+        "name": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 },
+        "trust_zone_ref": { "type": "string", "description": "ARCH-ZONE-* id, or 'EXTERNAL' if outside all modeled zones." },
+        "owner_refs": { "type": "array", "items": { "type": "string" }, "default": [] },
+        "evidence": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/evidence" } }
+      }
+    },
+    "dataStore": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "description", "trust_zone_ref", "data_classification", "evidence"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^DS-[A-Z0-9-]+$" },
+        "name": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 },
+        "trust_zone_ref": { "type": "string" },
+        "data_classification": { "type": "string", "enum": ["public", "internal", "confidential", "secret"] },
+        "asset_refs": { "type": "array", "items": { "type": "string", "pattern": "^ASSET-[A-Z0-9-]+$" }, "default": [] },
+        "evidence": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/evidence" } }
+      }
+    },
+    "asset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "asset_type", "confidentiality", "integrity", "availability", "description", "evidence"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^ASSET-[A-Z0-9-]+$" },
+        "name": { "type": "string", "minLength": 1 },
+        "asset_type": {
+          "type": "string",
+          "enum": ["data", "credential", "compute", "network-config", "container-image", "source-code", "other"]
+        },
+        "confidentiality": { "$ref": "#/$defs/ciaLevel" },
+        "integrity": { "$ref": "#/$defs/ciaLevel" },
+        "availability": { "$ref": "#/$defs/ciaLevel" },
+        "owner_refs": { "type": "array", "items": { "type": "string" }, "default": [] },
+        "description": { "type": "string", "minLength": 1 },
+        "evidence": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/evidence" } }
+      }
+    },
+    "dataFlow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id", "name", "description", "source_ref", "destination_ref", "protocol", "direction",
+        "authentication", "authorization", "confidentiality_requirement", "integrity_requirement", "evidence"
+      ],
+      "properties": {
+        "id": { "type": "string", "pattern": "^FLOW-[A-Z0-9-]+$" },
+        "name": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 },
+        "source_ref": { "type": "string", "minLength": 1 },
+        "destination_ref": { "type": "string", "minLength": 1 },
+        "protocol": { "type": "string", "minLength": 1 },
+        "port": { "anyOf": [{ "type": "integer", "minimum": 0, "maximum": 65535 }, { "type": "string" }] },
+        "direction": { "type": "string", "enum": ["inbound", "outbound", "bidirectional"] },
+        "authentication": {
+          "type": "string",
+          "enum": ["none", "mtls", "oidc-token", "ssh-key", "oci-signing-key", "spiffe-svid", "gpg-signature", "kubeconfig-cert", "other"]
+        },
+        "authorization": {
+          "type": "string",
+          "enum": ["none", "oci-iam-policy", "kubernetes-rbac", "nsg-security-list", "kyverno-policy", "openziti-policy", "github-branch-protection", "other"]
+        },
+        "data_asset_refs": { "type": "array", "items": { "type": "string", "pattern": "^ASSET-[A-Z0-9-]+$" }, "default": [] },
+        "confidentiality_requirement": { "$ref": "#/$defs/ciaLevel" },
+        "integrity_requirement": { "$ref": "#/$defs/ciaLevel" },
+        "crosses_boundary_refs": { "type": "array", "items": { "type": "string" }, "default": [] },
+        "traffic_class_ref": { "type": "string", "pattern": "^ARCH-FLOW-[A-Z0-9-]+$" },
+        "evidence": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/evidence" } }
+      }
+    }
+  }
+}
