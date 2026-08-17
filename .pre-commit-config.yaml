@@ -18,14 +18,24 @@ repos:
   - repo: https://github.com/antonbabenko/pre-commit-terraform
     rev: v1.108.1
     hooks:
-      - id: tofu_fmt
-      - id: tofu_validate
+      - id: terraform_fmt
+        args: ["--hook-config=--tf-path=tofu"]
+      - id: terraform_validate
         exclude: ^infrastructure/live/
-      - id: tflint
+        args: ["--hook-config=--tf-path=tofu"]
+      - id: terraform_tflint
       - id: checkov
 
   - repo: local
     hooks:
+      - id: check-gpg-signing
+        name: GPG commit-signing configuration
+        entry: scripts/check-gpg-signing.sh
+        language: system
+        always_run: true
+        pass_filenames: false
+        stages: [pre-commit]
+
       - id: mermaid-validate
         name: Mermaid diagram validation (mmdc)
         entry: scripts/validate-mermaid.sh
@@ -35,6 +45,6 @@ repos:
 
       - id: check-dco
         name: Developer Certificate of Origin (Signed-off-by)
-        entry: "bash -c 'grep -q \"^Signed-off-by:\" \"$1\" || { echo \"ERROR - Commit message missing Signed-off-by trailer. Use git commit -s.\"; exit 1; }' --"
+        entry: .githooks/commit-msg
         language: system
         stages: [commit-msg]
