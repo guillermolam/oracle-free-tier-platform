@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# Verifies commit signing is *configured*. Cannot verify a commit's actual
+# signature — this runs pre-commit, before the commit object exists (see
+# .githooks/post-commit for that check). This repo requires OpenPGP
+# signing specifically (gpg.format=ssh/x509 rejected below) — SSH commit
+# signing is not currently supported here.
 set -euo pipefail
 
 fail() {
