@@ -18,6 +18,7 @@ SIGNING_KEY="$(git config --get user.signingkey 2>/dev/null || true)"
 [[ -n "$SIGNING_KEY" ]] ||
   fail "user.signingkey is not configured"
 
-command -v gpg >/dev/null 2>&1 || fail "gpg is not installed or not on PATH"
+GPG_PROGRAM="$(git config --get gpg.program 2>/dev/null || echo gpg)"
+command -v "$GPG_PROGRAM" >/dev/null 2>&1 || fail "$GPG_PROGRAM is not installed or not on PATH"
 
 printf 'GPG signing configured with key %s\n' "$SIGNING_KEY"

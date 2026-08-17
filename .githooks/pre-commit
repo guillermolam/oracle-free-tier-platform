@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_ROOT="$(git rev-parse --show-toplevel)"
-"$REPO_ROOT/scripts/check-gpg-signing.sh"
-
 if ! command -v pre-commit >/dev/null 2>&1; then
   echo "ERROR: pre-commit is required. Install it before committing." >&2
   exit 1

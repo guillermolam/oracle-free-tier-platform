@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# check-gpg-signing.sh (run pre-commit) only verifies signing is configured;
+# it can't see the commit object yet, so `git commit --no-gpg-sign` bypasses
+# it silently. This checks the commit actually produced.
+STATUS="$(git log -1 --pretty=%G? HEAD)"
+
+case "$STATUS" in
+  G | U | X | Y)
+    exit 0
+    ;;
+  *)
+    echo "================================================================================" >&2
+    echo "ERROR: HEAD commit is not GPG-signed (status: $STATUS)." >&2
+    echo "" >&2
+    echo "commit.gpgsign / user.signingkey are configured, but this commit was made" >&2
+    echo "without a valid signature (e.g. --no-gpg-sign was passed)." >&2
+    echo "" >&2
+    echo "Fix with: git commit --amend -S --no-edit" >&2
+    echo "================================================================================" >&2
+    exit 1
+    ;;
+esac

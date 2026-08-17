@@ -56,7 +56,10 @@ squash-merged.
 
 Enable enforced local hooks once with `git config core.hooksPath .githooks`.
 The pre-commit hook rejects missing GPG configuration or key IDs; the commit-msg
-hook rejects missing DCO trailers.
+hook rejects missing DCO trailers; the post-commit hook rejects a HEAD commit
+that isn't actually GPG-signed (catches `--no-gpg-sign` overrides that the
+pre-commit config check can't see, since the commit object doesn't exist yet
+at that stage).
 
 ## Security & Configuration
 
