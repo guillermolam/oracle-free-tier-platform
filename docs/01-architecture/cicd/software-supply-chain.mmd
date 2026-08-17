@@ -1,0 +1,38 @@
+%% VIEW-CICD-SUPPLYCHAIN — L2 Common Software Supply Chain
+%% Question: what happens to every change between a developer's commit and
+%% running behavior, common across all workload classes?
+%% Governing: .github/workflows/{validate,security,docs,dco}.yml (live),
+%% CONTRIBUTING.md (signed+DCO), ADR-0005 (Flux/GitOps), ADR-0004 (Kyverno)
+%% This repo has zero container workloads today — everything past "merge"
+%% is PLANNED, not invented. ARCH-CICD-SUPPLYCHAIN covers the whole chain.
+flowchart TB
+  DEV["Developer"] --> GH["GitHub — ARCH-GOV-GITHUB"] --> PR["Pull Request"] --> CI["CI — ARCH-CICD-SUPPLYCHAIN"]
+  CI --> LINT["Lint — markdownlint (docs.yml), tflint (validate.yml)"]
+  CI --> SAST["SAST — Semgrep (security.yml)"]
+  CI --> SECRETS["Secret scan — gitleaks (security.yml)"]
+  CI --> IACSCAN["IaC scan — Checkov (validate.yml) — DoD control; validate.yml is not yet a required branch-protection check, only runs on infrastructure/** changes"]
+  CI --> WFLINT["Workflow lint — zizmor (security.yml)"]
+  CI --> DIAGRAM["Diagram validation — mmdc (docs.yml)"]
+
+  LINT --> MERGE["Merge — squash, DCO + GPG required"]
+  SAST --> MERGE
+  SECRETS --> MERGE
+  IACSCAN -.->|"advisory today — see SPEC-OCI-001 Failure Modes"| MERGE
+  WFLINT --> MERGE
+  DIAGRAM --> MERGE
+
+  MERGE --> DEPSCAN["Dependency scan — PLANNED, I18 (no application deps yet)"]
+  DEPSCAN -.-> SBOM["SBOM — PLANNED, I18"]
+  SBOM -.-> IMGBUILD["Image build — PLANNED (no container workloads exist yet)"]
+  IMGBUILD -.-> IMGSCAN["Image vulnerability scan — PLANNED, I18"]
+  IMGSCAN -.-> SIGN["Signing — cosign — PLANNED, I18"]
+  SIGN -.-> PROVENANCE["Provenance — PLANNED, I18"]
+  PROVENANCE -.-> REGISTRY["OCI registry — PLANNED (none selected yet)"]
+  REGISTRY -.-> GITOPSREF["GitOps reference — PLANNED, I12"]
+  GITOPSREF -.-> FLUX["Flux — PLANNED, I12 (ADR-0005 names it, not yet installed)"]
+  FLUX -.-> ADMISSIONV["Admission verification — Kyverno image signature check — PLANNED, I14/I18"]
+  ADMISSIONV -.-> DEPLOY["Deployment — PLANNED"]
+  DEPLOY -.-> RUNTIMEV["Runtime verification — PLANNED, I17"]
+
+  classDef planned fill:#f2f2f2,stroke:#888,stroke-dasharray: 4 3;
+  class DEPSCAN,SBOM,IMGBUILD,IMGSCAN,SIGN,PROVENANCE,REGISTRY,GITOPSREF,FLUX,ADMISSIONV,DEPLOY,RUNTIMEV planned;

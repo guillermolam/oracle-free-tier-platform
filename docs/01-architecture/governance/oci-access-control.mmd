@@ -1,0 +1,47 @@
+%% VIEW-GOV-OCI-ACCESS — L3 OCI Access Control
+%% Question: who or what may access which OCI resources, through which
+%% principal, policy, compartment, and trust boundary?
+%% Governing: SPEC-OCI-001 (REQ-OCI-002), SPEC-OCI-002 (REQ-OCI-010),
+%% SPEC-OCI-003 (REQ-OCI-015)
+%% Every permission domain is labeled PRESENT (Spec'd today), PLANNED (owning
+%% initiative not yet spec'd), or DECISION PENDING (no Spec addresses it) —
+%% none are invented.
+flowchart TB
+  PRINCIPAL_HUMAN["Human: OCI IAM User — bootstrap/CI (REQ-OCI-006)"]
+  PRINCIPAL_INSTANCE["Machine: Instance Principal (I04, not yet provisioned)"]
+  DYNGROUP["Dynamic Group (REQ-OCI-003) — ARCH-ID-DYNAMIC-GROUP"]
+
+  PRINCIPAL_INSTANCE -.->|"membership, not yet provisioned"| DYNGROUP
+
+  POLICY["Compartment-scoped IAM Policy (REQ-OCI-002) — ARCH-GOV-OCI"]
+  COMPARTMENT["Platform Compartment — ARCH-OCI-COMPARTMENT"]
+
+  DYNGROUP --> POLICY
+  PRINCIPAL_HUMAN --> POLICY
+  POLICY -->|"scoped to"| COMPARTMENT
+
+  subgraph DOMAINS["Permission domains"]
+    direction TB
+    D_KMS["KMS: use keys / use key-delegate — REQ-OCI-010 — PRESENT"]
+    D_LOG["Logging: log-content write — REQ-OCI-015 — PRESENT"]
+    D_OBJ_STATE["Object Storage — state bucket: bootstrap identity only — REQ-OCI-005/006 — PRESENT"]
+    D_OBJ_BACKUP["Object Storage — backup bucket — PLANNED, I19"]
+    D_NET["Network: VCN / NSG / route management — DECISION PENDING: REQ-OCI-002 requires policies to enumerate specific verbs/resource-types, it does not itself grant network permissions"]
+    D_COMPUTE["Compute: Talos node lifecycle — PLANNED, I04"]
+    D_MONITOR["Monitoring — DECISION PENDING: no policy Spec'd yet"]
+    D_HYBRID["Hybrid / DRG route management — PLANNED, I21"]
+  end
+
+  POLICY --> D_KMS
+  POLICY --> D_LOG
+  POLICY --> D_OBJ_STATE
+  POLICY -.-> D_OBJ_BACKUP
+  POLICY -.-> D_NET
+  POLICY -.-> D_COMPUTE
+  POLICY -.-> D_MONITOR
+  POLICY -.-> D_HYBRID
+
+  classDef planned fill:#f2f2f2,stroke:#888,stroke-dasharray: 4 3;
+  classDef pending fill:#fff6d9,stroke:#b58b00,stroke-dasharray: 4 3;
+  class D_OBJ_BACKUP,D_COMPUTE,D_HYBRID,PRINCIPAL_INSTANCE planned;
+  class D_MONITOR,D_NET pending;

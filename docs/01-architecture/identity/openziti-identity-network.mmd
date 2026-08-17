@@ -1,0 +1,39 @@
+%% VIEW-ID-ZITI — L3 OpenZiti Identity / Network
+%% Question: how do identity and private network access intersect?
+%% Governing: ADR-0003 (OpenZiti ZTNA), SPEC-NET-002 (gateways),
+%% SPEC-NET-004 REQ-NET-019 (control NSG sources)
+%% OpenZiti provides identity-aware service connectivity — it does not
+%% replace Kubernetes RBAC (see VIEW-ID-K8S-RBAC, PLANNED). Service/dial/
+%% bind policy objects are I08 territory and not yet Spec'd; marked PLANNED
+%% rather than invented.
+flowchart TB
+  subgraph WHOAREYOU["WHO ARE YOU? — identity"]
+    HUMAN_ID["Human identity — administrator — ARCH-ID-HUMAN"]
+    DEVICE_ID["Device identity — PLANNED, I08 (enrollment not yet Spec'd)"]
+    ZITI_ID["OpenZiti identity — ARCH-ID-ZITI (ADR-0003)"]
+  end
+
+  subgraph WHATDIAL["WHAT SERVICE MAY YOU DIAL? — authorization"]
+    DIAL_POLICY["Dial Policy — PLANNED, I08"]
+    BIND_POLICY["Bind Policy — PLANNED, I08"]
+    SERVICE_DEF["Service definition: kube-apiserver — implied by ADR-0003, not yet a formal Ziti service object"]
+  end
+
+  subgraph WHEREFLOW["WHERE DOES TRAFFIC FLOW? — network path"]
+    EDGE_ROUTER["Ziti public edge router — Edge zone (SPEC-NET-002, SPEC-NET-004)"]
+    ZITI_FABRIC["Ziti fabric"]
+    PRIV_ROUTER["Ziti private router — Management zone (SPEC-NET-004, control NSG source)"]
+    K8SAPI["Kubernetes API — port 6443 (REQ-NET-019)"]
+  end
+
+  HUMAN_ID --> ZITI_ID
+  DEVICE_ID -.-> ZITI_ID
+  ZITI_ID --> DIAL_POLICY
+  DIAL_POLICY -.-> SERVICE_DEF
+  BIND_POLICY -.-> SERVICE_DEF
+  SERVICE_DEF -.-> K8SAPI
+
+  ZITI_ID --> EDGE_ROUTER --> ZITI_FABRIC --> PRIV_ROUTER --> K8SAPI
+
+  classDef planned fill:#f2f2f2,stroke:#888,stroke-dasharray: 4 3;
+  class DEVICE_ID,DIAL_POLICY,BIND_POLICY,SERVICE_DEF planned;

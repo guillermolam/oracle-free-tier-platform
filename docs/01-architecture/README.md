@@ -19,8 +19,8 @@ with conflicting architecture, that's drift: a bug, not a style choice.
 | --- | --- | --- |
 | **L0 — System Context** | What is this platform and what external systems interact with it? | `context/platform-context.mmd` |
 | **L1 — Cloud Deployment** | Where are the major platform components deployed? | `docs/arch/cloud-deployment.mmd` |
-| **L2 — Domain Architecture** | How does one platform domain work? | `network/network-overview.mmd`, `network/traffic-flows.mmd` |
-| **L3 — Component / Zone Detail** | How is this particular domain or trust zone configured? | `network/routing.mmd`, `network/edge-zone.mmd`, `network/management-zone.mmd`, `network/workload-zone.mmd`, `network/data-zone.mmd` |
+| **L2 — Domain Architecture** | How does one platform domain work? | `network/network-overview.mmd`, `network/traffic-flows.mmd`, `identity/oci-identity-governance.mmd`, `identity/human-identity.mmd`, `governance/platform-governance.mmd`, `cicd/software-supply-chain.mmd` |
+| **L3 — Component / Zone Detail** | How is this particular domain or trust zone configured? | `network/routing.mmd`, `network/edge-zone.mmd`, `network/management-zone.mmd`, `network/workload-zone.mmd`, `network/data-zone.mmd`, `governance/oci-access-control.mmd`, `identity/openziti-identity-network.mmd`, `cicd/iac-pipeline.mmd` |
 | **L4 — Dynamic / Flow View** | What happens during a particular operation? | none yet — see `views.md`'s Dynamic flow views note |
 
 Diagrams may intentionally repeat architectural concepts across levels —
@@ -62,9 +62,33 @@ Architecture
     │     ├── Workload       (network/workload-zone.mmd)
     │     └── Data            (network/data-zone.mmd)
     │
-    ├── Kubernetes    — planned, I05/I07 (views.md)
-    ├── Security         — planned, I08/I20 (views.md)
-    ├── Identity           — planned, I09/I10 (views.md)
+    ├── Identity
+    │     ├── OCI Identity      (identity/oci-identity-governance.mmd)
+    │     ├── Human Identity      (identity/human-identity.mmd)
+    │     ├── OpenZiti              (identity/openziti-identity-network.mmd)
+    │     ├── Workload Identity        — planned, I09 (views.md)
+    │     └── Kubernetes RBAC             — planned, I05/I09/I10 (views.md)
+    │
+    ├── Governance
+    │     ├── OCI Access Control   (governance/oci-access-control.mmd)
+    │     ├── Platform Governance    (governance/platform-governance.mmd)
+    │     └── Kubernetes Tenancy        — planned, I05 (views.md)
+    │
+    ├── Kubernetes
+    │     ├── Deployment   — planned, I04/I05/I06 (views.md)
+    │     ├── Network        — planned, I07 (views.md)
+    │     └── Security Boundaries — planned, I05/I07/I09 (views.md)
+    │
+    ├── CI/CD
+    │     ├── Supply Chain   (cicd/software-supply-chain.mmd)
+    │     ├── IaC              (cicd/iac-pipeline.mmd)
+    │     ├── Platform GitOps    — planned, I12 (views.md)
+    │     ├── Application          — no owning initiative (views.md)
+    │     ├── Policy                 — planned, I14 (views.md)
+    │     ├── Node Configuration       — planned, I04 (views.md)
+    │     └── Security Content           — planned, I17 (views.md)
+    │
+    ├── Security         — planned trust-boundaries synthesis, I08/I20 (views.md)
     ├── Storage              — planned, I15 (views.md)
     ├── Observability          — planned, I16 (views.md)
     └── Hybrid                    — planned, I21 (views.md)

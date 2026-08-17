@@ -1,0 +1,45 @@
+%% VIEW-ID-OCI — L2 OCI Identity and Governance
+%% Question: what identity hierarchy and authorization model does OCI itself use?
+%% Governing: SPEC-OCI-001 (REQ-OCI-001..007), SPEC-OCI-002 (REQ-OCI-008..011),
+%% SPEC-OCI-003 (REQ-OCI-012..015)
+%% Human, machine/instance, and resource identity are shown as distinct
+%% concepts, never collapsed into one "IAM" box. Anything not yet backed by
+%% a Spec requirement is marked accordingly, not invented.
+flowchart TB
+  subgraph HUMAN["Human identity — ARCH-ID-HUMAN"]
+    IAMUSER["OCI IAM User — bootstrap/CI credentials (REQ-OCI-006)"]
+  end
+
+  subgraph MACHINE["Machine / instance identity"]
+    INSTPRINC["Instance Principal — Talos nodes — ARCH-ID-OCI-PRINCIPAL (I04, not yet provisioned)"]
+    RESPRINC["Resource Principal — not used by any current Spec"]
+  end
+
+  subgraph GROUPS["Group membership"]
+    DYNGROUP["Dynamic Group — matches instance principals by compartment/tag (REQ-OCI-003) — ARCH-ID-DYNAMIC-GROUP"]
+  end
+
+  subgraph POLICY["Policy — ARCH-GOV-OCI"]
+    POL_COMPARTMENT["Compartment-scoped IAM policy (REQ-OCI-002)"]
+    POL_KMS["KMS key-usage policy: use keys, use key-delegate (REQ-OCI-010)"]
+    POL_LOG["Log-write policy (REQ-OCI-015)"]
+  end
+
+  subgraph RESOURCES["Compartment / resources"]
+    COMPARTMENT["Platform Compartment (REQ-OCI-001) — ARCH-OCI-COMPARTMENT"]
+    VAULT["OCI Vault / KMS (REQ-OCI-008/009) — ARCH-SVC-KMS"]
+    LOGGROUP["OCI Log Group (REQ-OCI-012) — ARCH-SVC-LOGGING"]
+    STATEBUCKET["OpenTofu state bucket (REQ-OCI-005)"]
+  end
+
+  IAMUSER -->|"bootstraps, REQ-OCI-006"| COMPARTMENT
+  INSTPRINC -.->|"membership, not yet provisioned"| DYNGROUP
+  DYNGROUP --> POL_KMS --> VAULT
+  DYNGROUP --> POL_LOG --> LOGGROUP
+  POL_COMPARTMENT -->|"scopes access to"| COMPARTMENT
+  COMPARTMENT --> VAULT
+  COMPARTMENT --> LOGGROUP
+  IAMUSER -->|"bootstrap access (REQ-OCI-005/006)"| STATEBUCKET
+
+  classDef planned fill:#f2f2f2,stroke:#888,stroke-dasharray: 4 3;
+  class RESPRINC,INSTPRINC planned;
