@@ -3,9 +3,12 @@
   "private": true,
   "description": "Tooling for validating docs/ architecture artifacts. No application code lives here.",
   "scripts": {
-    "validate:mermaid": "find docs -name '*.mmd' -print0 | xargs -0 -I{} mmdc -p docs/mermaid-puppeteer-config.json -i {} -o /tmp/mmdc-validate.svg"
+    "validate:mermaid": "find docs -name '*.mmd' -print0 | xargs -0 -I{} mmdc -p docs/mermaid-puppeteer-config.json -i {} -o /tmp/mmdc-validate.svg",
+    "validate:threat-model": "node scripts/validate-threat-model.mjs"
   },
   "devDependencies": {
-    "@mermaid-js/mermaid-cli": "11.16.0"
+    "@mermaid-js/mermaid-cli": "11.16.0",
+    "ajv": "8.20.0",
+    "js-yaml": "5.3.0"
   }
 }
