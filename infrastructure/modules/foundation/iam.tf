@@ -1,5 +1,12 @@
 # REQ-OCI-002: IAM policies scoped to the platform compartment only -- no
-# statement below references the tenancy root as its target.
+# statement below references the tenancy root as its target. Deferred by
+# default (var.create_iam_policies = false): this module's bootstrap
+# principal is whichever existing tenancy `Administrators` member runs
+# the first apply, and binding either policy to that same group today
+# would add no effective permission beyond its existing tenancy-wide
+# grant (the built-in Tenant Admin Policy, untouched by this module)
+# while implying a CI/admin separation of duties that does not exist
+# until distinct principals do -- see SPEC-OCI-001's Non-Goals.
 #
 # What this module does NOT do: create OCI IAM Users or Groups. Group
 # membership (who is actually in the CI/admin group) is an
@@ -23,6 +30,8 @@
 # all-resources", which would silently broaden CI's visibility into
 # every future resource type without this module's own PR reviewing it).
 resource "oci_identity_policy" "ci" {
+  count = var.create_iam_policies ? 1 : 0
+
   compartment_id = oci_identity_compartment.platform.id
   name           = "platform-ci-policy"
   description    = "Least-privilege grant for the CI/workflow identity (REQ-OCI-002, REQ-OCI-006). Plan-equivalent (read) rights on exactly the resource types this module creates; apply rights are the human administrator's, not CI's, until a future PR explicitly designs CI-driven apply."
@@ -45,6 +54,8 @@ resource "oci_identity_policy" "ci" {
 }
 
 resource "oci_identity_policy" "admin" {
+  count = var.create_iam_policies ? 1 : 0
+
   compartment_id = oci_identity_compartment.platform.id
   name           = "platform-admin-policy"
   description    = "Human administrator: manage rights for the resources THIS module creates, scoped to the platform compartment (REQ-OCI-002). Does not grant tenancy-level rights -- see README.md#iam-bootstrap for the separate, undocumented-here bootstrap-identity requirement."

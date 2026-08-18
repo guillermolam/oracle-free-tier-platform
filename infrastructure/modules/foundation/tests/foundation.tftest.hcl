@@ -6,8 +6,6 @@ mock_provider "oci" {}
 variables {
   tenancy_ocid      = "ocid1.tenancy.oc1..aaaaaaaaexampleexampleexampleexampleexampleexampleexampleaaaa"
   environment       = "lab"
-  ci_group_name     = "platform-ci"
-  admin_group_name  = "platform-admins"
   state_bucket_name = "oracle-free-tier-platform-tfstate"
 }
 
@@ -39,29 +37,56 @@ run "state_bucket_is_private_and_versioned" {
   }
 }
 
-run "ci_policy_has_no_tenancy_scope" {
+run "iam_policies_deferred_by_default" {
   command = plan
 
   assert {
-    condition     = !anytrue([for s in oci_identity_policy.ci.statements : strcontains(s, "in tenancy")])
+    condition     = length(oci_identity_policy.ci) == 0 && length(oci_identity_policy.admin) == 0
+    error_message = "REQ-OCI-002/SPEC-OCI-001 Non-Goals: CI/admin policies must be deferred (create_iam_policies defaults to false) until distinct principals exist -- binding them to the bootstrap Administrators group today would be decorative"
+  }
+}
+
+run "ci_policy_has_no_tenancy_scope_when_enabled" {
+  command = plan
+
+  variables {
+    create_iam_policies = true
+    ci_group_name       = "platform-ci"
+    admin_group_name    = "platform-admins"
+  }
+
+  assert {
+    condition     = !anytrue([for s in oci_identity_policy.ci[0].statements : strcontains(s, "in tenancy")])
     error_message = "REQ-OCI-002: no CI policy statement may target tenancy scope"
   }
 }
 
-run "ci_policy_does_not_grant_all_resources" {
+run "ci_policy_does_not_grant_all_resources_when_enabled" {
   command = plan
 
+  variables {
+    create_iam_policies = true
+    ci_group_name       = "platform-ci"
+    admin_group_name    = "platform-admins"
+  }
+
   assert {
-    condition     = !anytrue([for s in oci_identity_policy.ci.statements : strcontains(s, "all-resources")])
+    condition     = !anytrue([for s in oci_identity_policy.ci[0].statements : strcontains(s, "all-resources")])
     error_message = "REQ-OCI-002/least-privilege: CI policy must enumerate specific resource-type families, never all-resources -- that would silently broaden CI visibility as new resource types are added elsewhere"
   }
 }
 
-run "admin_policy_has_no_tenancy_scope" {
+run "admin_policy_has_no_tenancy_scope_when_enabled" {
   command = plan
 
+  variables {
+    create_iam_policies = true
+    ci_group_name       = "platform-ci"
+    admin_group_name    = "platform-admins"
+  }
+
   assert {
-    condition     = !anytrue([for s in oci_identity_policy.admin.statements : strcontains(s, "in tenancy")])
+    condition     = !anytrue([for s in oci_identity_policy.admin[0].statements : strcontains(s, "in tenancy")])
     error_message = "REQ-OCI-002: no admin policy statement may target tenancy scope"
   }
 }

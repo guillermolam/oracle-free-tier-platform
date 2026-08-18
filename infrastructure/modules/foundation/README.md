@@ -22,15 +22,18 @@ and one lifecycle (essentially create-once).
 | `compartment_description` | string | no | — |
 | `environment` | string | yes | one of `lab`, `staging`, `prod` |
 | `platform_name` | string | no (default `"oracle-free-tier-platform"`) | — |
-| `ci_group_name` | string | yes | non-empty |
-| `admin_group_name` | string | yes | non-empty |
 | `state_bucket_name` | string | yes | valid OCI bucket name pattern |
 | `dynamic_group_name` | string | no (default `"platform-instances"`) | — |
 | `create_dynamic_group` | bool | no (default `false`) | — |
+| `create_iam_policies` | bool | no (default `false`) | — |
+| `ci_group_name` | string | no (default `""`) | non-empty when `create_iam_policies` is `true` |
+| `admin_group_name` | string | no (default `""`) | non-empty when `create_iam_policies` is `true` |
 
 `ci_group_name`/`admin_group_name` reference **existing** OCI IAM Groups —
 this module does not create IAM Users or Groups (see "Security invariants"
-below for why).
+below for why). Both are only used, and only required, when
+`create_iam_policies` is `true` — see that variable's description and
+`SPEC-OCI-001`'s Non-Goals for why policy creation is deferred by default.
 
 ## Output contract
 
@@ -47,10 +50,11 @@ below for why).
 `oci_identity_compartment` (1), `oci_identity_tag_namespace` (2:
 Platform, Security), `oci_identity_tag` (4: Platform.Environment,
 Platform.System, Platform.ManagedBy, Security.TrustZone),
-`oci_identity_policy` (2: CI, admin), `oci_identity_dynamic_group` (0 or
-1, gated by `var.create_dynamic_group` — see Security invariants),
-`oci_objectstorage_bucket` (1: state), `data.oci_objectstorage_namespace`
-(1, read-only).
+`oci_identity_policy` (0 or 2: CI, admin, gated by
+`var.create_iam_policies` — see Security invariants),
+`oci_identity_dynamic_group` (0 or 1, gated by `var.create_dynamic_group`
+— see Security invariants), `oci_objectstorage_bucket` (1: state),
+`data.oci_objectstorage_namespace` (1, read-only).
 
 **Not owned here**: IAM Users/Groups (see Security invariants), the
 tenancy-level bootstrap-identity grant (see Bootstrap runbook), any
@@ -65,10 +69,17 @@ sharing the state bucket).
   `oci_identity_compartment.platform.id` — never a resource placed
   directly in the tenancy root that could instead live in the platform
   compartment.
-- **REQ-OCI-002**: every `oci_identity_policy` statement targets
-  `compartment ${oci_identity_compartment.platform.name}` — grep the
-  module for the literal string `in tenancy` to confirm none exists.
-  Statements also enumerate specific resource-type families
+- **REQ-OCI-002**: deferred by default (`var.create_iam_policies =
+  false`) — this module's bootstrap principal is whichever existing
+  tenancy `Administrators` member runs the first apply, and binding
+  either policy to that same group would add no effective permission
+  beyond its existing tenancy-wide grant (the built-in Tenant Admin
+  Policy, untouched by this module) while implying a CI/admin separation
+  of duties that doesn't exist until distinct principals do. See
+  `SPEC-OCI-001`'s Non-Goals. When enabled, every `oci_identity_policy`
+  statement targets `compartment ${oci_identity_compartment.platform.name}`
+  — grep the module for the literal string `in tenancy` to confirm none
+  exists. Statements also enumerate specific resource-type families
   (`compartments`, `tag-namespaces`, `dynamic-groups`, `policies`,
   `object-family`) rather than `all-resources` — an initial draft of the
   CI policy used `read all-resources`, which technically stayed
@@ -157,13 +168,18 @@ tofu init -input=false   # no backend declared -> defaults to local ./terraform.
 tofu apply -input=false \
   -var="tenancy_ocid=$OCI_TENANCY_OCID" \
   -var="environment=lab" \
-  -var="ci_group_name=<existing CI group name>" \
-  -var="admin_group_name=<existing admin group name>" \
   -var="state_bucket_name=oracle-free-tier-platform-tfstate"
 ```
 
-Creates: the compartment, both tag namespaces + 4 tags, both IAM
-policies, the dynamic group, and — critically — the state bucket itself.
+Creates: the compartment, both tag namespaces + 4 tags, and — critically
+— the state bucket itself. `create_iam_policies` and `create_dynamic_group`
+both default to `false` and are deliberately omitted above — the first
+apply's bootstrap principal (existing tenancy `Administrators`
+membership) is not granted a policy of its own (`SPEC-OCI-001` Non-Goals),
+and no compute exists yet to match a dynamic group. Add
+`-var="create_iam_policies=true" -var="ci_group_name=<...>"
+-var="admin_group_name=<...>"` (and/or `-var="create_dynamic_group=true"`)
+in a later, separate apply once those real principals exist.
 
 ### Phase 2 — write the real backend and migrate (same scratch copy)
 

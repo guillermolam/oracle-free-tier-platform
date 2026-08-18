@@ -29,6 +29,14 @@ inputs = {
   # tenancy_ocid and state_bucket_name are NOT redeclared here -- both
   # already arrive via root.hcl's `inputs = merge(...)` from
   # common/account.hcl, so there's exactly one place each is defined.
+  #
+  # create_iam_policies is NOT set here -- defaults to false
+  # (variables.tf). The first apply uses the bootstrap principal
+  # (existing tenancy Administrators membership) directly; it is not
+  # granted a policy of its own (SPEC-OCI-001 Non-Goals). The names
+  # below are placeholders for when create_iam_policies is deliberately
+  # flipped to true against real, distinct CI/admin groups -- they do
+  # not need to resolve to existing groups until then.
   ci_group_name    = get_env("OCI_CI_GROUP_NAME", "platform-ci")
   admin_group_name = get_env("OCI_ADMIN_GROUP_NAME", "platform-admins")
 }
