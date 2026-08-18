@@ -66,6 +66,14 @@ sharing the state bucket).
 - **REQ-OCI-002**: every `oci_identity_policy` statement targets
   `compartment ${oci_identity_compartment.platform.name}` — grep the
   module for the literal string `in tenancy` to confirm none exists.
+  Statements also enumerate specific resource-type families
+  (`compartments`, `tag-namespaces`, `dynamic-groups`, `policies`,
+  `object-family`) rather than `all-resources` — an initial draft of the
+  CI policy used `read all-resources`, which technically stayed
+  compartment-scoped but would have silently broadened CI's read access
+  to every future resource type added to the compartment without this
+  module's own PR ever reviewing that expansion; both are enforced by
+  `tests/foundation.tftest.hcl`.
 - **No IAM User/Group creation**: `ci_group_name`/`admin_group_name` are
   inputs referencing pre-existing groups, not resources this module
   creates. Rationale: the OCI user `plan.yml`'s existing static secrets

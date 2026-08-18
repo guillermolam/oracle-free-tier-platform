@@ -48,6 +48,15 @@ run "ci_policy_has_no_tenancy_scope" {
   }
 }
 
+run "ci_policy_does_not_grant_all_resources" {
+  command = plan
+
+  assert {
+    condition     = !anytrue([for s in oci_identity_policy.ci.statements : strcontains(s, "all-resources")])
+    error_message = "REQ-OCI-002/least-privilege: CI policy must enumerate specific resource-type families, never all-resources -- that would silently broaden CI visibility as new resource types are added elsewhere"
+  }
+}
+
 run "admin_policy_has_no_tenancy_scope" {
   command = plan
 
