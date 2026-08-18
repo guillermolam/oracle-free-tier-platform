@@ -297,14 +297,16 @@ against the real `oracle/oci` v8.27.0 provider schema.
 
 See `live/` for the account/region/environment composition layer
 (`root.hcl`, `common/*.hcl`, `oci/eu-madrid-1/region.hcl`,
-`oci/eu-madrid-1/lab/env.hcl`) plus the first real unit,
-`oci/eu-madrid-1/lab/00-foundation/terragrunt.hcl` (PR B), wired to
-`modules/foundation`. Verified end-to-end with `terragrunt render`
-(includes resolve, `inputs` merge correctly, `generate` blocks produce
-valid provider/backend HCL) — not just `hcl fmt`/`hcl validate` syntax
-checks. `10-network`/`20-security/*` units still don't exist — each is
-added alongside its own module, so no `terragrunt.hcl` ever points at a
-`terraform { source = ... }` that doesn't exist.
+`oci/eu-madrid-1/lab/env.hcl`) plus the real units: `00-foundation` (PR
+B), wired to `modules/foundation`, and `10-network` (PR C), wired to
+`modules/network` via a Terragrunt `dependency` block consuming
+`00-foundation`'s real `compartment_ocid` output (`mock_outputs` scoped
+to `validate`/`plan`/`init` only, never `apply`). Both verified
+end-to-end with `terragrunt render` (inputs resolve, `generate` blocks
+produce valid provider/backend HCL) — not just `hcl fmt`/`hcl validate`
+syntax checks — and both are now real, deployed, `0/0/0`-plan-verified
+infrastructure; see "Apply gate" below. `20-security/*` units still
+don't exist — added alongside their own modules, same pattern.
 
 ## CI pipeline — current state and known gap
 
@@ -324,23 +326,49 @@ literally named `main.tf` (resources split by concern into
 added a real, non-empty navigational `main.tf` rather than change the
 discovery pattern.
 
-**Still a known gap, not fixed by this PR**: `plan.yml` currently runs a
-single `tofu plan` directly against the `lab` environment root — once
-`10-network`/`20-security/*` also have real `terragrunt.hcl` files, it
-needs to become Terragrunt-DAG-aware (`terragrunt run-all plan` or a
-per-unit loop in dependency order) so a PR touching `10-network` doesn't
-silently skip planning `20-security/logging-monitoring`'s dependency on
-it. Deferred to the PR that creates the second real unit — with only
-`00-foundation` existing, there's no DAG yet to be unaware of.
+**Fixed by PR B, confirmed still correct now that a real DAG exists (PR
+C)**: `plan.yml` runs `terragrunt run-all plan` from the `lab`
+environment root (`gruntwork-io/terragrunt-action`), not a single flat
+`tofu plan` — it resolves the `00-foundation` → `10-network` dependency
+order automatically. It still skips cleanly (not a false green) when
+`OCI_TENANCY_OCID` isn't configured as a GitHub Actions secret, which
+remains the case in this repo today.
 
-## Apply gate
+## Apply gate — deployed evidence
 
-Not reached by this PR. `modules/foundation` exists, is `tofu
-validate`/`tofu test`/`tflint`/`checkov`-clean, and its Terragrunt unit
-(`00-foundation`) renders correctly — but no real OCI credentials are
-configured in this environment, so no real `tofu plan` has ever been
-generated against actual OCI. Per the master execution prompt's APPLY
-GATE requirements, an ungenerated plan alone is sufficient to keep this
-gate closed regardless of how clean static validation is. See the phase-4
-PR B execution report for the current gate status and the full
-[Cause]→[Impact]→[Remediation] on the S3-compat locking finding.
+Both `00-foundation` and `10-network` are real, deployed, independently
+verified against the live tenancy — not just statically clean. This
+section records what "deployed" means here, since GitHub Actions still
+has no OCI credentials configured (`plan.yml` correctly skips there;
+every apply below ran from a local operator session with real `~/.oci`
+credentials and a Customer Secret Key for the S3-compat state backend).
+
+**`00-foundation`** (PR B/#38, dynamic-group and IAM-policy deferral
+fixes #39/#40, Oracle-Tags drift fix #41): 8 resources — platform
+compartment, `Platform`/`Security` tag namespaces, 4 tag definitions, the
+OpenTofu state bucket. Bootstrapped per REQ-OCI-007's two-phase sequence
+against an untracked scratch copy, state migrated into
+`oracle-free-tier-platform-tfstate`. Every resource independently
+confirmed via `oci` CLI (not just `tofu state`). A real `tofu plan`
+against the live tenancy returns `0 to add, 0 to change, 0 to destroy`.
+
+**`10-network`** (PR C/#43): 5 resources — one VCN (`10.10.0.0/16`) and
+four trust-zone subnets (Edge `10.10.10.0/24`, Management
+`10.10.20.0/24`, Workload `10.10.30.0/24`, Data `10.10.40.0/24`), each
+independently confirmed via `oci` CLI, including
+`prohibit-public-ip-on-vnic` per zone (`false` for Edge, `true` for the
+other three). `compartment_id` resolves through a real Terragrunt
+`dependency` block to `00-foundation`'s actual output, confirmed by
+inspecting the plan JSON directly rather than trusting the wiring. A real
+`tofu plan` against the live tenancy returns `0 to add, 0 to change, 0 to
+destroy`.
+
+**S3-compat backend locking**: still `use_lockfile = false`
+(unresolved conditional-write support, documented in `root.hcl`).
+Confirmed in practice during this bootstrap: the backend also exhibited
+transient `SignatureDoesNotMatch` failures for several minutes after each
+new Customer Secret Key's creation (IAM→Object-Storage-compat credential
+propagation lag, not a config defect — resolved on its own every time,
+confirmed by reproducing the same failure/success pattern independently
+via the AWS CLI). Single-writer discipline remains a hard requirement
+until this is revisited.
