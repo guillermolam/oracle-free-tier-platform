@@ -100,6 +100,27 @@ sharing the state bucket).
   `lifecycle { prevent_destroy = true }`. Checkov (`validate.yml`,
   `soft_fail: false`) is the second, independent layer catching an
   accidental public-access misconfiguration.
+- **Tag ownership on the state bucket**: two distinct owners, not one.
+  **OCI-owned** (`Oracle-Tags.CreatedBy`, `Oracle-Tags.CreatedOn`) — OCI's
+  own built-in tag namespace, auto-injected onto every resource regardless
+  of this module's config; confirmed against the live tenancy during
+  REQ-OCI-007's bootstrap, where a post-apply `tofu plan` showed OpenTofu
+  trying to null both out on every run, since `local.foundation_defined_tags`
+  never declared them. **Platform-owned** (`Platform.Environment`,
+  `Platform.System`, `Platform.ManagedBy`) — fully config-driven, this
+  module's own responsibility, must keep drift-detecting. The fix is a
+  narrowly-scoped `lifecycle.ignore_changes` on exactly the two OCI-owned
+  keys (`state_backend.tf`) — never the whole `defined_tags` attribute,
+  which would also hide real drift in the Platform-owned keys.
+  `tests/state_bucket_tag_ownership.tftest.hcl` proves the module's own
+  tag set stays exactly those 3 keys (nothing under `Oracle-Tags.*` sneaks
+  in) and stays config-driven; it does not attempt to unit-test the
+  `ignore_changes` suppression itself — OpenTofu's mock/override system
+  explicitly refuses to fake a config-set attribute like `defined_tags`
+  (confirmed empirically, not assumed: `override_resource` against it
+  fails with OpenTofu's own "overriding configuration values is not
+  allowed" error), so that behavior was instead validated against the
+  live tenancy directly.
 - **Compartment**: `enable_delete = false` explicit (matches the
   provider's own default, made explicit rather than implicit — see
   `compartment.tf`'s comment) plus `lifecycle { prevent_destroy = true }`.

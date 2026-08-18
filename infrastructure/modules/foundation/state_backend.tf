@@ -43,5 +43,19 @@ resource "oci_objectstorage_bucket" "state" {
 
   lifecycle {
     prevent_destroy = true
+
+    # OCI's built-in `Oracle-Tags` namespace auto-injects CreatedBy/CreatedOn
+    # onto every resource -- confirmed against the live tenancy (REQ-OCI-007
+    # bootstrap), not assumed: a post-apply plan showed OpenTofu trying to
+    # null out both keys on every run, since local.foundation_defined_tags
+    # never declared them. That's OCI-owned audit metadata, not something
+    # this module manages -- ignore exactly those two map keys, nothing
+    # broader. `ignore_changes = [defined_tags]` would also hide real drift
+    # in our own Platform.*/Security.* tags, which this module DOES own and
+    # must keep detecting.
+    ignore_changes = [
+      defined_tags["Oracle-Tags.CreatedBy"],
+      defined_tags["Oracle-Tags.CreatedOn"],
+    ]
   }
 }
