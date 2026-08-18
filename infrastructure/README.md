@@ -48,20 +48,26 @@ without a row here tracing it to a requirement.
 
 | Spec | Requirements | ARCH ID(s) | Threat-model corpus ref | Module | State unit |
 | --- | --- | --- | --- | --- | --- |
-| SPEC-OCI-001 | REQ-OCI-001..007 | `ARCH-GOV-TENANCY` | `ARCH-OCI-TENANCY`/`ARCH-OCI-COMPARTMENT` scopes (`network.yaml`) | `modules/oci-foundation` | `00-foundation` |
-| SPEC-NET-001 | REQ-NET-001..005 | `ARCH-NET-VCN`, `ARCH-ZONE-*` | `network.yaml` trust_zones (4, already schema-validated) | `modules/oci-network` | `10-network` |
-| SPEC-NET-002 | REQ-NET-006..010 | `ARCH-GW-IGW/NAT/SGW/DRG` | `network.yaml` components `COMP-INTERNET-GATEWAY`/`COMP-NAT-GATEWAY`/`COMP-SERVICE-GATEWAY` | `modules/oci-network` | `10-network` |
-| SPEC-NET-003 | REQ-NET-011..015 | `ARCH-FLOW-INGRESS/EGRESS/SERVICE` | `network.yaml` `FLOW-*` (transport/authz already modeled) | `modules/oci-network` | `10-network` |
-| SPEC-NET-004 | REQ-NET-016..020 | `ARCH-ZONE-MGMT`, NSGs | `network.yaml` `POLICY-CONTROL-NSG-6443`, `CTRL-K8S-API-INGRESS-RESTRICTION`, `COMP-*-NSG` (5) | `modules/oci-network` | `10-network` |
-| SPEC-NET-006 | REQ-NET-028..030 | `ARCH-NET-DNS` | not yet in `network.yaml` — DNS/DHCP wasn't part of the network-domain PoC migration | `modules/oci-network` | `10-network` |
+| SPEC-OCI-001 | REQ-OCI-001..007 | `ARCH-GOV-TENANCY` | `ARCH-OCI-TENANCY`/`ARCH-OCI-COMPARTMENT` scopes (`network.yaml`) | `modules/foundation` | `00-foundation` |
+| SPEC-NET-001 | REQ-NET-001..005 | `ARCH-NET-VCN`, `ARCH-ZONE-*` | `network.yaml` trust_zones (4, already schema-validated) | `modules/network` | `10-network` |
+| SPEC-NET-002 | REQ-NET-006..010 | `ARCH-GW-IGW/NAT/SGW/DRG` | `network.yaml` components `COMP-INTERNET-GATEWAY`/`COMP-NAT-GATEWAY`/`COMP-SERVICE-GATEWAY` | `modules/network` | `10-network` |
+| SPEC-NET-003 | REQ-NET-011..015 | `ARCH-FLOW-INGRESS/EGRESS/SERVICE` | `network.yaml` `FLOW-*` (transport/authz already modeled) | `modules/network` | `10-network` |
+| SPEC-NET-004 | REQ-NET-016..020 | `ARCH-ZONE-MGMT`, NSGs | `network.yaml` `POLICY-CONTROL-NSG-6443`, `CTRL-K8S-API-INGRESS-RESTRICTION`, `COMP-*-NSG` (5) | `modules/network` | `10-network` |
+| SPEC-NET-006 | REQ-NET-028..030 | `ARCH-NET-DNS` | not yet in `network.yaml` — DNS/DHCP wasn't part of the network-domain PoC migration | `modules/network` | `10-network` |
 | SPEC-NET-005 | REQ-NET-021..027 | all `ARCH-FLOW-*` | verification layer — **no module, no state unit** (ADR-0007) | n/a (`tofu test` cross-module assertions) | n/a |
-| SPEC-OCI-002 | REQ-OCI-008..011 | `ARCH-SVC-KMS` | not yet in `network.yaml` (identity/governance domain, not populated) | `modules/oci-kms` | `20-security/kms` |
-| SPEC-OCI-003 | REQ-OCI-012..015 | `ARCH-SVC-LOGGING`, `ARCH-SVC-MONITORING` | not yet in `network.yaml` | `modules/oci-logging-monitoring` | `20-security/logging-monitoring` |
+| SPEC-OCI-002 | REQ-OCI-008..011 | `ARCH-SVC-KMS` | not yet in `network.yaml` (identity/governance domain, not populated) | `modules/kms` | `20-security/kms` |
+| SPEC-OCI-003 | REQ-OCI-012..015 | `ARCH-SVC-LOGGING`, `ARCH-SVC-MONITORING` | not yet in `network.yaml` | `modules/logging-monitoring` | `20-security/logging-monitoring` |
 
-Module names above (`oci-foundation`, `oci-network`, `oci-kms`,
-`oci-logging-monitoring`) are proposed, not yet accepted — each is
-confirmed or revised in the PR that actually scaffolds it, per the master
-execution prompt's instruction not to accept module names blindly.
+Module names above (`foundation`, `network`, `kms`, `logging-monitoring`)
+are **not** this PR's invention — each is already fixed by its Spec's own
+Constraints section (SPEC-OCI-001/GitHub Issue #11: `modules/foundation`;
+SPEC-NET-001/004: `modules/network`; SPEC-OCI-002: `modules/kms`;
+SPEC-OCI-003: `modules/logging-monitoring`). An earlier draft of this
+table proposed an `oci-*`-prefixed naming scheme before checking the
+Specs' own Constraints sections against it — corrected once that check
+was actually done (per the master execution prompt's "do not accept
+names blindly" instruction, which cuts both ways: don't blindly accept
+*or* blindly invent).
 
 Threat-model corpus gaps this matrix surfaces (real findings, not
 invented): `network.yaml` doesn't yet model DNS/DHCP (SPEC-NET-006) or
@@ -110,44 +116,63 @@ every unit's remote state cannot itself be backed by that same remote
 state on its first `apply` — the bucket doesn't exist yet.
 
 ```text
-1. LOCAL BOOTSTRAP APPLY
-   cd live/oci/eu-madrid-1/lab/00-foundation
-   terragrunt apply -state=bootstrap.local.tfstate
+1. LOCAL BOOTSTRAP APPLY (untracked scratch copy, NOT the module or the
+   Terragrunt unit in place)
+   cp -r modules/foundation /tmp/foundation-bootstrap && cd /tmp/foundation-bootstrap
+   tofu init -input=false && tofu apply -input=false
    -> creates: platform compartment, IAM policies/dynamic groups,
       defined tags, the state bucket itself (versioned, encrypted,
       not public — Checkov-enforced, soft_fail: false)
 
-2. MIGRATE STATE
-   terragrunt init -migrate-state
-   -> moves 00-foundation's own state from bootstrap.local.tfstate
-      into the bucket it just created
+2. WRITE A REAL backend.tf AND MIGRATE (same scratch copy)
+   cat > backend.tf <<EOF ... EOF   # full config, not -backend-config flags
+   tofu init -input=false -migrate-state
+   -> moves the scratch copy's local terraform.tfstate into the bucket
+      it just created, at the exact key Terragrunt's own unit will use
 
 3. VERIFY REMOTE BACKEND
-   test ! -f terraform.tfstate && test ! -f bootstrap.local.tfstate
+   test ! -f terraform.tfstate
    oci os object list --bucket-name "$STATE_BUCKET" --namespace "$OCI_NS" \
-     --query "data[?starts_with(name, 'foundation/')]"
+     --query "data[?starts_with(name, 'oci/eu-madrid-1/lab/00-foundation/')]"
 
-4. REMOVE BOOTSTRAP DEPENDENCY
-   bootstrap.local.tfstate MUST be deleted immediately after step 3
-   succeeds (SPEC-OCI-001's Failure Modes: "a second bootstrap run
-   would silently diverge from the real remote state" if retained)
+4. DISCARD THE SCRATCH COPY
+   rm -rf /tmp/foundation-bootstrap
+   -> nothing here was ever tracked in git; no repo cleanup needed
 
-5. EVERY SUBSEQUENT UNIT (10-network, 20-security/*)
-   uses the remote backend from its first apply — no bootstrap needed,
-   00-foundation's bucket already exists
+5. EVERY SUBSEQUENT UNIT (10-network, 20-security/*, and 00-foundation's
+   OWN Terragrunt unit from now on)
+   uses the remote backend from its first `terragrunt` run — no bootstrap
+   needed, the bucket already exists
 ```
+
+**Why a scratch copy, not the module or Terragrunt unit in place**: the
+module deliberately declares no backend block (Terragrunt's `generate`
+mechanism owns that once a unit exists — see `live/root.hcl`). Bootstrap
+needs to write ITS OWN temporary `backend.tf` to reach the bucket before
+it exists at all — writing that into the tracked module source would
+leave a second, permanent backend declaration behind that conflicts with
+Terragrunt's generated one on every subsequent run (`OpenTofu` rejects
+two backend blocks in one configuration outright — confirmed by
+reproducing it locally, not assumed). The scratch copy is discarded
+specifically so that conflict never has anywhere to persist. Full
+runbook: `modules/foundation/README.md#bootstrap-runbook`.
 
 This is a **one-time, explicitly-labeled operation per environment**, not
 a repeatable CI step — `plan.yml`/`validate.yml` never run it. Backend:
 OCI Object Storage (native OpenTofu S3-compatible backend against OCI's
 S3-compatibility API, per REQ-OCI-005 — versioning enabled, no third-party
-state SaaS). Locking: OCI Object Storage's S3-compatible backend does not
-provide native state locking the way an S3+DynamoDB pair does; this is a
-**known gap**, not silently assumed away — tracked for the module that
-implements `00-foundation` to resolve or explicitly accept (single-writer,
-single-maintainer risk profile makes this lower-severity than a
-multi-operator team, but it is still a real gap worth a line in that PR's
-own documentation, not just here).
+state SaaS).
+
+**Locking (resolved, PR B)**: checked against OCI's own S3 Compatibility
+API reference, which explicitly enumerates supported `PutObject` request
+headers — only encryption and chunked-upload headers are listed;
+`If-None-Match`/`If-Match` are conspicuously absent, unlike AWS S3's own
+reference. `use_lockfile` is left **disabled** in `live/root.hcl` rather
+than trust unverified conditional-write support. Concurrency control is
+process-level instead: never run `terragrunt apply` concurrently against
+the same unit (single-maintainer repo; CI never auto-applies). See
+`live/root.hcl`'s own LOCKING NOTE comment for the full
+[Cause]→[Impact]→[Remediation].
 
 ## Secrets and credentials strategy
 
@@ -225,12 +250,14 @@ broad grant):
    `00-foundation`'s scope (REQ-OCI-003) since it's compartment/IAM
    plumbing, even though nothing consumes it until compute exists.
 
-Exact least-privilege policy statements (the actual OCI policy-statement
-syntax) are **not** written here — that's `00-foundation`'s own module PR,
-where the statements can be verified against the real resource types that
-module creates rather than guessed in advance. This is the bounded-gap
-pattern the master execution prompt requires: the gap is named, not
-silently resolved with a guess.
+Exact least-privilege policy statements now exist —
+`modules/foundation/iam.tf` (CI and admin `oci_identity_policy` resources,
+verified compartment-scoped, no `in tenancy` statement — enforced by
+`tests/foundation.tftest.hcl`). What's still **not** resolved here: the
+bootstrap identity's own tenancy-level grant (item 1 above) — that's
+inherently outside any `tofu apply` this repo runs (chicken-and-egg: a
+compartment-scoped policy can't authorize its own compartment's
+creation) — see `modules/foundation/README.md#bootstrap-identity-requirement-not-granted-by-this-module`.
 
 ## Free Tier classification (M1 scope)
 
@@ -261,37 +288,59 @@ apply, not assumed to still hold indefinitely.
 
 See [modules/README.md](modules/README.md) for the full contract every
 OpenTofu module must satisfy (purpose, input/output contract, security
-invariants, validation, tests, examples). No modules exist yet — this PR
-establishes the contract; the module implementing it (starting with
-`00-foundation`'s `oci-foundation` module) is a separate PR.
+invariants, validation, tests, examples). `modules/foundation/` (PR B) is
+the first module built against it — compartment, tags, IAM, state
+bucket, 11 `tofu test` assertions (6 positive, 5 negative), all passing
+against the real `oracle/oci` v8.27.0 provider schema.
 
 ## Terragrunt live layout
 
-See `live/` for the account/region/environment composition layer that
-exists so far (`root.hcl`, `common/*.hcl`, `oci/eu-madrid-1/region.hcl`,
-`oci/eu-madrid-1/lab/env.hcl`). Per-unit `terragrunt.hcl` files
-(`00-foundation/terragrunt.hcl`, etc.) are **not** created yet — each is
-added alongside the OpenTofu module it wires in, in that unit's own PR,
-so no `terragrunt.hcl` ever points at a `terraform { source = ... }` that
-doesn't exist.
+See `live/` for the account/region/environment composition layer
+(`root.hcl`, `common/*.hcl`, `oci/eu-madrid-1/region.hcl`,
+`oci/eu-madrid-1/lab/env.hcl`) plus the first real unit,
+`oci/eu-madrid-1/lab/00-foundation/terragrunt.hcl` (PR B), wired to
+`modules/foundation`. Verified end-to-end with `terragrunt render`
+(includes resolve, `inputs` merge correctly, `generate` blocks produce
+valid provider/backend HCL) — not just `hcl fmt`/`hcl validate` syntax
+checks. `10-network`/`20-security/*` units still don't exist — each is
+added alongside its own module, so no `terragrunt.hcl` ever points at a
+`terraform { source = ... }` that doesn't exist.
 
 ## CI pipeline — current state and known gap
 
 `validate.yml` (fmt/validate/`tofu test`/tflint/checkov) and `plan.yml`
 (plan against `infrastructure/live/oci/eu-madrid-1/lab`, static secrets,
 skips cleanly if unconfigured) already exist and match this document's
-toolchain. **Known gap, not fixed by this PR**: `plan.yml` currently runs
-a single `tofu plan` directly against the `lab` environment root — once
-real per-unit `terragrunt.hcl` files exist (PR B onward), it needs to
-become Terragrunt-DAG-aware (`terragrunt run-all plan` or a per-unit loop
-in dependency order) so a PR touching `10-network` doesn't silently skip
-planning `20-security/logging-monitoring`'s dependency on it. Deferred to
-the PR that creates the first real `terragrunt.hcl`, per "only create
-paths justified by actual implementation" — updating CI mechanics for
-units that don't exist yet would be speculative.
+toolchain.
+
+**Fixed by PR B**: `validate.yml`'s `tofu test` loop `cd`'d into the
+`tests/` subdirectory itself (`find ... -printf '%h\n'` returns the
+`.tftest.hcl` file's own directory) rather than the module root `tofu
+test` needs to run from — a latent bug that only surfaced once real test
+files existed. Also fixed: `modules/foundation` initially had no file
+literally named `main.tf` (resources split by concern into
+`compartment.tf`/`tags.tf`/`iam.tf`/`state_backend.tf`), so the
+`validate modules` loop's `find -name main.tf` never discovered it —
+added a real, non-empty navigational `main.tf` rather than change the
+discovery pattern.
+
+**Still a known gap, not fixed by this PR**: `plan.yml` currently runs a
+single `tofu plan` directly against the `lab` environment root — once
+`10-network`/`20-security/*` also have real `terragrunt.hcl` files, it
+needs to become Terragrunt-DAG-aware (`terragrunt run-all plan` or a
+per-unit loop in dependency order) so a PR touching `10-network` doesn't
+silently skip planning `20-security/logging-monitoring`'s dependency on
+it. Deferred to the PR that creates the second real unit — with only
+`00-foundation` existing, there's no DAG yet to be unaware of.
 
 ## Apply gate
 
-Not reached by this PR. No `.tf` resource code exists yet — there is
-nothing to plan or apply. See the phase-4 execution report for the current
-gate status.
+Not reached by this PR. `modules/foundation` exists, is `tofu
+validate`/`tofu test`/`tflint`/`checkov`-clean, and its Terragrunt unit
+(`00-foundation`) renders correctly — but no real OCI credentials are
+configured in this environment, so no real `tofu plan` has ever been
+generated against actual OCI. Per the master execution prompt's APPLY
+GATE requirements, an ungenerated plan alone is sufficient to keep this
+gate closed regardless of how clean static validation is. See the phase-4
+PR B execution report for the current gate status and the full
+[Cause]→[Impact]→[Remediation] on the S3-compat locking finding.

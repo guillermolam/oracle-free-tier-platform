@@ -23,26 +23,37 @@ jobs:
       OCI_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT }}
       OCI_REGION: ${{ secrets.OCI_REGION }}
       OCI_PRIVATE_KEY: ${{ secrets.OCI_PRIVATE_KEY }}
+      # S3-compatible backend auth (Customer Secret Key) -- a DIFFERENT
+      # credential from the OCI API key above; see
+      # infrastructure/modules/foundation/README.md#customer-secret-key.
+      AWS_ACCESS_KEY_ID: ${{ secrets.OCI_S3_COMPAT_ACCESS_KEY }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.OCI_S3_COMPAT_SECRET_KEY }}
+      OCI_OBJECT_STORAGE_NAMESPACE: ${{ secrets.OCI_OBJECT_STORAGE_NAMESPACE }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
-        with:
-          tofu_version: "1.x"
-          cache: true
+      # Runs `terragrunt run-all plan` from the lab environment root,
+      # discovering every unit in ADR-0007's DAG (currently just
+      # 00-foundation) in dependency order -- a raw `tofu plan` from that
+      # root directory (this workflow's previous design) silently produced
+      # an empty, misleadingly-successful plan, since the root has no .tf
+      # files of its own; the real config lives in each unit subdirectory.
+      #
+      # NOTE: 00-foundation's own remote backend doesn't exist until a
+      # human has run its one-time REQ-OCI-007 bootstrap for this
+      # environment (infrastructure/modules/foundation/README.md#bootstrap-runbook)
+      # -- until then, this step fails loudly on `terragrunt init` (backend
+      # bucket not found), which is the correct, honest failure mode: a
+      # loud, real error instead of a silently-empty plan.
       - name: Plan live/oci/eu-madrid-1/lab
         if: env.OCI_TENANCY_OCID != ''
-        working-directory: infrastructure/live/oci/eu-madrid-1/lab
-        run: |
-          tofu init -input=false
-          tofu plan -input=false -out=plan.tfplan
-      - name: Upload plan artifact
-        if: env.OCI_TENANCY_OCID != ''
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: gruntwork-io/terragrunt-action@8c1d96b76d445fd2e41475a3f0b63dcd1d9cc077 # v3.4.1
         with:
-          name: lab-plan
-          path: infrastructure/live/oci/eu-madrid-1/lab/plan.tfplan
+          tg_version: "1.1.3"
+          tofu_version: "1.12.5"
+          tg_dir: infrastructure/live/oci/eu-madrid-1/lab
+          tg_command: "run-all plan"
       - name: Notify missing credentials
         if: env.OCI_TENANCY_OCID == ''
         run: echo "OCI_TENANCY_OCID secret not configured; plan skipped. Configure GitHub Actions secrets or OCI OIDC federation."

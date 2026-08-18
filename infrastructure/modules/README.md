@@ -1,8 +1,9 @@
 # OpenTofu module contract
 
-Every module under `infrastructure/modules/` follows this contract. No
-module exists yet — this is the standard the first module (`oci-foundation`,
-implementing `SPEC-OCI-001`) is held to, not a retrospective description.
+Every module under `infrastructure/modules/` follows this contract.
+`foundation` (`SPEC-OCI-001`) is the first module built against it — this
+document was written as the standard it's held to, not a retrospective
+description of it.
 
 ## Principles
 
@@ -26,7 +27,12 @@ expressed as explicit `variable`/`output` contracts.
 modules/<name>/
 ├── README.md         PURPOSE, INPUT/OUTPUT contract, security invariants,
 │                       failure modes, upgrade expectations (see below)
-├── main.tf            resources
+├── main.tf            resources, OR (for a module whose resources split
+│                       naturally by concern) a real, non-empty entry-point
+│                       file mapping which named file owns what — main.tf
+│                       must exist either way: validate.yml's module
+│                       discovery loop keys off it (see foundation/main.tf
+│                       for a worked example)
 ├── variables.tf        typed inputs, validation blocks
 ├── outputs.tf           outputs consumed by other units/modules
 ├── versions.tf            required_providers, required_version
@@ -99,22 +105,22 @@ security requirement.
 
 ## Candidate first modules
 
-Proposed, not accepted — each name is confirmed or revised in the PR that
-actually scaffolds it:
+Each name below is fixed by its own Spec's Constraints section (not
+invented by this document) — see the citation in each row:
 
 | Candidate name | Spec | State unit |
 | --- | --- | --- |
-| `oci-foundation` | SPEC-OCI-001 | `00-foundation` |
-| `oci-network` | SPEC-NET-001/002/003/004/006 | `10-network` |
-| `oci-kms` | SPEC-OCI-002 | `20-security/kms` |
-| `oci-logging-monitoring` | SPEC-OCI-003 | `20-security/logging-monitoring` |
+| `foundation` | SPEC-OCI-001 | `00-foundation` |
+| `network` | SPEC-NET-001/002/003/004/006 | `10-network` |
+| `kms` | SPEC-OCI-002 | `20-security/kms` |
+| `logging-monitoring` | SPEC-OCI-003 | `20-security/logging-monitoring` |
 
-`oci-network` bundles VCN/subnets/gateways/routing/NSGs/DNS into one
+`network` bundles VCN/subnets/gateways/routing/NSGs/DNS into one
 module because ADR-0007 already decided `10-network` is one state unit —
 a module boundary narrower than its state unit would just add internal
 plumbing with no independent-apply benefit; a module boundary wider than
 its state unit isn't possible (Terragrunt wires exactly one module source
 per unit). This does not preclude internal file organization within
-`oci-network/main.tf` mirroring each Spec (vcn.tf, subnets.tf, gateways.tf,
+`network/main.tf` mirroring each Spec (vcn.tf, subnets.tf, gateways.tf,
 routing.tf, security.tf, dns.tf) for readability — only the Terragrunt/
 state boundary is fixed, not the internal file layout.
