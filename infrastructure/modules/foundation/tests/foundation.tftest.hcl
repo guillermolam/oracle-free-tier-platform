@@ -66,12 +66,25 @@ run "admin_policy_has_no_tenancy_scope" {
   }
 }
 
-run "dynamic_group_matches_on_compartment" {
+run "dynamic_group_deferred_by_default" {
   command = plan
 
   assert {
-    condition     = can(regex("instance.compartment.id", oci_identity_dynamic_group.platform_instances.matching_rule))
-    error_message = "REQ-OCI-003: dynamic group must match on instance.compartment.id"
+    condition     = length(oci_identity_dynamic_group.platform_instances) == 0
+    error_message = "REQ-OCI-003's dynamic group must be deferred (create_dynamic_group defaults to false) until M2 compute exists to match -- see variables.tf"
+  }
+}
+
+run "dynamic_group_matches_on_compartment_when_enabled" {
+  command = plan
+
+  variables {
+    create_dynamic_group = true
+  }
+
+  assert {
+    condition     = can(regex("instance.compartment.id", oci_identity_dynamic_group.platform_instances[0].matching_rule))
+    error_message = "REQ-OCI-003: dynamic group must match on instance.compartment.id when created"
   }
 }
 

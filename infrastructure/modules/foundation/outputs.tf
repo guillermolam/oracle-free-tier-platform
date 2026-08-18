@@ -19,8 +19,8 @@ output "tag_namespace_security" {
 }
 
 output "dynamic_group_ocid" {
-  value       = oci_identity_dynamic_group.platform_instances.id
-  description = "OCID of the Dynamic Group matching Talos/Flux-managed instance principals (REQ-OCI-003). Consumed by I04 (compute) once it exists."
+  value       = try(oci_identity_dynamic_group.platform_instances[0].id, null)
+  description = "OCID of the Dynamic Group matching Talos/Flux-managed instance principals (REQ-OCI-003), or null while var.create_dynamic_group is false. Consumed by I04 (compute) once it exists."
 }
 
 output "state_bucket_name" {

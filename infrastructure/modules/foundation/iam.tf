@@ -62,11 +62,15 @@ resource "oci_identity_policy" "admin" {
 }
 
 # REQ-OCI-003: Dynamic Group matching Talos/Flux-managed instance
-# principals. No compute exists yet (M1) -- this match rule targets "any
-# instance in the platform compartment", valid OCI config that simply
-# matches nothing until M2 introduces Talos instances. Defining the shape
-# now means the network/compute modules don't need to touch IAM later.
+# principals. Deferred by default (var.create_dynamic_group = false): no
+# compute exists yet (M1), so the match rule below would target "any
+# instance in the platform compartment" and match literally nothing --
+# valid OCI config, but dead IAM machinery with no principal to review it
+# against until M2 introduces Talos instances. Set create_dynamic_group =
+# true once M2 is imminent instead of deploying this ahead of need.
 resource "oci_identity_dynamic_group" "platform_instances" {
+  count = var.create_dynamic_group ? 1 : 0
+
   compartment_id = var.tenancy_ocid # dynamic groups are always tenancy-scoped resources in OCI's model
   name           = var.dynamic_group_name
   description    = "Talos/Flux-managed instance principals in the platform compartment (REQ-OCI-003). Matches nothing until M2 compute exists."
