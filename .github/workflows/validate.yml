@@ -99,4 +99,14 @@ jobs:
           # this finding when reached through a module call
           # (modules/foundation/examples/minimal) -- this workflow-level flag
           # is the verified-working mechanism.
-          skip_check: CKV_OCI_9
+          #
+          # CKV_OCI_16/CKV_OCI_19 (baseline Security Lists, PR C2 addendum):
+          # both checks assume a Security List with zero ingress rules means
+          # "ingress wasn't configured" -- for
+          # modules/network/security_lists.tf, zero ingress rules IS the
+          # intended REQ-NET-018 default-deny baseline, confirmed empirically
+          # (checkov fails both checks specifically because no
+          # ingress_security_rules block exists at all, not because a port-22
+          # rule was found). Adding an ingress rule to satisfy the scanner
+          # would be the opposite of correct here.
+          skip_check: CKV_OCI_9,CKV_OCI_16,CKV_OCI_19

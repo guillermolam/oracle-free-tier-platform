@@ -4,19 +4,34 @@
 
 Implements `SPEC-NET-001` (REQ-NET-001..005, the platform VCN and its
 four trust-zone subnets), `SPEC-NET-002` (REQ-NET-006..010, gateways:
-Internet, NAT, Service, and an inert DRG), and `SPEC-NET-003`
-(REQ-NET-011..015, one route table per trust zone), as decided by
-`ADR-0006` and `ADR-0008`. This is the second module in the state DAG —
-`SPEC-NET-004` (NSGs/Security Lists) and `SPEC-NET-006` (DNS/DHCP) attach
-to what this module creates, and I04 (compute) attaches to its subnets/
-route tables. `ADR-0007` already decided `10-network` is one state unit
-covering all of `SPEC-NET-001` through `SPEC-NET-006` — this module is
-built incrementally across PRs against that same eventual state unit
-(PR C: `vcn.tf` + `subnets.tf`; PR C2, this one: `gateways.tf` +
-`routing.tf`; a later PR adds `security.tf`/`dns.tf`), per
-`../README.md`'s own documented internal-file-organization note. Not a
-further-split target: OCI network topology within one VCN is provisioned
-and changed as a unit in practice.
+Internet, NAT, Service, and an inert DRG), `SPEC-NET-003`
+(REQ-NET-011..015, one route table per trust zone), and — pulled forward
+from what was originally PR C3's scope — `SPEC-NET-004`'s **coarse
+baseline only** (REQ-NET-016/018: one default-deny Security List per
+zone). As decided by `ADR-0006` and `ADR-0008`. This is the second module
+in the state DAG — `SPEC-NET-004`'s remaining scope (REQ-NET-017/019/020:
+the five purpose-built NSGs, `control` NSG's port-6443 restriction) and
+`SPEC-NET-006` (DNS/DHCP) still attach to what this module creates, and
+I04 (compute) attaches to its subnets/route tables. `ADR-0007` already
+decided `10-network` is one state unit covering all of `SPEC-NET-001`
+through `SPEC-NET-006` — this module is built incrementally across PRs
+against that same eventual state unit (PR C: `vcn.tf` + `subnets.tf`;
+PR C2, this one: `gateways.tf` + `routing.tf` + `security_lists.tf`; a
+later PR adds `nsgs.tf`/`dns.tf`), per `../README.md`'s own documented
+internal-file-organization note. Not a further-split target: OCI network
+topology within one VCN is provisioned and changed as a unit in
+practice.
+
+**Why the Security List baseline moved into PR C2**: applying IGW routing
+to Edge (`gateways.tf`/`routing.tf`, this same PR) while every subnet
+still inherited OCI's permissive default Security List (TCP/22 + ICMP
+from `0.0.0.0/0`) would have been a real, avoidable transitional
+exposure, not a hypothetical one — Edge specifically becomes
+internet-routable in this PR. `security_lists.tf` closes that gap with
+the minimum necessary baseline (REQ-NET-016/018) without pulling forward
+NSGs, OpenZiti-specific rules, Kubernetes control-plane authorization
+(REQ-NET-019), or any other component-level authorization — those remain
+PR C3 exactly as originally scoped.
 
 ## Input contract
 
@@ -42,6 +57,7 @@ hardcoded constants, not tunables.
 | `igw_id` / `nat_id` / `sgw_id` / `drg_id` | consumed internally by `routing.tf`; `drg_id` also for I21 once hybrid connectivity begins |
 | `drg_route_table_id` | I21 — the table it populates once hybrid routing activates |
 | `route_table_ids` | map keyed by zone — I04 (compute subnet attachment) |
+| `security_list_ids` | map keyed by zone — PR C3's NSGs layer on top of these; I04 attaches compute to the same zone's list |
 
 ## Resource ownership
 
@@ -50,15 +66,18 @@ hardcoded constants, not tunables.
 `oci_core_service_gateway` (1), `oci_core_drg` (1),
 `oci_core_drg_route_table` (1, empty — the inert mechanism),
 `oci_core_drg_attachment` (1), `oci_core_route_table` (4, one per trust
-zone, via `for_each`), `data.oci_core_services` (1, read-only — resolves
-the region's Services Network CIDR label).
+zone, via `for_each`), `oci_core_security_list` (4, one per trust zone,
+via `for_each` — baseline only, REQ-NET-016/018),
+`data.oci_core_services` (1, read-only — resolves the region's Services
+Network CIDR label).
 
-**Not owned here**: NSGs/Security Lists (`SPEC-NET-004`), DNS/DHCP
-options (`SPEC-NET-006`), compute attachment (I04), any DRG route
-rule/distribution (I21 — this module creates the DRG attached-but-empty,
-never populates it). Subnets use OCI's default security list (unchanged
-until `SPEC-NET-004`) but no longer the default route table — each now
-has its own zone-specific one (`routing.tf`).
+**Not owned here**: NSGs (`SPEC-NET-004`'s remaining scope,
+REQ-NET-017/019/020), DNS/DHCP options (`SPEC-NET-006`), compute
+attachment (I04), any DRG route rule/distribution (I21 — this module
+creates the DRG attached-but-empty, never populates it). Subnets no
+longer use OCI's default route table or default Security List — each has
+its own zone-specific pair now (`routing.tf`, `security_lists.tf`); the
+OCI defaults become intentionally unused, not deleted.
 
 ## Security invariants
 
@@ -115,6 +134,22 @@ has its own zone-specific one (`routing.tf`).
   zone's explicit route table (`subnets.tf`), never the VCN default —
   audited against the live tenancy before this change (all four subnets
   previously fell back to the empty default route table).
+- **REQ-NET-016/018 (Security List baseline, pulled forward from
+  `SPEC-NET-004`)**: every subnet's `security_list_ids` now points at its
+  own zone's baseline Security List (`security_lists.tf`), never the VCN
+  default — same audit-before-change discipline as REQ-NET-011. Each
+  list has **zero ingress rules** (default-deny; `tests/security_lists.tftest.hcl`
+  asserts this independently per zone, not just once) and egress scoped
+  to exactly the two destinations this module's own routing needs
+  (`0.0.0.0/0` matching the NAT/IGW route, the Services CIDR label
+  matching the Service Gateway route) — not a blanket copy of OCI's
+  permissive default. This exists specifically because Edge becomes
+  IGW-routable in this same PR; shipping that without a Security List
+  baseline would have left a real transitional exposure, not a
+  hypothetical one. **Routable is still not authorized**: this baseline
+  proves nothing is exposed today, not that anything is cleared to be —
+  NSG-level component authorization (REQ-NET-017/019/020) remains
+  PR C3.
 
 ## Requirement traceability
 
@@ -135,10 +170,13 @@ has its own zone-specific one (`routing.tf`).
 | REQ-NET-013 | SPEC-NET-003 | — | ARCH-FLOW-EGRESS (GREEN) | ARCH-FLOW-EGRESS | Route rule (Mgmt/Workload/Data → NAT, never IGW) | `oci_core_route_table.this[zone]` | `management_workload_data_never_reference_the_internet_gateway`, `management_workload_data_route_internet_to_nat_only` |
 | REQ-NET-014 | SPEC-NET-003 | — | ARCH-FLOW-SERVICE (BLUE) | ARCH-FLOW-SERVICE | Route rule (all zones → SGW) | `oci_core_route_table.this[*]` | `all_four_zones_route_services_cidr_to_service_gateway` |
 | REQ-NET-015 | SPEC-NET-003 | ADR-0008 | ARCH-FLOW-HYBRID (ORANGE) | ARCH-FLOW-HYBRID | (reserved slot, unpopulated) | n/a — no resource by design | `no_route_table_references_the_drg` |
+| REQ-NET-016 | SPEC-NET-004 (baseline only) | — | ARCH-ZONE-* | — | Security List ×4 | `oci_core_security_list.this` | `four_security_lists_one_per_zone`, `every_subnet_uses_its_own_zone_security_list_not_the_default` |
+| REQ-NET-018 | SPEC-NET-004 (baseline only) | — | ARCH-FLOW-INGRESS/EGRESS/SERVICE | ARCH-FLOW-INGRESS | Security List rules (empty ingress; egress = 2 rules matching routing) | `oci_core_security_list.this[zone]` | `{edge,management,workload,data}_has_no_(unauthorized\|internet)_ingress`, `no_zone_permits_ssh_from_the_internet`, `no_zone_permits_unrestricted_ingress_of_any_kind`, `egress_scoped_to_exactly_what_routing_needs` |
 
 No orphan infrastructure: every resource and route rule in `gateways.tf`/
-`routing.tf` traces to one of the rows above. Nothing was added that
-isn't required by REQ-NET-006 through REQ-NET-015.
+`routing.tf`/`security_lists.tf` traces to one of the rows above. Nothing
+was added that isn't required by REQ-NET-006 through REQ-NET-018 (with
+REQ-NET-017/019/020 explicitly out of scope — see Purpose).
 
 ## Route matrix
 
@@ -158,6 +196,32 @@ No unexplained `0.0.0.0/0` — every occurrence above is either Edge→IGW
 (REQ-NET-012, the only place it's allowed) or Management/Workload/Data→NAT
 (REQ-NET-013, explicitly never IGW).
 
+## Security List baseline matrix
+
+| Zone | Direction | Source/Destination | Protocol | Purpose | REQ |
+| --- | --- | --- | --- | --- | --- |
+| Edge | Ingress | — (none) | — | Default-deny; routable via IGW does not mean authorized — NSG-level authorization is PR C3 | REQ-NET-018 |
+| Edge | Egress | `0.0.0.0/0` | all | Matches Edge's own IGW route (REQ-NET-012) — a route with no matching egress rule is unusable | REQ-NET-016 |
+| Edge | Egress | Services CIDR label | all | Matches Edge's Service Gateway route (REQ-NET-014) | REQ-NET-016 |
+| Management | Ingress | — (none) | — | Default-deny — NAT is egress-only by OCI design regardless, but the SL is the platform-level control, not an assumption about NAT behavior | REQ-NET-018 |
+| Management | Egress | `0.0.0.0/0` | all | Matches Management's NAT route (REQ-NET-013) | REQ-NET-016 |
+| Management | Egress | Services CIDR label | all | Matches Management's Service Gateway route (REQ-NET-014) | REQ-NET-016 |
+| Workload | Ingress | — (none) | — | Default-deny, same reasoning as Management | REQ-NET-018 |
+| Workload | Egress | `0.0.0.0/0` | all | Matches Workload's NAT route (REQ-NET-013) | REQ-NET-016 |
+| Workload | Egress | Services CIDR label | all | Matches Workload's Service Gateway route (REQ-NET-014) | REQ-NET-016 |
+| Data | Ingress | — (none) | — | Default-deny, same reasoning as Management | REQ-NET-018 |
+| Data | Egress | `0.0.0.0/0` | all | Matches Data's NAT route (REQ-NET-013) | REQ-NET-016 |
+| Data | Egress | Services CIDR label | all | Matches Data's Service Gateway route (REQ-NET-014) | REQ-NET-016 |
+
+No ingress rule exists anywhere in this table — every zone's Security
+List is empty on ingress, independently asserted per zone in
+`tests/security_lists.tftest.hcl`, not inferred from one representative
+check. Egress is deliberately **not** a blanket copy of OCI's default
+(`all protocols → 0.0.0.0/0` with no Services-CIDR distinction) — every
+row above traces to a route this module's own `routing.tf` already
+creates; there is no egress destination in this table that routing
+doesn't also send traffic to.
+
 ## Traffic-flow reconciliation (post–PR C2)
 
 Using `docs/01-architecture/traceability.md`'s RED/GREEN/BLUE/PURPLE/
@@ -166,12 +230,19 @@ invented here:
 
 - **Physically exist (routable) after PR C2**: RED (`ARCH-FLOW-INGRESS`),
   GREEN (`ARCH-FLOW-EGRESS`), BLUE (`ARCH-FLOW-SERVICE`/`-BACKUP`).
-- **Routable but not yet authorized**: the same three — routes exist, but
-  no Security List/NSG (`SPEC-NET-004`, PR C3) has been added yet, so
-  "routable" is not "permitted." The shared default Security List (audited
-  against the live tenancy, unchanged by this PR) still allows SSH
-  (22/tcp) and ICMP from `0.0.0.0/0` on every subnet — harmless today
-  (nothing listens), a real gap PR C3 must close.
+- **Routable but not yet authorized**: the same three — routes exist, and
+  as of this PR every zone now has its own default-deny Security List
+  baseline (REQ-NET-016/018, `security_lists.tf`), not the shared OCI
+  default. "Routable" still isn't "permitted": the baseline proves no
+  zone is exposed *today* (zero ingress rules everywhere), it does not
+  grant any component authorization — NSG-level rules (REQ-NET-017/019/020,
+  PR C3) are what turn "routable and default-denied" into "routable and
+  specifically permitted for a real component." This is a meaningfully
+  different, stronger position than PR C2's first draft, which left every
+  subnet on the shared default Security List (SSH/ICMP from `0.0.0.0/0`)
+  while making Edge IGW-routable in the same PR — a real, avoidable
+  transitional exposure, closed before this PR's apply gate rather than
+  carried into PR C3.
 - **Remain physically impossible**: PURPLE (`ARCH-FLOW-ADMIN`/`-CONTROL`)
   — no OpenZiti, no compute/Talos exists yet (I04/I08/M2); this module
   creates no path for either.
@@ -280,3 +351,23 @@ variables, so there's no user-input surface for `expect_failures`-style
 malformed/overlapping-route negative tests the way `foundation`'s
 string/OCID variables have — the same reasoning as `network_negative.tftest.hcl`
 above, applied to routing.
+
+`tests/security_lists.tftest.hcl` (positive; these ARE this module's
+critical security invariants, same pattern as `routing.tftest.hcl`):
+exactly four Security Lists exist; no zone permits TCP/22 from
+`0.0.0.0/0` (checked as one combined assertion, not per-zone, since the
+underlying invariant — zero ingress rules — is stronger and checked
+per-zone separately below); Edge, Management, Workload, and Data each
+**independently** assert zero ingress rules (not one representative
+check standing in for all four, matching this module's established
+per-zone-assertion discipline); a combined
+`no_zone_permits_unrestricted_ingress_of_any_kind` assertion restates the
+same fact as the strongest possible form of "no unrestricted ingress
+exists anywhere"; egress is exactly 2 rules per zone, matching what
+`routing.tf` actually routes (not a blanket `0.0.0.0/0` reproduction);
+every subnet references its own zone's Security List, never the OCI
+default. Does not attempt to unit-test *effective live reachability*
+(whether a real internet client could actually reach a real resource) —
+that's not a mock-provider-provable claim, and the real plan/OCI CLI
+verification in the PR C2 deployment report is the authoritative check,
+consistent with how this module already treats DRG inertness.
