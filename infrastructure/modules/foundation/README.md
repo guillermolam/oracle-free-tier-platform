@@ -134,11 +134,24 @@ existing policy's statements in place (no replacement). Changing
 manually by the human administrator — never a CI step.** `plan.yml`/
 `validate.yml` never execute this sequence.
 
-### Phase 1 — local bootstrap apply
+This module deliberately declares **no backend block** (see
+`versions.tf`'s comment) — Terragrunt's `generate` mechanism owns that
+once a unit exists (`live/root.hcl`). A `backend "s3" {}` block in this
+module too would be a **second** backend declaration in the same
+configuration; OpenTofu rejects that outright ("Duplicate backend
+configuration"), confirmed by reproducing it locally against a real
+`backend.tf`, not assumed. So bootstrap runs against an **untracked
+scratch copy** of this module, never the module in place — that copy is
+the only place a temporary `backend.tf` is ever written.
+
+### Phase 1 — local bootstrap apply (scratch copy)
 
 ```sh
-cd infrastructure/modules/foundation
-tofu init -backend=false -input=false
+cp -r infrastructure/modules/foundation /tmp/foundation-bootstrap
+cd /tmp/foundation-bootstrap
+rm -rf tests examples .terraform .terraform.lock.hcl
+
+tofu init -input=false   # no backend declared -> defaults to local ./terraform.tfstate
 tofu apply -input=false \
   -var="tenancy_ocid=$OCI_TENANCY_OCID" \
   -var="environment=lab" \
@@ -147,45 +160,46 @@ tofu apply -input=false \
   -var="state_bucket_name=oracle-free-tier-platform-tfstate"
 ```
 
-`-backend=false` disables `versions.tf`'s `backend "s3" {}` block for this
-init, so state writes to the default local `./terraform.tfstate` — **not**
-a custom `-state=` path (see `SPEC-OCI-001`'s Verification section for why
-that would break phase 2: `tofu init` has no `-state` flag, so
-`-migrate-state` can only find state at the default path).
-
 Creates: the compartment, both tag namespaces + 4 tags, both IAM
 policies, the dynamic group, and — critically — the state bucket itself.
 
-### Phase 2 — configure the real backend and migrate
+### Phase 2 — write the real backend and migrate (same scratch copy)
 
 ```sh
-cat > backend.hcl <<'EOF'
-bucket                      = "oracle-free-tier-platform-tfstate"
-key                         = "oci/eu-madrid-1/lab/00-foundation/terraform.tfstate"
-region                      = "eu-madrid-1"
-use_path_style              = true
-skip_region_validation      = true
-skip_credentials_validation = true
-skip_metadata_api_check     = true
-skip_s3_checksum            = true
+# Still in /tmp/foundation-bootstrap. A real, complete backend block --
+# not partial -backend-config flags into a pre-declared empty block,
+# since none exists anymore.
+cat > backend.tf <<EOF
+terraform {
+  backend "s3" {
+    bucket = "oracle-free-tier-platform-tfstate"
+    key    = "oci/eu-madrid-1/lab/00-foundation/terraform.tfstate"
+    region = "eu-madrid-1"
+
+    endpoints = {
+      s3 = "https://\$OCI_OBJECT_STORAGE_NAMESPACE.compat.objectstorage.eu-madrid-1.oci.customer-oci.com"
+    }
+
+    # access_key/secret_key are read natively from AWS_ACCESS_KEY_ID/
+    # AWS_SECRET_ACCESS_KEY (the Customer Secret Key -- see below) --
+    # never written into this file.
+    use_path_style               = true
+    skip_region_validation       = true
+    skip_credentials_validation  = true
+    skip_metadata_api_check      = true
+    skip_s3_checksum             = true
+  }
+}
 EOF
 
-# endpoints.s3 is supplied separately (not written into backend.hcl) so
-# the file itself never needs to encode the tenancy's Object Storage
-# namespace as a semi-sensitive value; access_key/secret_key are NOT
-# passed via -backend-config at all — the S3 backend reads them natively
-# from AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY (the Customer Secret Key —
-# see "Customer Secret Key" below — never written to any file on disk).
-tofu init -input=false -migrate-state \
-  -backend-config=backend.hcl \
-  -backend-config="endpoints={s3=\"https://<namespace>.compat.objectstorage.eu-madrid-1.oci.customer-oci.com\"}"
+tofu init -input=false -migrate-state
 ```
 
 OpenTofu detects the backend configuration changed (none → `s3`) and,
 with `-migrate-state`, copies the local `terraform.tfstate` into the
 bucket at the key above without prompting.
 
-### Verify, then remove bootstrap-only artifacts
+### Verify, then discard the scratch copy
 
 ```sh
 oci iam compartment list --compartment-id-in-subtree true \
@@ -193,9 +207,10 @@ oci iam compartment list --compartment-id-in-subtree true \
 oci os object list --bucket-name oracle-free-tier-platform-tfstate \
   --namespace "$OCI_NS" --query "data[?starts_with(name, 'oci/eu-madrid-1/lab/00-foundation/')]"
 
-rm -f backend.hcl   # no secrets in it after the above, but not durable config either
-# terraform.tfstate is no longer authoritative once migration succeeds —
-# confirm the object above exists in the bucket before deleting it locally.
+# Confirm the object above exists in the bucket BEFORE this step --
+# nothing here was ever tracked in git, so there's no repo cleanup, just
+# removing the local scratch directory.
+rm -rf /tmp/foundation-bootstrap
 ```
 
 ### Every subsequent unit

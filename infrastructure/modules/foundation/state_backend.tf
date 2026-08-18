@@ -45,8 +45,3 @@ resource "oci_objectstorage_bucket" "state" {
     prevent_destroy = true
   }
 }
-
-# checkov:skip=CKV_OCI_9:SPEC-OCI-002's own Non-Goals section explicitly
-#   states customer-managed (KMS) encryption on this bucket is an optional
-#   follow-on, not required -- REQ-OCI-005 is satisfied by OCI's default
-#   Oracle-managed encryption. Revisit only if a future ADR changes this.

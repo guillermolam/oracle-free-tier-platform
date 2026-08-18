@@ -116,32 +116,46 @@ every unit's remote state cannot itself be backed by that same remote
 state on its first `apply` — the bucket doesn't exist yet.
 
 ```text
-1. LOCAL BOOTSTRAP APPLY
-   cd live/oci/eu-madrid-1/lab/00-foundation
-   terragrunt apply -state=bootstrap.local.tfstate
+1. LOCAL BOOTSTRAP APPLY (untracked scratch copy, NOT the module or the
+   Terragrunt unit in place)
+   cp -r modules/foundation /tmp/foundation-bootstrap && cd /tmp/foundation-bootstrap
+   tofu init -input=false && tofu apply -input=false
    -> creates: platform compartment, IAM policies/dynamic groups,
       defined tags, the state bucket itself (versioned, encrypted,
       not public — Checkov-enforced, soft_fail: false)
 
-2. MIGRATE STATE
-   terragrunt init -migrate-state
-   -> moves 00-foundation's own state from bootstrap.local.tfstate
-      into the bucket it just created
+2. WRITE A REAL backend.tf AND MIGRATE (same scratch copy)
+   cat > backend.tf <<EOF ... EOF   # full config, not -backend-config flags
+   tofu init -input=false -migrate-state
+   -> moves the scratch copy's local terraform.tfstate into the bucket
+      it just created, at the exact key Terragrunt's own unit will use
 
 3. VERIFY REMOTE BACKEND
-   test ! -f terraform.tfstate && test ! -f bootstrap.local.tfstate
+   test ! -f terraform.tfstate
    oci os object list --bucket-name "$STATE_BUCKET" --namespace "$OCI_NS" \
-     --query "data[?starts_with(name, 'foundation/')]"
+     --query "data[?starts_with(name, 'oci/eu-madrid-1/lab/00-foundation/')]"
 
-4. REMOVE BOOTSTRAP DEPENDENCY
-   bootstrap.local.tfstate MUST be deleted immediately after step 3
-   succeeds (SPEC-OCI-001's Failure Modes: "a second bootstrap run
-   would silently diverge from the real remote state" if retained)
+4. DISCARD THE SCRATCH COPY
+   rm -rf /tmp/foundation-bootstrap
+   -> nothing here was ever tracked in git; no repo cleanup needed
 
-5. EVERY SUBSEQUENT UNIT (10-network, 20-security/*)
-   uses the remote backend from its first apply — no bootstrap needed,
-   00-foundation's bucket already exists
+5. EVERY SUBSEQUENT UNIT (10-network, 20-security/*, and 00-foundation's
+   OWN Terragrunt unit from now on)
+   uses the remote backend from its first `terragrunt` run — no bootstrap
+   needed, the bucket already exists
 ```
+
+**Why a scratch copy, not the module or Terragrunt unit in place**: the
+module deliberately declares no backend block (Terragrunt's `generate`
+mechanism owns that once a unit exists — see `live/root.hcl`). Bootstrap
+needs to write ITS OWN temporary `backend.tf` to reach the bucket before
+it exists at all — writing that into the tracked module source would
+leave a second, permanent backend declaration behind that conflicts with
+Terragrunt's generated one on every subsequent run (`OpenTofu` rejects
+two backend blocks in one configuration outright — confirmed by
+reproducing it locally, not assumed). The scratch copy is discarded
+specifically so that conflict never has anywhere to persist. Full
+runbook: `modules/foundation/README.md#bootstrap-runbook`.
 
 This is a **one-time, explicitly-labeled operation per environment**, not
 a repeatable CI step — `plan.yml`/`validate.yml` never run it. Backend:

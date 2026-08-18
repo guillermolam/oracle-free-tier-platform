@@ -75,11 +75,21 @@ run "dynamic_group_matches_on_compartment" {
   }
 }
 
-run "defined_tags_taxonomy_has_four_keys" {
+run "defined_tags_taxonomy_has_four_key_resources_but_three_applied_values" {
   command = plan
+
+  # 4 oci_identity_tag resources define the taxonomy (Environment, System,
+  # ManagedBy, TrustZone), but local.foundation_defined_tags -- the map
+  # actually applied to this module's own resources -- only populates 3:
+  # TrustZone is taxonomy-only here, with no value until the network
+  # module's zone-scoped resources consume it.
+  assert {
+    condition     = oci_identity_tag.security_trust_zone.name == "TrustZone"
+    error_message = "the 4th tag resource (Security.TrustZone) should exist in the taxonomy even though this module applies no value for it"
+  }
 
   assert {
     condition     = length(local.foundation_defined_tags) == 3
-    error_message = "foundation resources should carry exactly 3 defined-tag values (Environment, System, ManagedBy) -- TrustZone is taxonomy-only here"
+    error_message = "foundation resources should carry exactly 3 defined-tag values (Environment, System, ManagedBy)"
   }
 }

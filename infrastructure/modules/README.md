@@ -1,8 +1,9 @@
 # OpenTofu module contract
 
-Every module under `infrastructure/modules/` follows this contract. No
-module exists yet — this is the standard the first module (`foundation`,
-implementing `SPEC-OCI-001`) is held to, not a retrospective description.
+Every module under `infrastructure/modules/` follows this contract.
+`foundation` (`SPEC-OCI-001`) is the first module built against it — this
+document was written as the standard it's held to, not a retrospective
+description of it.
 
 ## Principles
 

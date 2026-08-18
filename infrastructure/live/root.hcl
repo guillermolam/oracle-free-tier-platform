@@ -2,14 +2,17 @@
 # includes this via `include "root" { path = find_in_parent_folders() }`.
 #
 # BOOTSTRAP EXCEPTION (REQ-OCI-007): the remote_state block below assumes
-# the state bucket already exists. It does NOT exist until 00-foundation's
-# own two-phase bootstrap has run once — see
-# ../README.md#remote-state-bootstrap-sequence. 00-foundation's own
-# terragrunt.hcl (created in the PR that scaffolds that unit, not this
-# one) is the one unit that must NOT include this root.hcl's remote_state
-# block on its first apply; it starts from local state
-# (`-state=bootstrap.local.tfstate`) per that sequence's phase 1, then
-# migrates into the bucket this block creates for every unit after it.
+# the state bucket already exists. It does NOT exist until
+# modules/foundation's own two-phase bootstrap has run once, directly
+# against that module (NOT through this Terragrunt unit) -- see
+# modules/foundation/README.md#bootstrap-runbook for the exact commands
+# (default local terraform.tfstate, not a custom -state= path -- an
+# earlier draft here referenced -state=bootstrap.local.tfstate, corrected
+# once `tofu init -help` confirmed init has no -state flag, so
+# -migrate-state could only ever find state at the default path). Once
+# that bootstrap has run, oci/eu-madrid-1/lab/00-foundation/terragrunt.hcl
+# includes this root.hcl normally -- the bucket already exists by the
+# time that unit is ever touched.
 #
 # CREDENTIAL NOTE: this backend authenticates against OCI Object Storage's
 # S3-compatible API, which requires a Customer Secret Key (Access Key /

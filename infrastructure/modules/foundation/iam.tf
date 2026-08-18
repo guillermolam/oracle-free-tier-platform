@@ -74,4 +74,5 @@ resource "oci_identity_dynamic_group" "platform_instances" {
   matching_rule = "ALL {instance.compartment.id = '${oci_identity_compartment.platform.id}'}"
 
   freeform_tags = { "provisioned-by" = "opentofu" }
+  defined_tags  = local.foundation_defined_tags
 }
