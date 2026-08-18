@@ -12,12 +12,14 @@
 # default to an explicit OCID), not a replacement -- OCI subnets don't
 # force-replace on route_table_id changes.
 #
-# security_list_ids still unset: each subnet keeps the VCN's default
-# security list until SPEC-NET-004 (PR C3) assigns explicit ones. That
-# default list currently allows SSH (22/tcp) and ICMP from 0.0.0.0/0 on
-# every subnet -- audited against the live tenancy, not assumed --
-# harmless today (nothing listens on any subnet yet) but a real,
-# documented gap PR C3 must close, not silently inherit.
+# security_list_ids: each subnet now uses its own zone's baseline
+# Security List (security_lists.tf, REQ-NET-016/018) instead of the VCN
+# default. Audited against the live tenancy before this change: the
+# default list allowed SSH (22/tcp) and ICMP from 0.0.0.0/0 on every
+# subnet -- harmless while no subnet had a route to anywhere, but
+# gateways.tf/routing.tf (same PR) make Edge specifically IGW-routable,
+# which would have left a real transitional exposure if this file
+# shipped without its own Security List baseline.
 locals {
   subnet_public_allowed = {
     edge       = true
@@ -30,12 +32,13 @@ locals {
 resource "oci_core_subnet" "this" {
   for_each = local.subnet_cidrs
 
-  compartment_id = var.compartment_ocid
-  vcn_id         = oci_core_vcn.this.id
-  cidr_block     = each.value
-  display_name   = "platform-${each.key}"
-  dns_label      = each.key
-  route_table_id = oci_core_route_table.this[each.key].id
+  compartment_id    = var.compartment_ocid
+  vcn_id            = oci_core_vcn.this.id
+  cidr_block        = each.value
+  display_name      = "platform-${each.key}"
+  dns_label         = each.key
+  route_table_id    = oci_core_route_table.this[each.key].id
+  security_list_ids = [oci_core_security_list.this[each.key].id]
 
   prohibit_public_ip_on_vnic = !local.subnet_public_allowed[each.key]
 
