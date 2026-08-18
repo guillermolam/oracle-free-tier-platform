@@ -209,38 +209,34 @@ components:
     component_type: network-gateway
     description: >-
       Edge zone's sole internet-facing ingress point. Deployed object
-      confirmed via independent OCI CLI query (`oci network
-      internet-gateway list`, state AVAILABLE) against the live tenancy,
-      2026-08-18 -- not yet referenced by any route table, so its
-      functional role (actual Edge traffic path) is not yet active; only
-      the object's existence is implemented. Verification method
-      recorded here in prose because the schema's evidence.source_type
-      enum (spec/adr/arch-view/roadmap/contributing/security-md) has no
-      value for "verified against live infrastructure" -- a real gap,
-      not routed around with an invented enum value; see this Spec's own
-      threat-model reconciliation report for the flag.
+      confirmed via independent OCI CLI query against the live tenancy --
+      not yet referenced by any route table, so its functional role
+      (actual Edge traffic path) is not yet active; only the object's
+      existence is implemented.
     trust_zone_ref: ARCH-NET-VCN
     state: implemented
     evidence:
-      - { source_type: spec, ref: "SPEC-NET-002.md", status: implemented }
-      - { source_type: arch-view, ref: ARCH-GW-IGW, status: implemented }
+      - { source_type: spec, ref: "SPEC-NET-002.md", status: specified }
+      - { source_type: arch-view, ref: ARCH-GW-IGW, status: specified }
+      - { source_type: deployed-observation, mechanism: oci-api, ref: "oci network internet-gateway list, 2026-08-18, state=AVAILABLE", status: implemented }
 
   - id: COMP-DRG
     name: Dynamic Routing Gateway
     component_type: network-gateway
     description: >-
       Reserved for I21 hybrid connectivity (ADR-0008). Deployed object
-      confirmed via independent OCI CLI query (state AVAILABLE) against
-      the live tenancy, 2026-08-18 -- not yet attached to the VCN (the
-      DRG attachment failed during PR C2's apply on an unrelated OCI
-      service-limit block, see GAP-NET-004), so only the DRG object's own
-      existence is implemented, not the REQ-NET-009 "attached and inert"
-      requirement in full.
+      confirmed via independent OCI CLI query against the live tenancy --
+      not yet attached to the VCN (the DRG attachment failed during PR
+      C2's apply on an unrelated OCI service-limit block, see
+      GAP-NET-004), so only the DRG object's own existence is
+      implemented, not the REQ-NET-009 "attached and inert" requirement
+      in full.
     trust_zone_ref: ARCH-NET-VCN
     state: implemented
     evidence:
-      - { source_type: spec, ref: "SPEC-NET-002.md#REQ-NET-009", status: implemented }
-      - { source_type: adr, ref: ADR-0008, status: implemented }
+      - { source_type: spec, ref: "SPEC-NET-002.md#REQ-NET-009", status: specified }
+      - { source_type: adr, ref: ADR-0008, status: specified }
+      - { source_type: deployed-observation, mechanism: oci-api, ref: "oci network drg list, 2026-08-18, state=AVAILABLE", status: implemented }
 
   - id: COMP-NAT-GATEWAY
     name: NAT Gateway
@@ -345,18 +341,22 @@ controls:
       Security Lists provide a default-deny ingress baseline per
       trust-zone subnet; NSGs are the actual fine-grained enforcement
       point (REQ-NET-016/018). The four Security List objects exist as
-      deployed OCI resources (confirmed via independent CLI query,
-      state AVAILABLE, 2026-08-18) but are not yet associated with any
-      managed subnet -- all four subnets still use the OCI account
-      default Security List, pending the same PR C2 apply that's
-      currently blocked on NAT/SGW/DRG service limits. State stays
-      `specified`, not `implemented`, because the control's actual
-      protective function (per-zone baseline in effect) is not yet
-      active -- object existence alone is not this control's claim.
+      deployed OCI resources but are not yet associated with any managed
+      subnet -- all four subnets still use the OCI account default
+      Security List, pending the same PR C2 apply that's currently
+      blocked on NAT/SGW/DRG service limits. State stays `specified`,
+      not `implemented`, because the control's actual protective
+      function (per-zone baseline in effect) is not yet active — object
+      existence alone is not this control's claim; the
+      deployed-observation evidence below asserts only the objects'
+      existence, deliberately with status=specified (not implemented),
+      to keep that distinction visible in the evidence itself, not just
+      the description.
     state: specified
     evidence:
       - { source_type: spec, ref: "SPEC-NET-004.md#REQ-NET-016", status: specified }
       - { source_type: spec, ref: "SPEC-NET-004.md#REQ-NET-018", status: specified }
+      - { source_type: deployed-observation, mechanism: oci-api, ref: "oci network security-list list, 2026-08-18: 4 objects AVAILABLE, 0 subnet associations", status: specified }
 
   - id: CTRL-K8S-API-INGRESS-RESTRICTION
     name: Kubernetes API ingress restriction to ziti+worker NSGs only

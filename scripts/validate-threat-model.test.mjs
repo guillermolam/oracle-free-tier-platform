@@ -227,5 +227,43 @@ gaps:
       - { source_type: spec, ref: "SPEC-TEST.md", status: decision-pending }`)
 );
 
+// 11. deployed-observation evidence WITH mechanism -> passes.
+runCase(
+  "deployed-observation with mechanism",
+  0,
+  fixtureHeader(`actors:
+  - id: ACTOR-TEST
+    name: Test actor
+    actor_type: human
+    description: fixture
+    state: implemented
+    evidence:
+      - { source_type: deployed-observation, mechanism: oci-api, ref: "oci test-command, 2026-01-01", status: implemented }`)
+);
+
+// 12. deployed-observation evidence with NO mechanism -> fails.
+runCase(
+  "deployed-observation missing mechanism",
+  1,
+  fixtureHeader(`actors:
+  - id: ACTOR-TEST
+    name: Test actor
+    actor_type: human
+    description: fixture
+    state: implemented
+    evidence:
+      - { source_type: deployed-observation, ref: "oci test-command, 2026-01-01", status: implemented }`)
+);
+
+// 13. mechanism on a non-deployed-observation source -> fails.
+runCase(
+  "mechanism on document source",
+  1,
+  fixtureHeader(`actors:${BASE_ACTOR.replace(
+    '{ source_type: spec, ref: "SPEC-TEST.md", status: specified }',
+    '{ source_type: spec, mechanism: oci-api, ref: "SPEC-TEST.md", status: specified }'
+  )}`)
+);
+
 console.log(`\n${PASS} passed, ${FAIL} failed`);
 process.exit(FAIL === 0 ? 0 : 1);
