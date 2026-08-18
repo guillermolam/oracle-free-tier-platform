@@ -71,12 +71,18 @@
       "properties": {
         "source_type": {
           "type": "string",
-          "enum": ["spec", "adr", "arch-view", "roadmap", "contributing", "security-md"]
+          "enum": ["spec", "adr", "arch-view", "roadmap", "contributing", "security-md", "deployed-observation"],
+          "description": "Document sources (spec/adr/arch-view/roadmap/contributing/security-md) assert intent. 'deployed-observation' asserts fact — something was actually checked against live infrastructure — and MUST be paired with `mechanism` saying how (enforced by validate-threat-model.mjs, not expressible in JSON Schema alone)."
+        },
+        "mechanism": {
+          "type": "string",
+          "enum": ["oci-api", "opentofu-state", "opentofu-plan"],
+          "description": "Required when source_type=deployed-observation; MUST be omitted for document-based source_types."
         },
         "ref": {
           "type": "string",
           "minLength": 1,
-          "description": "e.g. 'SPEC-NET-004.md#REQ-NET-019', 'ADR-0003', 'ARCH-FLOW-ADMIN', 'roadmap.md#I05'."
+          "description": "e.g. 'SPEC-NET-004.md#REQ-NET-019', 'ADR-0003', 'ARCH-FLOW-ADMIN', 'roadmap.md#I05'. For deployed-observation, a human-readable pointer to what was checked, e.g. 'oci network internet-gateway list, 2026-08-18'."
         },
         "status": {
           "type": "string",
