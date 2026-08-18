@@ -26,6 +26,7 @@ and one lifecycle (essentially create-once).
 | `admin_group_name` | string | yes | non-empty |
 | `state_bucket_name` | string | yes | valid OCI bucket name pattern |
 | `dynamic_group_name` | string | no (default `"platform-instances"`) | — |
+| `create_dynamic_group` | bool | no (default `false`) | — |
 
 `ci_group_name`/`admin_group_name` reference **existing** OCI IAM Groups —
 this module does not create IAM Users or Groups (see "Security invariants"
@@ -38,7 +39,7 @@ below for why).
 | `compartment_ocid` | every downstream module (`SPEC-NET-001`, `SPEC-OCI-002`, `SPEC-OCI-003` Interfaces sections) |
 | `compartment_name` | downstream IAM policy statements referencing the compartment by name |
 | `tag_namespace_platform` / `tag_namespace_security` | downstream modules building `"<Namespace>.<Key>"` `defined_tags` references |
-| `dynamic_group_ocid` | I04 (compute), once it exists |
+| `dynamic_group_ocid` | I04 (compute), once it exists; `null` while `create_dynamic_group` is `false` (default) |
 | `state_bucket_name` / `state_bucket_namespace` | `infrastructure/live/root.hcl`'s backend config (must match `common/account.hcl`) |
 
 ## Resource ownership
@@ -46,7 +47,8 @@ below for why).
 `oci_identity_compartment` (1), `oci_identity_tag_namespace` (2:
 Platform, Security), `oci_identity_tag` (4: Platform.Environment,
 Platform.System, Platform.ManagedBy, Security.TrustZone),
-`oci_identity_policy` (2: CI, admin), `oci_identity_dynamic_group` (1),
+`oci_identity_policy` (2: CI, admin), `oci_identity_dynamic_group` (0 or
+1, gated by `var.create_dynamic_group` — see Security invariants),
 `oci_objectstorage_bucket` (1: state), `data.oci_objectstorage_namespace`
 (1, read-only).
 
