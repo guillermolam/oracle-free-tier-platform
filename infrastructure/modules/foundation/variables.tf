@@ -77,3 +77,9 @@ variable "dynamic_group_name" {
   default     = "platform-instances"
   description = "Name of the Dynamic Group matching Talos/Flux-managed instance principals in the platform compartment (REQ-OCI-003). No instances exist yet (M1) -- the group's match rule targets 'any instance in this compartment', which is valid OCI config before any instance exists; it simply matches nothing until M2 compute lands."
 }
+
+variable "create_dynamic_group" {
+  type        = bool
+  default     = false
+  description = "Whether to create the Dynamic Group now. Defaults to false: REQ-OCI-003 requires the group exist before Talos/Flux instance principals need it, not before any instance exists -- until M2 compute lands, the match rule matches nothing, so creating it at 00-foundation time would deploy dead IAM machinery with no verifiable principal to review it against. Set true once M2 is imminent."
+}
