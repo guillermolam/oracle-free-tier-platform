@@ -207,12 +207,40 @@ components:
   - id: COMP-INTERNET-GATEWAY
     name: Internet Gateway
     component_type: network-gateway
-    description: Edge zone's sole internet-facing ingress point.
+    description: >-
+      Edge zone's sole internet-facing ingress point. Deployed object
+      confirmed via independent OCI CLI query (`oci network
+      internet-gateway list`, state AVAILABLE) against the live tenancy,
+      2026-08-18 -- not yet referenced by any route table, so its
+      functional role (actual Edge traffic path) is not yet active; only
+      the object's existence is implemented. Verification method
+      recorded here in prose because the schema's evidence.source_type
+      enum (spec/adr/arch-view/roadmap/contributing/security-md) has no
+      value for "verified against live infrastructure" -- a real gap,
+      not routed around with an invented enum value; see this Spec's own
+      threat-model reconciliation report for the flag.
     trust_zone_ref: ARCH-NET-VCN
-    state: specified
+    state: implemented
     evidence:
-      - { source_type: spec, ref: "SPEC-NET-002.md", status: specified }
-      - { source_type: arch-view, ref: ARCH-GW-IGW, status: specified }
+      - { source_type: spec, ref: "SPEC-NET-002.md", status: implemented }
+      - { source_type: arch-view, ref: ARCH-GW-IGW, status: implemented }
+
+  - id: COMP-DRG
+    name: Dynamic Routing Gateway
+    component_type: network-gateway
+    description: >-
+      Reserved for I21 hybrid connectivity (ADR-0008). Deployed object
+      confirmed via independent OCI CLI query (state AVAILABLE) against
+      the live tenancy, 2026-08-18 -- not yet attached to the VCN (the
+      DRG attachment failed during PR C2's apply on an unrelated OCI
+      service-limit block, see GAP-NET-004), so only the DRG object's own
+      existence is implemented, not the REQ-NET-009 "attached and inert"
+      requirement in full.
+    trust_zone_ref: ARCH-NET-VCN
+    state: implemented
+    evidence:
+      - { source_type: spec, ref: "SPEC-NET-002.md#REQ-NET-009", status: implemented }
+      - { source_type: adr, ref: ADR-0008, status: implemented }
 
   - id: COMP-NAT-GATEWAY
     name: NAT Gateway
@@ -316,7 +344,15 @@ controls:
     description: >-
       Security Lists provide a default-deny ingress baseline per
       trust-zone subnet; NSGs are the actual fine-grained enforcement
-      point (REQ-NET-016/018).
+      point (REQ-NET-016/018). The four Security List objects exist as
+      deployed OCI resources (confirmed via independent CLI query,
+      state AVAILABLE, 2026-08-18) but are not yet associated with any
+      managed subnet -- all four subnets still use the OCI account
+      default Security List, pending the same PR C2 apply that's
+      currently blocked on NAT/SGW/DRG service limits. State stays
+      `specified`, not `implemented`, because the control's actual
+      protective function (per-zone baseline in effect) is not yet
+      active -- object existence alone is not this control's claim.
     state: specified
     evidence:
       - { source_type: spec, ref: "SPEC-NET-004.md#REQ-NET-016", status: specified }
@@ -370,6 +406,30 @@ gaps:
     resolution_ref: SPIKE-IDP-01
     evidence:
       - { source_type: roadmap, ref: "roadmap.md#SPIKE-IDP-01", status: decision-pending }
+
+  - id: GAP-NET-004
+    subject_ref: COMP-DRG
+    field: attachment, inert-routing mechanism
+    reason: >-
+      REQ-NET-009 requires the DRG created AND attached AND inert (zero
+      route rules, no import distribution). The DRG object exists but
+      its VCN attachment failed during PR C2's apply: OCI auto-creates 2
+      default DRG route tables per DRG (one for VCN attachments, one for
+      RPC/VC/IPSec), consuming the tenancy's per-DRG route-table limit
+      of 2 before a third custom "inert" table (ADR-0008's original
+      mechanism) could be created. Both auto-created tables carry a
+      default "accept all routes, no match criteria" import distribution
+      -- not inert as-is. Decision pending: reuse and strip one
+      auto-created table's import distribution (via
+      remove_import_trigger, confirmed supported by the oracle/oci
+      provider) versus requesting a limit increase to 3 and keeping a
+      third custom table. ADR-0008 amendment required either way to
+      record the implementation-mechanism change; the "attached but
+      inert" intent itself is unchanged.
+    blocking: false
+    evidence:
+      - { source_type: adr, ref: ADR-0008, status: decision-pending }
+      - { source_type: spec, ref: "SPEC-NET-002.md#REQ-NET-009", status: decision-pending }
 
 data_flows:
   - id: FLOW-INTERNET-TO-IGW
