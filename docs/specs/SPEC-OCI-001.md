@@ -132,18 +132,23 @@ And the state object is present in the OCI Object Storage state bucket
 ```bash
 tofu validate
 
-# phase 1 — one-time bootstrap, local state only
-tofu apply -state=bootstrap.local.tfstate
+# phase 1 — one-time bootstrap, local state only (default terraform.tfstate
+# path — NOT a -state=<custom-path> override: `tofu init` has no -state
+# flag, so -migrate-state in phase 2 can only find state at the default
+# path; an earlier draft of this Spec showed -state=bootstrap.local.tfstate,
+# which -migrate-state would have silently failed to pick up)
+tofu init -backend=false -input=false
+tofu apply -input=false
 
-# phase 2 — migrate that state into the bucket phase 1 just created
-tofu init -migrate-state
-test ! -f terraform.tfstate && test ! -f bootstrap.local.tfstate
-
-oci iam compartment list --compartment-id-in-subtree true \
-  --query "data[?name=='platform']"
-oci os object list --bucket-name "$STATE_BUCKET" --namespace "$OCI_NS" \
-  --query "data[?starts_with(name, 'foundation/')]"  # remote state object exists
+# phase 2 — the bucket now exists (created by phase 1); configure the real
+# backend and migrate local state into it
+tofu init -input=false -migrate-state -backend-config=backend.hcl \
+  -backend-config="endpoints={s3=\"$S3_COMPAT_ENDPOINT\"}"
+test ! -f terraform.tfstate
 ```
+
+See `infrastructure/modules/foundation/README.md#bootstrap-runbook` for
+the exact `backend.hcl` contents and credential handling.
 
 ## Documentation Impact
 

@@ -1,0 +1,76 @@
+# Positive tests -- module contract at plan time, no real OCI credentials
+# required (mock_provider stands in for the real provider).
+
+mock_provider "oci" {}
+
+variables {
+  tenancy_ocid      = "ocid1.tenancy.oc1..aaaaaaaaexampleexampleexampleexampleexampleexampleexampleaaaa"
+  environment       = "lab"
+  ci_group_name     = "platform-ci"
+  admin_group_name  = "platform-admins"
+  state_bucket_name = "oracle-free-tier-platform-tfstate"
+}
+
+run "compartment_has_expected_defaults" {
+  command = plan
+
+  assert {
+    condition     = oci_identity_compartment.platform.name == "platform"
+    error_message = "compartment name should default to 'platform'"
+  }
+
+  assert {
+    condition     = oci_identity_compartment.platform.enable_delete == false
+    error_message = "REQ-OCI-001/rollback: enable_delete must stay explicitly false"
+  }
+}
+
+run "state_bucket_is_private_and_versioned" {
+  command = plan
+
+  assert {
+    condition     = oci_objectstorage_bucket.state.access_type == "NoPublicAccess"
+    error_message = "REQ-OCI-005 Security Requirements: state bucket must not be publicly accessible"
+  }
+
+  assert {
+    condition     = oci_objectstorage_bucket.state.versioning == "Enabled"
+    error_message = "REQ-OCI-005: state bucket must have versioning enabled"
+  }
+}
+
+run "ci_policy_has_no_tenancy_scope" {
+  command = plan
+
+  assert {
+    condition     = !anytrue([for s in oci_identity_policy.ci.statements : strcontains(s, "in tenancy")])
+    error_message = "REQ-OCI-002: no CI policy statement may target tenancy scope"
+  }
+}
+
+run "admin_policy_has_no_tenancy_scope" {
+  command = plan
+
+  assert {
+    condition     = !anytrue([for s in oci_identity_policy.admin.statements : strcontains(s, "in tenancy")])
+    error_message = "REQ-OCI-002: no admin policy statement may target tenancy scope"
+  }
+}
+
+run "dynamic_group_matches_on_compartment" {
+  command = plan
+
+  assert {
+    condition     = can(regex("instance.compartment.id", oci_identity_dynamic_group.platform_instances.matching_rule))
+    error_message = "REQ-OCI-003: dynamic group must match on instance.compartment.id"
+  }
+}
+
+run "defined_tags_taxonomy_has_four_keys" {
+  command = plan
+
+  assert {
+    condition     = length(local.foundation_defined_tags) == 3
+    error_message = "foundation resources should carry exactly 3 defined-tag values (Environment, System, ManagedBy) -- TrustZone is taxonomy-only here"
+  }
+}

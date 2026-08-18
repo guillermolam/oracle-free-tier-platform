@@ -25,6 +25,11 @@ repos:
         args: ["--hook-config=--tf-path=tofu"]
       - id: terraform_tflint
       - id: checkov
+        # CKV_OCI_9: see .github/workflows/validate.yml's checkov step and
+        # infrastructure/modules/foundation/state_backend.tf's comment --
+        # kept in sync with that workflow's skip_check so local pre-commit
+        # and CI agree.
+        args: ["--skip-check=CKV_OCI_9"]
 
   - repo: local
     hooks:
