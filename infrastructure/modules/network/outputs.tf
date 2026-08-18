@@ -55,3 +55,10 @@ output "route_table_ids" {
   value       = { for zone, rt in oci_core_route_table.this : zone => rt.id }
   description = "Route table OCIDs keyed by trust-zone name (REQ-NET-011)."
 }
+
+# SPEC-NET-004 Interfaces (partial -- security_list_ids only; nsg_ids
+# awaits PR C3): security_list_ids{edge,management,workload,data}.
+output "security_list_ids" {
+  value       = { for zone, sl in oci_core_security_list.this : zone => sl.id }
+  description = "Baseline Security List OCIDs keyed by trust-zone name (REQ-NET-016). NSG creation/output (REQ-NET-017) is PR C3."
+}
