@@ -20,9 +20,31 @@
 # (tenancy/user OCID + fingerprint + private key) that plan.yml's existing
 # secrets and the `oci` provider block below use. Provisioning that
 # Customer Secret Key is part of 00-foundation's own bootstrap, not this
-# file. access_key/secret_key below read the standard AWS_ACCESS_KEY_ID/
-# AWS_SECRET_ACCESS_KEY env var names (the S3-backend machinery's own
-# convention) rather than inventing repo-specific names.
+# file.
+#
+# [Cause] -> this block previously set access_key/secret_key = get_env(...)
+#   directly. OpenTofu's own S3 backend docs are explicit that any
+#   credential set as a literal backend argument -- even one sourced from
+#   an env var at generate-time -- gets written to disk in the generated
+#   backend.tf AND in .terraform's own tracking files, both inside every
+#   Terragrunt working directory (verified: a real Customer Secret Key
+#   was found sitting in a stale, gitignored-but-real
+#   .terragrunt-cache/.../backend.tf during this repo's real bootstrap
+#   operations).
+# [Impact] -> every `terragrunt init`/`plan`/`apply` left a plaintext copy
+#   of the S3-compat secret on local disk, outside git (gitignored,
+#   confirmed never staged) but still real credential material at rest
+#   longer than necessary, and easy to forget to clean up.
+# [Remediation] -> access_key/secret_key removed entirely below.
+#   OpenTofu's S3 backend already falls back to the standard AWS SDK
+#   credential chain (AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY read
+#   directly from the process environment at request time) when neither
+#   is set in the backend config -- confirmed via OpenTofu's own docs,
+#   which recommend exactly this ("keep authentication settings in the
+#   standard AWS CLI configuration/environment... instead of using the s3
+#   backend arguments directly"). The env var names are unchanged and
+#   still required at apply/plan time -- they simply never get rendered
+#   into any file on disk now.
 #
 # LOCKING NOTE (resolved, PR B): `use_lockfile` was left enabled after PR A
 # pending verification. Now checked against OCI's own S3 Compatibility API
@@ -77,9 +99,10 @@ remote_state {
       s3 = local.s3_compat_endpoint
     }
 
-    access_key = get_env("AWS_ACCESS_KEY_ID", "")
-    secret_key = get_env("AWS_SECRET_ACCESS_KEY", "")
-
+    # access_key/secret_key deliberately NOT set here -- see CREDENTIAL
+    # NOTE above. AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY must still be
+    # exported in the shell running terragrunt/tofu; the S3 backend picks
+    # them up from the process environment automatically.
     use_path_style              = true
     skip_region_validation      = true
     skip_credentials_validation = true
