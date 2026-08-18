@@ -65,6 +65,13 @@ repos:
         files: '^scripts/validate-threat-model(\.test)?\.mjs$'
         pass_filenames: false
 
+      - id: terragrunt-hclfmt
+        name: Terragrunt HCL format check
+        entry: bash -c 'cd infrastructure/live && terragrunt hcl fmt --check'
+        language: system
+        files: '^infrastructure/live/.*\.hcl$'
+        pass_filenames: false
+
       - id: check-dco
         name: Developer Certificate of Origin (Signed-off-by)
         entry: .githooks/commit-msg
