@@ -34,7 +34,10 @@ source of truth for what is deployed. Treat every change as a reviewable unit.
 
 ## Ownership model
 
-- **OpenTofu** owns OCI infrastructure.
+- **OpenTofu** owns OCI resource logic (`infrastructure/modules/`);
+  **Terragrunt** owns environment composition and state boundaries
+  (`infrastructure/live/`) — see `infrastructure/README.md` for the
+  state-unit DAG.
 - **Talos** owns node configuration.
 - **Flux** owns Kubernetes desired state. GitHub Actions never deploy.
 - **Cilium / SPIRE / OpenBao / ESO / Kyverno** own their respective control planes.
@@ -47,6 +50,8 @@ Run before pushing:
 scripts/check-gpg-signing.sh
 pre-commit run --all-files
 npm run validate:mermaid              # if any docs/**/*.mmd changed
+npm run validate:threat-model         # if docs/03-threat-model/model/** changed
+terragrunt hcl fmt --check            # from infrastructure/live/, if any *.hcl changed
 tofu fmt -recursive infrastructure
 tflint --recursive
 checkov -d infrastructure
