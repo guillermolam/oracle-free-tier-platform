@@ -132,18 +132,46 @@ And the state object is present in the OCI Object Storage state bucket
 ```bash
 tofu validate
 
-# phase 1 — one-time bootstrap, local state only
-tofu apply -state=bootstrap.local.tfstate
+# The module declares no backend block (Terragrunt owns that via
+# `generate`, once a live unit exists) -- bootstrap runs against an
+# untracked scratch copy, never the module in place, so a temporary
+# backend.tf can be written without conflicting with Terragrunt's own
+# generated one later.
+cp -r infrastructure/modules/foundation /tmp/foundation-bootstrap
+cd /tmp/foundation-bootstrap
 
-# phase 2 — migrate that state into the bucket phase 1 just created
-tofu init -migrate-state
-test ! -f terraform.tfstate && test ! -f bootstrap.local.tfstate
+# phase 1 — one-time bootstrap, local state only (default terraform.tfstate
+# path — NOT a -state=<custom-path> override: `tofu init` has no -state
+# flag, so -migrate-state in phase 2 can only find state at the default
+# path; an earlier draft of this Spec showed -state=bootstrap.local.tfstate,
+# which -migrate-state would have silently failed to pick up)
+tofu init -input=false
+tofu apply -input=false
 
-oci iam compartment list --compartment-id-in-subtree true \
-  --query "data[?name=='platform']"
-oci os object list --bucket-name "$STATE_BUCKET" --namespace "$OCI_NS" \
-  --query "data[?starts_with(name, 'foundation/')]"  # remote state object exists
+# phase 2 — the bucket now exists (created by phase 1); write a real
+# backend.tf (not partial -backend-config flags -- no block exists to
+# merge them into) and migrate local state into it
+cat > backend.tf <<EOF
+terraform {
+  backend "s3" {
+    bucket = "$STATE_BUCKET"
+    key    = "oci/eu-madrid-1/lab/00-foundation/terraform.tfstate"
+    region = "eu-madrid-1"
+    endpoints = { s3 = "$S3_COMPAT_ENDPOINT" }
+    use_path_style = true
+    skip_region_validation = true
+    skip_credentials_validation = true
+    skip_metadata_api_check = true
+    skip_s3_checksum = true
+  }
+}
+EOF
+tofu init -input=false -migrate-state
+test ! -f terraform.tfstate   # no longer authoritative once migrated
 ```
+
+See `infrastructure/modules/foundation/README.md#bootstrap-runbook` for
+the full sequence, verification commands, and credential handling.
 
 ## Documentation Impact
 

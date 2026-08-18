@@ -6,6 +6,11 @@
 locals {
   platform_name = "oracle-free-tier-platform"
 
+  # Not itself secret, but account-specific -- sourced from env rather
+  # than hardcoded. Every unit gets this via root.hcl's `inputs = merge(...)`
+  # without needing to redeclare it.
+  tenancy_ocid = get_env("OCI_TENANCY_OCID", "")
+
   # Object Storage namespace is tenancy-specific but not itself secret;
   # still sourced from env rather than hardcoded, since it's account data,
   # not a portable constant this repo should assume.
