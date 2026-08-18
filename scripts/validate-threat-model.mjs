@@ -202,6 +202,25 @@ async function main() {
     }
   }
 
+  // Pass 5b: evidence.mechanism required iff source_type=deployed-observation
+  // (JSON Schema can't express a same-object conditional-required field
+  // without an if/then that would apply to every evidence entry regardless
+  // of source_type, so this stays a validator-script check).
+  for (const { file, doc } of perFileDocs) {
+    for (const key of collectionKeys(doc)) {
+      for (const item of doc[key]) {
+        for (const e of item.evidence || []) {
+          if (e.source_type === "deployed-observation" && !e.mechanism) {
+            errors.push(`FAILED (missing mechanism) - ${file}: ${item.id} has a deployed-observation evidence entry (ref='${e.ref}') with no mechanism`);
+          }
+          if (e.source_type !== "deployed-observation" && e.mechanism) {
+            errors.push(`FAILED (unexpected mechanism) - ${file}: ${item.id} has a ${e.source_type} evidence entry (ref='${e.ref}') with a mechanism field, only valid for deployed-observation`);
+          }
+        }
+      }
+    }
+  }
+
   // Pass 5: state=decision-pending requires a gaps[] entry naming this element.
   const gapSubjects = new Set();
   for (const { doc } of perFileDocs) {
