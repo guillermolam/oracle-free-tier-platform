@@ -134,6 +134,17 @@ never any other source (`SPEC-NET-004.md` REQ-NET-019).
 - `scripts/check-gpg-signing.test.sh`: deterministic config-only tests for
   the above (isolated from your real `~/.gitconfig`; no real signing key
   needed). Runs automatically via pre-commit when either file changes.
+- `npm run validate:threat-model`: schema + corpus-wide referential
+  integrity for `docs/03-threat-model/model/instances/*.yaml`.
+- `npm run test:threat-model`: the validator's own fixture-based
+  self-test (no real corpus data). Run this before
+  `validate:threat-model` when you've touched the validator itself.
+- `terragrunt hcl fmt --check` / `terragrunt hcl validate` (run from
+  `infrastructure/live/`): format-check and semantic-validate every
+  Terragrunt HCL file — works even before any per-unit `terragrunt.hcl`
+  exists, since it validates the shared `root.hcl`/`common/*.hcl`
+  composition layer directly. See `infrastructure/README.md` for the
+  state-unit layout these compose.
 - `tofu fmt -recursive infrastructure`, `tflint --recursive`,
   `checkov -d infrastructure`, and — critically — validate each
   configuration directory individually, never from the repo root, once
