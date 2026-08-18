@@ -33,6 +33,22 @@ between plan and apply.
   written — tracked in `docs/00-overview/roadmap.md` under I02).
 - OCI OIDC federation for CI (EPIC-OCI-04 — static keys are in scope for
   this Spec; OIDC is a follow-on).
+- Steady-state least-privilege CI/admin IAM policies (REQ-OCI-002):
+  deferred until the principals they'd bind to actually exist — a
+  federated CI identity (GitHub OIDC, EPIC-OCI-04) and/or a dedicated
+  human admin group distinct from the tenancy's built-in `Administrators`
+  group. **Architecture gap, tracked here until EPIC-OCI-04 and the
+  Identity/Governance threat-model domain give it a permanent home**:
+  this Spec's module does not grant the bootstrap principal (whichever
+  existing `Administrators` member runs the first apply) any additional
+  policy of its own — that principal's authority is an external
+  prerequisite for creating this module's resources, not something the
+  module grants to itself. Binding a real least-privilege policy to
+  `Administrators` today would be decorative: it adds no permission
+  beyond that group's existing tenancy-wide grant (see the tenancy's
+  built-in Tenant Admin Policy, untouched by this Spec) while implying a
+  separation of duties that does not exist until distinct CI/admin
+  principals do.
 
 ## Requirements
 
@@ -41,7 +57,14 @@ between plan and apply.
   never provisioning platform resources directly into the root.
 - **REQ-OCI-002** The platform MUST define IAM policies scoped to the
   platform compartment only — no policy statement may grant access at the
-  tenancy level.
+  tenancy level — created only once a real, distinct principal exists to
+  bind them to (a dedicated human admin group or a federated CI
+  identity). The bootstrap principal used to create this module's own
+  resources (the tenancy's existing `Administrators` group membership)
+  MUST NOT be granted a compartment-scoped policy by this module when
+  doing so would add no effective permission beyond that principal's
+  existing tenancy-wide grant — see Non-Goals for the bootstrap-vs-
+  steady-state identity distinction this defers.
 - **REQ-OCI-003** The platform MUST define Dynamic Groups matching
   Talos/Flux-managed instance principals, so in-cluster workloads
   authenticate to OCI APIs (Object Storage, KMS) via instance principal,
@@ -122,7 +145,11 @@ Given the OCI foundation module is applied in the lab environment
 When the REQ-OCI-007 bootstrap sequence completes (phase 1 local apply,
   phase 2 migrate-state)
 Then a platform compartment exists as a child of the tenancy root compartment
-And IAM policies grant access scoped to that compartment only
+And no IAM policy is created for the bootstrap principal that only
+  duplicates its existing tenancy-wide grant (REQ-OCI-002, Non-Goals)
+And, once a dedicated CI or admin principal exists and policies for it are
+  enabled, those policies grant access scoped to the platform compartment
+  only
 And no local `terraform.tfstate` file remains in the module directory
 And the state object is present in the OCI Object Storage state bucket
 ```
@@ -193,7 +220,16 @@ IaC ownership split this Spec's module structure follows).
 ## Threat Model Impact
 
 Establishes the IAM trust boundary between tenancy root and platform
-compartment — feeds EPIC-TM-01 (I20) directly once that epic starts.
+compartment — feeds EPIC-TM-01 (I20) directly once that epic starts. When
+the Identity/Governance threat-model domain is populated, it MUST
+represent these as three distinct principals, not one collapsed
+identity: **bootstrap identity** (existing `Administrators` membership,
+a temporary external prerequisite for creating this module's resources)
+≠ **human platform administrator role** (future explicit least-privilege
+model, not yet implemented) ≠ **CI/workflow identity** (future federated
+workload identity — GitHub OIDC, EPIC-OCI-04 — never an OCI human user
+group). None of the latter two exist today; neither may be recorded as
+`implemented` in the corpus before real evidence exists.
 
 ## Operational Impact
 

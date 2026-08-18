@@ -8,8 +8,6 @@ mock_provider "oci" {}
 variables {
   tenancy_ocid      = "ocid1.tenancy.oc1..aaaaaaaaexampleexampleexampleexampleexampleexampleexampleaaaa"
   environment       = "lab"
-  ci_group_name     = "platform-ci"
-  admin_group_name  = "platform-admins"
   state_bucket_name = "oracle-free-tier-platform-tfstate"
 }
 
@@ -23,21 +21,25 @@ run "invalid_environment_rejected" {
   expect_failures = [var.environment]
 }
 
-run "empty_ci_group_name_rejected" {
+run "empty_ci_group_name_rejected_when_policies_enabled" {
   command = plan
 
   variables {
-    ci_group_name = ""
+    create_iam_policies = true
+    ci_group_name       = ""
+    admin_group_name    = "platform-admins"
   }
 
   expect_failures = [var.ci_group_name]
 }
 
-run "empty_admin_group_name_rejected" {
+run "empty_admin_group_name_rejected_when_policies_enabled" {
   command = plan
 
   variables {
-    admin_group_name = "   " # whitespace-only, trimspace() catches this
+    create_iam_policies = true
+    ci_group_name       = "platform-ci"
+    admin_group_name    = "   " # whitespace-only, trimspace() catches this
   }
 
   expect_failures = [var.admin_group_name]

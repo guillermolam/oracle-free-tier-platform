@@ -36,29 +36,49 @@ variable "platform_name" {
   description = "Platform.System defined-tag value."
 }
 
+variable "create_iam_policies" {
+  type        = bool
+  default     = false
+  description = <<-EOT
+    Whether to create the platform-ci-policy/platform-admin-policy IAM
+    policies now. Defaults to false: this module's bootstrap principal is
+    whichever existing tenancy `Administrators` member runs the first
+    apply, and binding a policy to that same group would add no effective
+    permission beyond its existing tenancy-wide grant while implying a
+    separation of duties (CI vs admin) that doesn't exist until distinct
+    principals do -- a dedicated human admin group and/or a federated CI
+    identity (GitHub OIDC, EPIC-OCI-04). See SPEC-OCI-001's Non-Goals for
+    the bootstrap-vs-steady-state identity distinction. Set true once
+    ci_group_name/admin_group_name reference real, distinct principals.
+  EOT
+}
+
 variable "ci_group_name" {
   type        = string
+  default     = ""
   description = <<-EOT
     Name of the existing OCI IAM Group the CI/workflow identity (plan.yml's
-    static credentials, REQ-OCI-006) belongs to. This module does NOT create
-    IAM users/groups — group membership is an identity-governance decision
+    static credentials, REQ-OCI-006) belongs to. Only used when
+    create_iam_policies is true. This module does NOT create IAM
+    users/groups — group membership is an identity-governance decision
     made outside OpenTofu's Free-Tier bootstrap scope; this module only
     grants that existing group compartment-scoped policy rights (REQ-OCI-002).
   EOT
 
   validation {
-    condition     = length(trimspace(var.ci_group_name)) > 0
-    error_message = "ci_group_name must not be empty."
+    condition     = !var.create_iam_policies || length(trimspace(var.ci_group_name)) > 0
+    error_message = "ci_group_name must not be empty when create_iam_policies is true."
   }
 }
 
 variable "admin_group_name" {
   type        = string
-  description = "Name of the existing OCI IAM Group the human administrator belongs to. Same non-creation rationale as ci_group_name."
+  default     = ""
+  description = "Name of the existing OCI IAM Group the human administrator belongs to. Only used when create_iam_policies is true. Same non-creation rationale as ci_group_name."
 
   validation {
-    condition     = length(trimspace(var.admin_group_name)) > 0
-    error_message = "admin_group_name must not be empty."
+    condition     = !var.create_iam_policies || length(trimspace(var.admin_group_name)) > 0
+    error_message = "admin_group_name must not be empty when create_iam_policies is true."
   }
 }
 
