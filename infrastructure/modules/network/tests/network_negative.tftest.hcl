@@ -8,7 +8,21 @@
 # check block fails `tofu test` outright, since `tofu validate`/`plan`
 # would fail first).
 
-mock_provider "oci" {}
+mock_provider "oci" {
+  override_data {
+    target = data.oci_core_services.all
+    values = {
+      services = [
+        {
+          id          = "ocid1.service.oc1..aaaaaaaamockallservices"
+          name        = "All EU-MADRID-1 Services In Oracle Services Network"
+          cidr_block  = "all-eu-madrid-1-services-in-oracle-services-network"
+          description = "mock -- REQ-NET-008 Service Gateway target"
+        },
+      ]
+    }
+  }
+}
 
 variables {
   compartment_ocid = "ocid1.compartment.oc1..aaaaaaaaexampleexampleexampleexampleexampleexampleexampleaaaa"

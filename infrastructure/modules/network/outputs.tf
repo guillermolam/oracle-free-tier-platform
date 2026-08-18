@@ -20,3 +20,38 @@ output "subnet_cidrs" {
   value       = local.subnet_cidrs
   description = "Subnet CIDRs keyed by trust-zone name (REQ-NET-002)."
 }
+
+# SPEC-NET-002 Interfaces: igw_id, nat_id, sgw_id, drg_id -- consumed by
+# SPEC-NET-003 (route tables, already wired internally in this module)
+# and by I04/I21 once compute/hybrid connectivity exist.
+output "igw_id" {
+  value       = oci_core_internet_gateway.this.id
+  description = "OCID of the Internet Gateway (REQ-NET-006)."
+}
+
+output "nat_id" {
+  value       = oci_core_nat_gateway.this.id
+  description = "OCID of the NAT Gateway (REQ-NET-007)."
+}
+
+output "sgw_id" {
+  value       = oci_core_service_gateway.this.id
+  description = "OCID of the Service Gateway (REQ-NET-008)."
+}
+
+output "drg_id" {
+  value       = oci_core_drg.this.id
+  description = "OCID of the DRG (REQ-NET-009) -- attached but inert until I21; see ADR-0008."
+}
+
+output "drg_route_table_id" {
+  value       = oci_core_drg_route_table.inert.id
+  description = "OCID of the DRG's own (empty, no-propagation) route table -- REQ-NET-009's inert mechanism."
+}
+
+# SPEC-NET-003 Interfaces: route_table_ids{edge,management,workload,data}
+# -- consumed by I04 (compute subnet attachment).
+output "route_table_ids" {
+  value       = { for zone, rt in oci_core_route_table.this : zone => rt.id }
+  description = "Route table OCIDs keyed by trust-zone name (REQ-NET-011)."
+}

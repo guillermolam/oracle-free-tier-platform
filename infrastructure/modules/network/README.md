@@ -2,19 +2,21 @@
 
 ## Purpose
 
-Implements `SPEC-NET-001` (REQ-NET-001..005): the platform VCN and its
-four trust-zone subnets (Edge, Management, Workload, Data), as decided by
-`ADR-0006`. This is the second module in the state DAG — every downstream
-network Spec (`SPEC-NET-002` gateways, `SPEC-NET-003` route tables,
-`SPEC-NET-004` NSGs/Security Lists, `SPEC-NET-006` DNS/DHCP) and I04
-(compute) attach to the VCN/subnets this module creates. `ADR-0007`
-already decided `10-network` is one state unit covering all of
-`SPEC-NET-001` through `SPEC-NET-006` — this module is built incrementally
-across PRs against that same eventual state unit (this PR: `vcn.tf` +
-`subnets.tf` only; a later PR adds `gateways.tf`/`routing.tf`/
-`security.tf`/`dns.tf`), per `../README.md`'s own documented internal-
-file-organization note. Not a further-split target: OCI network topology
-within one VCN is provisioned and changed as a unit in practice.
+Implements `SPEC-NET-001` (REQ-NET-001..005, the platform VCN and its
+four trust-zone subnets), `SPEC-NET-002` (REQ-NET-006..010, gateways:
+Internet, NAT, Service, and an inert DRG), and `SPEC-NET-003`
+(REQ-NET-011..015, one route table per trust zone), as decided by
+`ADR-0006` and `ADR-0008`. This is the second module in the state DAG —
+`SPEC-NET-004` (NSGs/Security Lists) and `SPEC-NET-006` (DNS/DHCP) attach
+to what this module creates, and I04 (compute) attaches to its subnets/
+route tables. `ADR-0007` already decided `10-network` is one state unit
+covering all of `SPEC-NET-001` through `SPEC-NET-006` — this module is
+built incrementally across PRs against that same eventual state unit
+(PR C: `vcn.tf` + `subnets.tf`; PR C2, this one: `gateways.tf` +
+`routing.tf`; a later PR adds `security.tf`/`dns.tf`), per
+`../README.md`'s own documented internal-file-organization note. Not a
+further-split target: OCI network topology within one VCN is provisioned
+and changed as a unit in practice.
 
 ## Input contract
 
@@ -33,22 +35,30 @@ hardcoded constants, not tunables.
 
 | Output | Consumed by |
 | --- | --- |
-| `vcn_id` | `SPEC-NET-002` (gateways), `SPEC-NET-003` (route tables), `SPEC-NET-004` (NSGs/Security Lists) |
+| `vcn_id` | `SPEC-NET-004` (NSGs/Security Lists) |
 | `vcn_cidr` | downstream modules needing the VCN's own range (e.g. future DRG peering, I21) |
-| `subnet_ids` | map keyed by zone (`edge`/`management`/`workload`/`data`) — `SPEC-NET-002`/`SPEC-NET-004`/I04 attach resources to specific subnets by zone |
+| `subnet_ids` | map keyed by zone (`edge`/`management`/`workload`/`data`) — `SPEC-NET-004`/I04 attach resources to specific subnets by zone |
 | `subnet_cidrs` | map keyed by zone — downstream Security List/NSG rules referencing zone ranges |
+| `igw_id` / `nat_id` / `sgw_id` / `drg_id` | consumed internally by `routing.tf`; `drg_id` also for I21 once hybrid connectivity begins |
+| `drg_route_table_id` | I21 — the table it populates once hybrid routing activates |
+| `route_table_ids` | map keyed by zone — I04 (compute subnet attachment) |
 
 ## Resource ownership
 
 `oci_core_vcn` (1), `oci_core_subnet` (4, one per trust zone, via
-`for_each`).
+`for_each`), `oci_core_internet_gateway` (1), `oci_core_nat_gateway` (1),
+`oci_core_service_gateway` (1), `oci_core_drg` (1),
+`oci_core_drg_route_table` (1, empty — the inert mechanism),
+`oci_core_drg_attachment` (1), `oci_core_route_table` (4, one per trust
+zone, via `for_each`), `data.oci_core_services` (1, read-only — resolves
+the region's Services Network CIDR label).
 
-**Not owned here**: gateways (Internet/NAT/Service/DRG — `SPEC-NET-002`),
-route tables/associations (`SPEC-NET-003`), NSGs/Security Lists
-(`SPEC-NET-004`), DNS/DHCP options (`SPEC-NET-006`), compute attachment
-(I04). Subnets use OCI's auto-created default route table (empty — no
-gateway routes exist yet) and default security list until those Specs'
-files are added to this same module.
+**Not owned here**: NSGs/Security Lists (`SPEC-NET-004`), DNS/DHCP
+options (`SPEC-NET-006`), compute attachment (I04), any DRG route
+rule/distribution (I21 — this module creates the DRG attached-but-empty,
+never populates it). Subnets use OCI's default security list (unchanged
+until `SPEC-NET-004`) but no longer the default route table — each now
+has its own zone-specific one (`routing.tf`).
 
 ## Security invariants
 
@@ -75,8 +85,99 @@ files are added to this same module.
   against the pinned OpenTofu 1.12.5 (`tofu console`), not assumed.
 - **Tag ownership**: same OCI-managed-vs-Platform-managed split as
   `infrastructure/modules/foundation/state_backend.tf` — `lifecycle.ignore_changes`
-  on exactly `Oracle-Tags.CreatedBy`/`Oracle-Tags.CreatedOn`, on both the
-  VCN and every subnet, never the whole `defined_tags` attribute.
+  on exactly `Oracle-Tags.CreatedBy`/`Oracle-Tags.CreatedOn`, on every
+  resource this module creates, never the whole `defined_tags` attribute.
+- **REQ-NET-010/013 (binding control)**: no route table other than Edge
+  may ever reference the Internet Gateway. Enforced structurally, not
+  just by convention — every route table's rule set is built from one
+  shared `local.route_tables` map (`routing.tf`), so there is exactly one
+  place an accidental Internet Gateway rule could be added to a
+  non-Edge zone, and `tests/routing.tftest.hcl`'s
+  `management_workload_data_never_reference_the_internet_gateway` asserts
+  the *absence* directly — not merely that a NAT rule is also present,
+  which alone wouldn't catch a table carrying both.
+- **REQ-NET-009/ADR-0008 (DRG inertness)**: the DRG attachment references
+  this module's own `oci_core_drg_route_table.inert`, which carries zero
+  static routes (no `oci_core_drg_route_table_route_rule` resource exists
+  in this module) and no `import_drg_route_distribution_id` (unset —
+  no propagation configured). Both together are what "present but inert"
+  means. `mock_provider` cannot prove the second half of this (see
+  `tests/gateways.tftest.hcl`'s `drg_route_table_is_inert` comment) —
+  verified against the real provider in the PR C2 deployment report
+  instead.
+- **REQ-NET-008/014 (Service Gateway target)**: the Services Network CIDR
+  label is resolved via `data.oci_core_services` and matched by name
+  pattern (`"All .* Services In Oracle Services Network"`), never
+  hardcoded — keeps this module region-neutral and fails loudly (a
+  `null` attribute-access error) if OCI's API shape ever changes rather
+  than silently misconfiguring the Service Gateway.
+- **REQ-NET-011**: every subnet's `route_table_id` now points at its own
+  zone's explicit route table (`subnets.tf`), never the VCN default —
+  audited against the live tenancy before this change (all four subnets
+  previously fell back to the empty default route table).
+
+## Requirement traceability
+
+| REQ | Spec | ADR | ARCH-* | Threat-model flow | OCI resource | OpenTofu address | Test |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| REQ-NET-001 | SPEC-NET-001 | ADR-0006 | ARCH-NET-VCN | — | VCN | `oci_core_vcn.this` | `vcn_has_exact_cidr` |
+| REQ-NET-002 | SPEC-NET-001 | ADR-0006 | ARCH-ZONE-* | — | Subnet ×4 | `oci_core_subnet.this` | `four_subnets_with_exact_cidrs` |
+| REQ-NET-003 | SPEC-NET-001 | ADR-0006 | ARCH-ZONE-MGMT/WORKLOAD/DATA | — | Subnet | `prohibit_public_ip_on_vnic` | `{mgmt,workload,data}_subnet_prohibits_public_ip` |
+| REQ-NET-004 | SPEC-NET-001 | ADR-0006 | ARCH-ZONE-EDGE | ARCH-FLOW-INGRESS (RED) | Subnet | `prohibit_public_ip_on_vnic` | `edge_subnet_allows_public_ip` |
+| REQ-NET-005 | SPEC-NET-001 | — | — | — | (output contract) | `outputs.tf` | n/a — structural |
+| REQ-NET-006 | SPEC-NET-002 | — | ARCH-FLOW-INGRESS (RED) | ARCH-FLOW-INGRESS | Internet Gateway | `oci_core_internet_gateway.this` | `internet_gateway_enabled` |
+| REQ-NET-007 | SPEC-NET-002 | — | ARCH-FLOW-EGRESS (GREEN) | ARCH-FLOW-EGRESS | NAT Gateway | `oci_core_nat_gateway.this` | `nat_gateway_exists` |
+| REQ-NET-008 | SPEC-NET-002 | — | ARCH-FLOW-SERVICE (BLUE) | ARCH-FLOW-SERVICE | Service Gateway | `oci_core_service_gateway.this` | `service_gateway_targets_all_services` |
+| REQ-NET-009 | SPEC-NET-002 | ADR-0008 | ARCH-FLOW-HYBRID (ORANGE) | ARCH-FLOW-HYBRID | DRG + attachment + empty DRG RT | `oci_core_drg.this` / `.inert` / `.vcn` | `drg_exists_and_is_attached`, `drg_route_table_is_inert` |
+| REQ-NET-010 | SPEC-NET-002 | — | ARCH-FLOW-INGRESS | ARCH-FLOW-INGRESS | (constraint on all gateways) | n/a — no other gateway carries a `0.0.0.0/0` inbound rule by construction | covered by route-table tests, not a gateway-object test |
+| REQ-NET-011 | SPEC-NET-003 | ADR-0006 | ARCH-ZONE-* | — | Route Table ×4 | `oci_core_route_table.this` | `four_route_tables_one_per_zone`, `every_subnet_uses_its_own_zone_route_table_not_the_default` |
+| REQ-NET-012 | SPEC-NET-003 | — | ARCH-FLOW-INGRESS (RED) | ARCH-FLOW-INGRESS | Route rule (Edge → IGW) | `oci_core_route_table.this["edge"]` | `edge_route_table_routes_internet_to_igw` |
+| REQ-NET-013 | SPEC-NET-003 | — | ARCH-FLOW-EGRESS (GREEN) | ARCH-FLOW-EGRESS | Route rule (Mgmt/Workload/Data → NAT, never IGW) | `oci_core_route_table.this[zone]` | `management_workload_data_never_reference_the_internet_gateway`, `management_workload_data_route_internet_to_nat_only` |
+| REQ-NET-014 | SPEC-NET-003 | — | ARCH-FLOW-SERVICE (BLUE) | ARCH-FLOW-SERVICE | Route rule (all zones → SGW) | `oci_core_route_table.this[*]` | `all_four_zones_route_services_cidr_to_service_gateway` |
+| REQ-NET-015 | SPEC-NET-003 | ADR-0008 | ARCH-FLOW-HYBRID (ORANGE) | ARCH-FLOW-HYBRID | (reserved slot, unpopulated) | n/a — no resource by design | `no_route_table_references_the_drg` |
+
+No orphan infrastructure: every resource and route rule in `gateways.tf`/
+`routing.tf` traces to one of the rows above. Nothing was added that
+isn't required by REQ-NET-006 through REQ-NET-015.
+
+## Route matrix
+
+| Source zone | Destination class | Next hop | Destination prefix/service | Flow class | REQ | Implemented now? |
+| --- | --- | --- | --- | --- | --- | --- |
+| Edge | Internet | Internet Gateway | `0.0.0.0/0` | RED (INGRESS)/GREEN (EGRESS) | REQ-NET-012 | Yes |
+| Edge | OCI services | Service Gateway | Services Network CIDR label | BLUE (SERVICE) | REQ-NET-014 | Yes |
+| Management | Internet (egress only) | NAT Gateway | `0.0.0.0/0` | GREEN (EGRESS) | REQ-NET-013 | Yes |
+| Management | OCI services | Service Gateway | Services Network CIDR label | BLUE (SERVICE) | REQ-NET-014 | Yes |
+| Management | future on-prem/other-cloud | DRG | (reserved, unpopulated) | ORANGE (HYBRID) | REQ-NET-015 | No — I21 |
+| Workload | Internet (egress only) | NAT Gateway | `0.0.0.0/0` | GREEN (EGRESS) | REQ-NET-013 | Yes |
+| Workload | OCI services | Service Gateway | Services Network CIDR label | BLUE (SERVICE) | REQ-NET-014 | Yes |
+| Data | Internet (egress only) | NAT Gateway | `0.0.0.0/0` | GREEN (EGRESS) | REQ-NET-013 | Yes |
+| Data | OCI services (incl. backup) | Service Gateway | Services Network CIDR label | BLUE (SERVICE)/BLUE (BACKUP) | REQ-NET-014 | Yes |
+
+No unexplained `0.0.0.0/0` — every occurrence above is either Edge→IGW
+(REQ-NET-012, the only place it's allowed) or Management/Workload/Data→NAT
+(REQ-NET-013, explicitly never IGW).
+
+## Traffic-flow reconciliation (post–PR C2)
+
+Using `docs/01-architecture/traceability.md`'s RED/GREEN/BLUE/PURPLE/
+ORANGE taxonomy (`ARCH-FLOW-*` → color mapping) — no new taxonomy
+invented here:
+
+- **Physically exist (routable) after PR C2**: RED (`ARCH-FLOW-INGRESS`),
+  GREEN (`ARCH-FLOW-EGRESS`), BLUE (`ARCH-FLOW-SERVICE`/`-BACKUP`).
+- **Routable but not yet authorized**: the same three — routes exist, but
+  no Security List/NSG (`SPEC-NET-004`, PR C3) has been added yet, so
+  "routable" is not "permitted." The shared default Security List (audited
+  against the live tenancy, unchanged by this PR) still allows SSH
+  (22/tcp) and ICMP from `0.0.0.0/0` on every subnet — harmless today
+  (nothing listens), a real gap PR C3 must close.
+- **Remain physically impossible**: PURPLE (`ARCH-FLOW-ADMIN`/`-CONTROL`)
+  — no OpenZiti, no compute/Talos exists yet (I04/I08/M2); this module
+  creates no path for either.
+- **Intentionally deferred**: ORANGE (`ARCH-FLOW-HYBRID`) — DRG present,
+  attached, and inert by construction (ADR-0008); zero routes reference it
+  anywhere in this module.
 
 ## Validation
 
@@ -97,6 +198,19 @@ tofu test
 - **CIDR self-check failure**: `tofu plan`/`apply` fails before any API
   call — the `check` block runs against the locals directly, so a bad
   hand-edit is caught before it ever reaches OCI.
+- **Service Gateway target lookup fails** (`data.oci_core_services`
+  returns no match for the `"All .* Services In Oracle Services Network"`
+  pattern): `local.all_services_in_oracle_services_network` evaluates to
+  `null`, and referencing `.id`/`.cidr_block` on it fails loudly with an
+  "Attempt to get attribute from null value" error at plan time — never a
+  silently misconfigured Service Gateway route. Not currently unit-testable
+  (see `tests/gateways.tftest.hcl`'s mock limitations note); would need
+  a real API response change to trigger.
+- **Partial apply mid-gateway-creation**: each gateway is its own
+  resource (no `for_each`/`count` linking them), so a failure creating,
+  say, the NAT Gateway leaves the Internet Gateway and Service Gateway
+  correctly in state — re-running `tofu apply` retries only what's
+  missing.
 
 ## Upgrade expectations
 
@@ -104,7 +218,10 @@ Changing any subnet's CIDR or the VCN's CIDR forces replacement (OCI VCN/
 subnet CIDRs are immutable) — destructive, and per REQ-NET-001/002 should
 only ever happen via a superseding ADR, never a casual edit. Changing
 `environment` updates the `Platform.Environment` tag value in place (no
-replacement).
+replacement). Changing a subnet's `route_table_id` (e.g. reassigning
+which route table a zone uses) is an in-place update, not a replacement —
+OCI subnets don't force-replace on route table changes; restoring the
+prior route table ID is the rollback path, not `tofu destroy`.
 
 ## Example
 
@@ -134,3 +251,32 @@ duplication protection is enforced by `vcn.tf`'s `check` block instead
 (see Security invariants). This file's negative tests instead cover the
 one real variable-driven invariant this module has: rejecting an invalid
 `environment` value.
+
+`tests/gateways.tftest.hcl` (positive): Internet Gateway enabled, NAT
+Gateway attached, Service Gateway resolves the real Services CIDR label
+(not hardcoded), DRG attached to the VCN specifically, DRG attachment
+references this module's own empty DRG route table, no gateway carries
+an `Oracle-Tags.*` key. Does **not** test that the DRG route table's
+`import_drg_route_distribution_id` stays null — `mock_provider`
+synthesizes a plausible fake value for every computed attribute
+regardless of whether config leaves it unset (confirmed empirically,
+same class of constraint as `foundation`'s `ignore_changes`-on-a-
+config-set-attribute limitation) — verified against the real provider
+in the PR C2 deployment report instead.
+
+`tests/routing.tftest.hcl` (positive; doubles as the negative-shaped
+security tests — see below): four route tables exist, every subnet uses
+its own zone's table rather than the default, Edge routes `0.0.0.0/0` to
+the Internet Gateway, all four zones route the Services CIDR label to
+the Service Gateway, no route table references the DRG. The single most
+important assertion —
+`management_workload_data_never_reference_the_internet_gateway` — is
+written as a positive assertion of an *absence*, which is what actually
+proves REQ-NET-013's binding control; a presence-only check for the NAT
+rule wouldn't catch a table that had both. No separate
+`routing_negative.tftest.hcl` exists: this module's route rules are
+built entirely from hardcoded locals (`local.route_tables`), not
+variables, so there's no user-input surface for `expect_failures`-style
+malformed/overlapping-route negative tests the way `foundation`'s
+string/OCID variables have — the same reasoning as `network_negative.tftest.hcl`
+above, applied to routing.

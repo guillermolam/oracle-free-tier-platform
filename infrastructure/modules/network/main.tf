@@ -9,4 +9,6 @@
 #   vcn.tf       REQ-NET-001 -- the platform VCN; also the CIDR/tag locals
 #                and the check block self-validating them
 #   subnets.tf   REQ-NET-002/003/004 -- the four trust-zone subnets
+#   gateways.tf  REQ-NET-006..010 -- Internet/NAT/Service Gateway, inert DRG
+#   routing.tf   REQ-NET-011..015 -- one route table per trust zone
 #   variables.tf / outputs.tf / versions.tf -- standard module contract
