@@ -190,37 +190,201 @@ that Spec's own scope decision rather than silently "upgrading" it ahead
 of the Spec that owns the decision. Recorded here as a confirmed-available
 follow-on for EPIC-OCI-04, not a gap.
 
-**Local development (resolved)**: two distinct credential types, kept
-explicitly separate, matching the CREDENTIAL SCOPE NOTE in
-`live/root.hcl`:
+### Local development: credential architecture
+
+Two distinct credential types, kept explicitly separate, matching the
+CREDENTIAL SCOPE NOTE in `live/root.hcl`:
 
 - **Native OCI API** (the `oci` CLI, the `oracle/oci` provider) — reads
   `~/.oci/config` (tenancy/user OCID, fingerprint, region, API private
   key) directly. No repository-owned tooling involved; this is the OCI
   CLI's own standard config file.
 - **OCI Object Storage's S3 Compatibility API** (the OpenTofu `s3`
-  backend used for remote state) — requires an OCI Customer Secret Key
-  (`platform-tfstate-backend`), exposed to the AWS-SDK-shaped S3 client
-  as `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`. Despite the variable
-  names, this is never AWS account credential material — see
-  `live/root.hcl`'s CREDENTIAL SCOPE NOTE for how the backend is made to
-  fail closed against any local `~/.aws/credentials` or cached AWS SSO
-  session rather than silently borrowing one.
+  backend used for remote state) — requires an OCI Customer Secret Key,
+  exposed to the AWS-SDK-shaped S3 client as `AWS_ACCESS_KEY_ID`/
+  `AWS_SECRET_ACCESS_KEY`. **These are S3-client-mandated variable
+  names, not AWS account credentials** — OpenTofu's `s3` backend is
+  simply an S3-protocol client, and OCI Object Storage's Amazon S3
+  Compatibility API happens to authenticate with that same variable
+  pair. See `live/root.hcl`'s CREDENTIAL SCOPE NOTE for how the backend
+  is also made to fail closed against any local `~/.aws/credentials` or
+  cached AWS SSO session, independent of the wrapper below.
+
+```text
+Proton Pass (vault "Personal", item "OCI - OpenTofu Remote State v3")
+    -> pass-cli run
+    -> AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY
+       (this process's environment only -- never persisted)
+    -> OpenTofu S3-compatible backend
+    -> OCI Object Storage
+```
 
 Rather than requiring `export AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=...`
-by hand every session, `live/scripts/tg` wraps `terragrunt` for local runs:
-it resolves the Customer Secret Key pair from macOS Keychain (one-time
-setup via `security add-generic-password`, documented in the script's own
-header — the script never sees or prints the secret value) if not already
-exported, auto-resolves the non-secret Object Storage namespace live via
-`oci os ns get` (native OCI auth, already configured) instead of requiring
-a separately-exported `OCI_OBJECT_STORAGE_NAMESPACE`, and fails closed
-with a clear error if neither source can supply the Customer Secret Key —
-never falling through to an unrelated AWS profile. CI is unaffected: it
-never invokes this wrapper, supplying `OCI_OBJECT_STORAGE_NAMESPACE` and
-the Customer Secret Key pair as their own explicit GitHub Actions secrets
-in `plan.yml`. See `live/scripts/tg.test.sh` for the wrapper's own
-deterministic (stubbed, no real Keychain/OCI access) test coverage.
+by hand every session, `live/scripts/tg` wraps `terragrunt` for local
+runs: `resolve_backend_credentials_proton_pass()` resolves the Customer
+Secret Key pair from Proton Pass into `pass://` *references* (never raw
+values — see the script's own "Why references, not values" comment),
+and `run_with_backend_credentials()` hands those to `pass-cli run`,
+which resolves them itself and injects real values only into the
+`terragrunt` child process — `tg`'s own process never holds, reads,
+prints, logs, or disk-stages either value. It also auto-resolves the
+non-secret Object Storage namespace live via `oci os ns get` (native OCI
+auth, already configured) instead of requiring a separately-exported
+`OCI_OBJECT_STORAGE_NAMESPACE`, and fails closed with a clear error if
+Proton Pass can't supply the Customer Secret Key. These two functions
+are a deliberate provider boundary: swapping to a future OpenBao
+provider means replacing `resolve_backend_credentials_proton_pass()`
+alone — see "Secret-source migration path" below. See
+`live/scripts/tg.test.sh` for the wrapper's own deterministic (stubbed,
+no real Proton Pass/OCI access) test coverage, including a
+provider-boundary separation check.
+
+#### Credential precedence
+
+Fixed, no override, no exceptions:
+
+1. **Proton Pass** (via `tg`) — the only supported source for
+   interactive/local use. There is deliberately no "already set in the
+   environment" step — `tg` overwrites any pre-existing
+   `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` for the child process
+   rather than honoring them, since honoring a pre-set value is exactly
+   the manual-export bypass this wrapper exists to prevent.
+   `~/.aws/credentials`, `~/.aws/config`, `AWS_PROFILE`,
+   `AWS_DEFAULT_PROFILE`, AWS SSO, EC2/ECS metadata, and macOS Keychain
+   are never consulted at any point in this precedence.
+2. **Fail closed.**
+
+**BREAK GLASS / CI INTERFACE** (not the local operator workflow): CI's
+`plan.yml` supplies `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` directly
+as GitHub Actions secrets to `gruntwork-io/terragrunt-action`, bypassing
+`tg` entirely — that is CI's own documented, narrowly-scoped interface.
+A human or agent must never replicate this locally by exporting these
+variables by hand; always go through `tg`.
+
+#### Prerequisites
+
+- `oci` CLI installed and authenticated (`~/.oci/config` populated —
+  native OCI API auth, unrelated to the backend credential below).
+- `pass-cli` installed and authenticated (`pass-cli login`, interactive,
+  opens a browser — `tg` never attempts this for you; verify with
+  `pass-cli info`).
+- A Proton Pass Login item named `OCI - OpenTofu Remote State v3` in the
+  `Personal` vault, with `username` set to the OCI Customer Secret Key's
+  Access Key ID and `password` set to its Secret Key. (The item *title*
+  is configuration, safe to document — the field *values* are not, and
+  never appear anywhere in this repository.)
+- `tofu` and `terragrunt`, pinned versions per the Toolchain table above.
+
+**Naming note**: the item title is versioned (`...v3`) because the
+underlying OCI Customer Secret Key is versioned
+(`platform-tfstate-backend-v3`) — a prior `OCI - OpenTofu Remote State
+v2` item also exists in the same vault from an earlier iteration.
+**Recommendation** (not yet applied): rename the *current* item to a
+stable, unversioned title (e.g. `OCI - OpenTofu Remote State`) so
+`tg`'s `PASS_ITEM` constant never needs to change on a future key
+rotation — the OCI key's own display name can stay versioned
+independently, since that's just a label, not a lookup key `tg`
+depends on. This is a rename recommendation only; it has not been
+applied, since renaming a Proton Pass item is a real action with real
+consequences (anything else referencing the old title by name would
+break) that the vault owner should decide and perform, and `tg`'s
+`PASS_ITEM` constant would need updating in lockstep with any rename.
+
+#### Usage
+
+Always invoke through the wrapper — never export the backend credential
+pair by hand:
+
+```bash
+infrastructure/live/scripts/tg init
+infrastructure/live/scripts/tg plan
+infrastructure/live/scripts/tg state list
+```
+
+Run from inside the target unit directory (e.g.
+`infrastructure/live/oci/eu-madrid-1/lab/10-network`), matching plain
+`terragrunt`'s own convention — `tg` forwards every argument unchanged.
+
+#### Safe verification (never displays the credential)
+
+```bash
+pass-cli info                                     # confirms Proton Pass session, no secret output
+pass-cli item view --vault-name "Personal" \
+  --item-title "OCI - OpenTofu Remote State v3" \
+  --output json | jq '.item.content | keys'        # confirms fields exist, prints only field NAMES
+oci os ns get                                      # confirms native OCI auth + namespace, non-secret
+```
+
+Never run `pass-cli item view` for this item with `--output human` or
+without piping into a values-stripping filter — both surface the raw
+secret values.
+
+#### Troubleshooting
+
+| Symptom | Cause | Fix |
+| --- | --- | --- |
+| `pass-cli is not installed or not on PATH` | `pass-cli` missing | install it, then re-run `tg` |
+| `pass-cli is not authenticated` | no active Proton Pass session | `pass-cli login` (interactive), retry |
+| `Could not find item with name ...` | item missing/renamed/wrong vault | confirm vault `Personal`, item title exactly `OCI - OpenTofu Remote State v3` |
+| `Field 'username'/'password' not found in item` | item exists but field missing | add the missing field in Proton Pass; never via a command that puts the value in shell history |
+| `oci os ns get` fails / `~/.oci/config` errors | native OCI auth misconfigured | fix `~/.oci/config`, verify with `oci iam region list` |
+| namespace resolution returns empty | transient OCI API issue, or wrong region in `~/.oci/config` | re-run; verify region matches `common/region.hcl` |
+| backend authentication failure (`SignatureDoesNotMatch` etc.) | resolved credential pair doesn't match an ACTIVE OCI Customer Secret Key | confirm the Proton Pass item's values match a currently ACTIVE key (`oci iam customer-secret-key list --user-id <ocid>` — lists names/state only, never secret values) |
+| `SignatureDoesNotMatch` immediately after creating a **new** Customer Secret Key | IAM→Object-Storage-compat credential propagation lag — confirmed transient during this bootstrap, several minutes, not a config defect (see "Bootstrap runbook" below) | retry after a few minutes; not a Proton Pass or `tg` problem |
+
+#### Rotation procedure (high level)
+
+1. Create a new OCI Customer Secret Key (`oci iam customer-secret-key
+   create`) — do this alongside the existing one, don't delete the old
+   key first.
+2. Store the new Access Key ID / Secret Key pair in a **new** Proton
+   Pass item (or update the existing item's fields) — never as a CLI
+   literal argument if it can be avoided; if it can't, that's a real,
+   narrow exposure window (briefly visible in `ps aux`) worth flagging
+   before doing it.
+3. Point `tg` at the new item (update `PASS_ITEM` in
+   `infrastructure/live/scripts/tg` if the item title changed) and
+   validate: `tg init`, `tg state list` against a real unit.
+4. Verify remote state is reachable and a real plan succeeds before
+   relying on the new key for anything else.
+5. Retain the old key as a rollback path until the new one is proven in
+   practice across a real init/plan/apply cycle.
+6. Delete the old OCI Customer Secret Key only after explicit user
+   approval — never as part of routine validation or automated cleanup.
+
+#### Secret-source migration path
+
+Proton Pass is a **bootstrap/local-development mechanism**, not this
+platform's final-state secret architecture:
+
+```text
+Bootstrap (current):
+  Proton Pass -> pass-cli -> tg -> Terragrunt/OpenTofu
+
+Target (once OpenBao + External Secrets Operator -- already the
+roadmap target, docs/00-overview/roadmap.md -- is deployed and
+reachable from wherever Terragrunt/OpenTofu runs):
+  OpenBao -> authenticated operator/automation identity ->
+  policy-controlled backend-credential retrieval -> tg / automation
+
+Future (where OCI/OpenTofu support it):
+  OIDC / short-lived workload identity, eliminating static backend
+  credentials entirely -- OpenBao then manages only whatever static or
+  rotatable secrets still need to exist.
+```
+
+`tg`'s `run_with_backend_credentials()` function is the sole place that
+knows how credentials are fetched (see the script's own header) — a
+future migration to OpenBao replaces that one function's body; the
+Terragrunt/OpenTofu-facing contract (`AWS_ACCESS_KEY_ID`/
+`AWS_SECRET_ACCESS_KEY` as process-scoped environment variables) does
+not change. This is a **temporary bootstrap decision**, not a
+superseding architecture decision — it does not amend or replace the
+OpenBao target already implied by the roadmap, and no new permanent
+dependency on Proton Pass should be introduced beyond this bootstrap
+role. A future ADR may formalize the OCI Vault-vs-OpenBao question for
+in-cluster/workload secrets generally (see `SPEC-OCI-002`'s own note on
+this); this bootstrap tooling choice is deliberately not that ADR.
 
 ## Tagging contract
 

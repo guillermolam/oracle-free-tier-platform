@@ -11,11 +11,17 @@ problem statement, users, and success metrics.
 
 ## Status
 
-**Greenfield.** Governance scaffolding, specifications, and architecture
-documentation exist; no OpenTofu modules or running infrastructure yet.
-Check [docs/00-overview/roadmap.md](docs/00-overview/roadmap.md) for the
-milestone actually in progress before assuming a component exists — do not
-infer implementation status from this README.
+Governance scaffolding, specifications, and architecture documentation
+are established, and infrastructure work has begun: `00-foundation`
+(compartment, IAM, state-backend bucket) and `10-network` (VCN, 4
+trust-zone subnets, Internet Gateway, DRG object) are real OpenTofu
+modules with real, partially-applied resources in the lab environment —
+NAT/Service Gateway, DRG route tables/attachment, and per-zone route
+tables remain blocked on real OCI service-limit constraints, not yet
+built. Kubernetes and everything above it has not started. Check
+[docs/00-overview/roadmap.md](docs/00-overview/roadmap.md) for the
+milestone actually in progress before assuming a component exists further
+along than this — do not infer implementation status from this README.
 
 ## Technology decisions vs. open questions
 
@@ -64,11 +70,24 @@ Cross-domain identity (GitHub, OCI IAM, human IdP, OpenZiti, Kubernetes
 RBAC, ServiceAccount, SPIFFE, OpenBao, Flux) is reconciled explicitly in
 [docs/01-architecture/identity-reconciliation.md](docs/01-architecture/identity-reconciliation.md) —
 similarly-named principals across systems are not assumed to be the same
-one unless a mapping mechanism is documented. Threat modeling (DFDs, attack
-paths, risk register) has not started yet — see
+one unless a mapping mechanism is documented. Threat modeling is Phase 3A
+in progress (a schema-validated `network.yaml` corpus exists; DFDs, attack
+paths, and the risk register have not started) — see
 [docs/03-threat-model/README.md](docs/03-threat-model/README.md) for the
-planned evidence chain and [SECURITY.md](SECURITY.md) for vulnerability
+exact pipeline position and [SECURITY.md](SECURITY.md) for vulnerability
 reporting.
+
+**Secrets lifecycle**: in-cluster/workload secrets are OpenBao + External
+Secrets Operator's domain (above), not yet deployed. Separately, the
+Terragrunt/OpenTofu remote-state backend (a pre-cluster, local-developer
+concern — OpenBao can't bootstrap infrastructure that would host it) uses
+Proton Pass as a temporary bootstrap credential source today, with a
+documented migration path to OpenBao once it's deployed and reachable, and
+OIDC/workload identity preferred beyond that wherever OCI/OpenTofu support
+it. This is a bootstrap tooling decision, not a change to the OpenBao
+target above — see
+[infrastructure/README.md#secrets-and-credentials-strategy](infrastructure/README.md#secrets-and-credentials-strategy)
+for the full operator procedure.
 
 ## Specification-driven delivery model
 
