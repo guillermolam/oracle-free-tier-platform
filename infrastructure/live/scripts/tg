@@ -1,64 +1,149 @@
 #!/usr/bin/env bash
 # Local-development wrapper around terragrunt. NOT used by CI (plan.yml
 # calls gruntwork-io/terragrunt-action directly with credentials supplied
-# as GitHub Actions secrets) -- this exists solely so a human or agent
-# running terragrunt/tofu against real OCI from a laptop doesn't have to
-# `export AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=...` by hand every
-# session (see infrastructure/README.md#secrets-and-credentials-strategy).
+# as GitHub Actions secrets -- see "Credential precedence" below) -- this
+# exists solely so a human or agent running terragrunt/tofu against real
+# OCI from a laptop doesn't have to manually export the OCI Customer
+# Secret Key every session (see
+# infrastructure/README.md#secrets-and-credentials-strategy, the canonical
+# operator procedure -- this header is a summary, not a duplicate).
 #
 # Despite the AWS-shaped variable names, this is NOT AWS credential
-# material -- it's the OCI Customer Secret Key (`platform-tfstate-backend`)
-# read via OCI's S3 Compatibility API client interface. This script never
-# touches a real AWS account, ~/.aws/credentials, or AWS SSO -- see
-# root.hcl's CREDENTIAL SCOPE NOTE for why the backend itself also
-# refuses to fall through to those.
+# material -- it's an OCI Customer Secret Key, read via OCI Object
+# Storage's Amazon S3 Compatibility API client interface, which happens
+# to use the AWS SDK's own variable names because it's an S3-protocol
+# client. This script never touches a real AWS account, ~/.aws/*, or AWS
+# SSO -- see root.hcl's CREDENTIAL SCOPE NOTE for how the backend itself
+# also refuses to fall through to those, independent of this wrapper.
 #
-# One-time setup (run these yourself -- this script never sees the
-# secret value, and neither should any agent):
+# SECRET SOURCE LIFECYCLE:
 #
-#   security add-generic-password -a platform-tfstate-backend \
-#     -s oracle-free-tier-platform-s3-compat-access-key -w
-#   security add-generic-password -a platform-tfstate-backend \
-#     -s oracle-free-tier-platform-s3-compat-secret-key -w
+#   CURRENT (bootstrap/local-development only):
+#     Proton Pass -> pass-cli -> this wrapper -> process environment
+#     -> OpenTofu/Terragrunt
 #
-# `security` will prompt for the value interactively (paste it there, not
-# on the command line, so it never lands in shell history).
+#   TARGET (once OpenBao + External Secrets Operator -- already the
+#   roadmap target, docs/00-overview/roadmap.md -- is deployed and
+#   reachable from wherever this script runs):
+#     OpenBao -> authenticated operator/automation identity ->
+#     policy-controlled credential retrieval -> process-scoped injection
+#     -> OpenTofu/Terragrunt
+#
+#   LONG-TERM PREFERENCE: OIDC / short-lived workload identity,
+#   eliminating static backend credentials wherever OCI/OpenTofu support
+#   it -- OpenBao would then manage only whatever static or rotatable
+#   secrets still need to exist.
+#
+# Do not introduce a new permanent dependency on Proton Pass beyond this
+# bootstrap role. See infrastructure/README.md#secret-source-migration-path
+# for the full picture.
+#
+# PROVIDER BOUNDARY: resolve_backend_credentials_proton_pass() below is
+# the only function that knows how credentials are actually fetched. A
+# future resolve_backend_credentials_openbao() would replace it (naming
+# reserved deliberately) -- nothing else in this script, and nothing in
+# Terragrunt/OpenTofu's own config, needs to change. The stable contract
+# on both sides: the resolver sets BACKEND_ACCESS_KEY_ID_REF /
+# BACKEND_SECRET_KEY_REF (provider-specific *references*, never raw
+# values -- see "Why references, not values" below), and
+# run_with_backend_credentials() is the only place that turns those into
+# the child process's AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY. How a
+# reference gets resolved into a real value is entirely the provider's
+# concern (today: pass-cli run; an OpenBao provider might instead use
+# `bao`'s own env-injection or a short-lived token exchange).
+#
+# Why references, not values: this wrapper's own process NEVER holds the
+# raw secret at any point, even transiently in a shell variable. The
+# resolver only produces a `pass://...`-style reference string (which is
+# not secret -- it names a vault/item/field, not a value); the actual
+# value resolution happens inside `pass-cli run`, which injects it
+# straight into the terragrunt child's environment and never returns it
+# to this script. This is a stronger guarantee than "resolve into a
+# local variable, then export it" would give, at no cost in
+# abstraction -- keep this property when implementing a future provider.
+#
+# Current provider: Proton Pass (vault "Personal", item
+# "OCI - OpenTofu Remote State v3", Login item -- `username` field holds
+# the Access Key ID, `password` field holds the Secret Key).
+#
+# Credential precedence (fixed, no override):
+#   1. Proton Pass (via resolve_backend_credentials_proton_pass) -- the
+#      only supported source for interactive/local use.
+#   2. Fail closed.
+# There is deliberately no "already set in the environment" step in
+# this precedence -- if AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY happen to
+# already be set when this script runs, the exec below overwrites them
+# for the child rather than honoring them, since honoring a pre-set
+# value is exactly the manual-export bypass this wrapper exists to
+# prevent. CI does NOT go through this precedence at all -- it is a
+# BREAK GLASS / CI INTERFACE that supplies AWS_ACCESS_KEY_ID/
+# AWS_SECRET_ACCESS_KEY directly as GitHub Actions secrets to
+# gruntwork-io/terragrunt-action, bypassing this script entirely (see
+# .github/workflows/plan.yml) -- that path is CI's own documented
+# interface, not a normal local operator workflow, and must not be
+# replicated by a human/agent exporting these vars by hand locally.
+#
+# macOS Keychain is NOT a supported credential source for this script
+# and must not be reintroduced: no `security find-generic-password`/
+# `add-generic-password` calls, no KEYCHAIN_* lookup/fallback logic, no
+# Proton-Pass-to-Keychain sync, no caching the resolved credential in any
+# other persistent store (a plaintext file, a shell profile, a `.env`
+# file, HCL). ~/.aws/credentials, ~/.aws/config, AWS profiles, and AWS
+# SSO are never consulted by this script (root.hcl's own backend config
+# independently blocks that layer too -- see its CREDENTIAL SCOPE NOTE).
+#
+# One-time setup (run yourself -- this script never touches Proton Pass
+# outside of resolving these two fields at run time):
+#
+#   1. Install pass-cli and complete `pass-cli login` (interactive,
+#      opens a browser -- this script never attempts it for you).
+#   2. Confirm the vault/item above exist with `username`/`password`
+#      fields populated with the OCI Customer Secret Key pair.
+#
+# This script never prints, logs, or disk-stages either field's value.
+# No `set -x` around credential retrieval, ever.
 set -euo pipefail
 
-KEYCHAIN_ACCOUNT="platform-tfstate-backend"
-KEYCHAIN_SERVICE_ACCESS_KEY="oracle-free-tier-platform-s3-compat-access-key"
-KEYCHAIN_SERVICE_SECRET_KEY="oracle-free-tier-platform-s3-compat-secret-key"
+PASS_VAULT="Personal"
+PASS_ITEM="OCI - OpenTofu Remote State v3"
 
 fail() {
   printf 'ERROR: %s\n' "$1" >&2
   exit 1
 }
 
-# Resolves one Customer Secret Key half from macOS Keychain. Never prints
-# the retrieved value -- only whether resolution succeeded.
-resolve_from_keychain() {
-  local service="$1"
-  command -v security >/dev/null 2>&1 || return 1
-  security find-generic-password -a "$KEYCHAIN_ACCOUNT" -s "$service" -w 2>/dev/null
+# Sets BACKEND_ACCESS_KEY_ID_REF / BACKEND_SECRET_KEY_REF to pass://
+# references (not values -- see "Why references, not values" above).
+# Fails closed if pass-cli is missing or unauthenticated; does NOT
+# attempt interactive login itself.
+resolve_backend_credentials_proton_pass() {
+  export PROTON_PASS_KEY_PROVIDER=fs
+
+  command -v pass-cli >/dev/null 2>&1 ||
+    fail "pass-cli is not installed or not on PATH. Backend credentials come from Proton Pass only -- see infrastructure/README.md#secrets-and-credentials-strategy."
+
+  pass-cli info >/dev/null 2>&1 ||
+    fail "pass-cli is not authenticated. Run 'pass-cli login' yourself (interactive, opens a browser) and retry -- tg never attempts login on your behalf."
+
+  BACKEND_ACCESS_KEY_ID_REF="pass://${PASS_VAULT}/${PASS_ITEM}/username"
+  BACKEND_SECRET_KEY_REF="pass://${PASS_VAULT}/${PASS_ITEM}/password"
+  printf 'tg: resolving OCI Customer Secret Key from Proton Pass (vault=%s, item=%s)\n' "$PASS_VAULT" "$PASS_ITEM" >&2
 }
 
-if [[ -z "${AWS_ACCESS_KEY_ID:-}" ]]; then
-  if value="$(resolve_from_keychain "$KEYCHAIN_SERVICE_ACCESS_KEY")" && [[ -n "$value" ]]; then
-    export AWS_ACCESS_KEY_ID="$value"
-    printf 'tg: AWS_ACCESS_KEY_ID resolved from Keychain\n' >&2
-  else
-    fail "AWS_ACCESS_KEY_ID not set and not found in Keychain (service=$KEYCHAIN_SERVICE_ACCESS_KEY, account=$KEYCHAIN_ACCOUNT). Export it, or run the one-time 'security add-generic-password' setup (see this script's header)."
-  fi
-fi
-
-if [[ -z "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
-  if value="$(resolve_from_keychain "$KEYCHAIN_SERVICE_SECRET_KEY")" && [[ -n "$value" ]]; then
-    export AWS_SECRET_ACCESS_KEY="$value"
-    printf 'tg: AWS_SECRET_ACCESS_KEY resolved from Keychain\n' >&2
-  else
-    fail "AWS_SECRET_ACCESS_KEY not set and not found in Keychain (service=$KEYCHAIN_SERVICE_SECRET_KEY, account=$KEYCHAIN_ACCOUNT). Export it, or run the one-time 'security add-generic-password' setup (see this script's header)."
-  fi
-fi
+# Runs "$@" (terragrunt and its arguments) with the backend credential
+# pair injected as AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY -- the only
+# place those names are ever set. Resolution happens inside `pass-cli
+# run` itself; this script's own environment never holds the value.
+# Missing item/field failures surface as pass-cli's own clear,
+# non-secret-leaking error text (e.g. "Field 'x' not found in item 'y'"
+# / "Could not find item with name y") -- verified live, not duplicated
+# here.
+run_with_backend_credentials() {
+  exec env \
+    "AWS_ACCESS_KEY_ID=${BACKEND_ACCESS_KEY_ID_REF}" \
+    "AWS_SECRET_ACCESS_KEY=${BACKEND_SECRET_KEY_REF}" \
+    pass-cli run -- "$@"
+}
 
 # Object Storage namespace is account data, not a secret -- safe to
 # auto-resolve live from the already-configured OCI CLI/API key profile
@@ -74,4 +159,5 @@ if [[ -z "${OCI_OBJECT_STORAGE_NAMESPACE:-}" ]]; then
   printf 'tg: OCI_OBJECT_STORAGE_NAMESPACE resolved from OCI API (namespace=%s)\n' "$namespace" >&2
 fi
 
-exec terragrunt "$@"
+resolve_backend_credentials_proton_pass
+run_with_backend_credentials terragrunt "$@"

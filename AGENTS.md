@@ -8,13 +8,19 @@ for the full problem statement.
 
 ## Project Structure & Module Organization
 
-This repository is **greenfield**: governance scaffolding, specs, and
-architecture docs exist, but no OpenTofu modules or running infrastructure
-yet. Consult `docs/00-overview/roadmap.md` for what milestone is actually
-in progress before assuming a component exists — architecture work
-currently proceeds domain-by-domain (network → identity/governance/CI-CD →
-Kubernetes), evidence-first; do not infer that a later phase (e.g. threat
-modeling) has started from this file.
+Architecture work proceeds domain-by-domain (network →
+identity/governance/CI-CD → Kubernetes), evidence-first. `infrastructure/`
+is no longer reserved-only: `00-foundation` (compartment, IAM, the
+Terragrunt state-backend bucket) and `10-network` (VCN, 4 trust-zone
+subnets, Internet Gateway, DRG object) are real modules with real,
+partially-applied resources in the lab environment — NAT/Service Gateway,
+DRG route tables/attachment, and per-zone route tables are still blocked
+on real OCI service-limit constraints (see
+`infrastructure/modules/network/README.md`'s Failure modes section), not
+yet built. Consult `docs/00-overview/roadmap.md` for what milestone is
+actually in progress before assuming a component exists further along
+than this — do not infer that a later phase (e.g. Kubernetes bootstrap)
+has started from this file.
 
 - `docs/00-overview/` — vision, personas, roadmap.
 - `docs/01-architecture/`, `docs/arch/`, and `*.mmd` files — architecture
@@ -22,10 +28,15 @@ modeling) has started from this file.
 - `docs/02-decisions/` — accepted ADRs.
 - `docs/specs/` — canonical numbered requirements (see "Source of truth"
   below).
-- `docs/03-threat-model/`, `docs/04-operations/`, `docs/05-security/`,
-  `docs/06-runbooks/` — not started yet; each has a `README.md` stating so.
-- `infrastructure/` — reserved for OpenTofu modules, compositions, and
-  Terragrunt live environments.
+- `docs/03-threat-model/` — Phase 3A in progress (EPIC-TM-01/I20): a
+  real, schema-validated `network.yaml` corpus exists
+  (`docs/03-threat-model/model/instances/`); the DFD/STRIDE/attack-tree
+  phases after it have not started — see that directory's own
+  `README.md` for the exact pipeline position.
+- `docs/04-operations/`, `docs/05-security/`, `docs/06-runbooks/` — not
+  started yet; each has a `README.md` stating so.
+- `infrastructure/` — OpenTofu modules, compositions, and Terragrunt live
+  environments (see above — partially applied, not reserved-only).
 - `scripts/` — validation helpers; `.github/` — CI and PR policy.
 
 There is no application or unit-test suite. `package.json` exists solely
@@ -227,6 +238,54 @@ Never commit credentials, `.oci/` material, Talos secrets, kubeconfigs,
 rotate anything exposed immediately. See `SECURITY.md` for the
 vulnerability-reporting process.
 
+### Terragrunt/OpenTofu remote-state backend credentials
+
+Full operator procedure (prerequisites, usage, troubleshooting,
+rotation, migration path):
+[infrastructure/README.md#secrets-and-credentials-strategy](infrastructure/README.md#secrets-and-credentials-strategy)
+— this is the canonical document; the rules below are the operational
+contract an agent must follow, not a restatement of that procedure.
+
+- Local backend credentials (the OCI Customer Secret Key, exposed as
+  `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` — S3-client-mandated
+  names, not AWS account credentials) come from **Proton Pass** only:
+  vault `Personal`, item `OCI - OpenTofu Remote State v3`
+  (`username` → Access Key ID, `password` → Secret Key).
+- **`infrastructure/live/scripts/tg` is the only supported entry
+  point** for local `terragrunt`/`tofu` invocations against real OCI —
+  never run `terragrunt`/`tofu` directly against a unit whose backend
+  needs this credential.
+- Never request, print, log, persist, copy, or inspect the secret
+  value. Never run `pass-cli item view` for this item with
+  `--output human` or without piping into a values-stripping filter.
+- Never place these credentials in HCL, `.env` files, shell profiles,
+  `~/.aws/credentials`, `~/.aws/config`, repository files, generated
+  `backend.tf`, plan artifacts, or logs.
+- Never bypass `tg` by manually exporting these credentials, and never
+  silently fall back to AWS profiles, AWS SSO, plaintext files, or
+  macOS Keychain — macOS Keychain is explicitly **not** a supported
+  credential source for this repository, for anyone, with no
+  exceptions (this predates and extends beyond this specific
+  credential).
+- Fail closed when Proton Pass retrieval or OCI namespace resolution
+  fails — do not improvise an alternate source.
+- Never rotate or delete an OCI Customer Secret Key as part of normal
+  validation or automated cleanup. Rotation/deletion requires explicit
+  user authorization (see the README's rotation procedure).
+- **Proton Pass is a bootstrap/local-development mechanism, not this
+  platform's final-state secret architecture.** Secret ownership is
+  expected to move to OpenBao (already the roadmap target,
+  `docs/00-overview/roadmap.md`) once it is deployed and reachable from
+  wherever Terragrunt/OpenTofu runs. Do not introduce a new permanent
+  dependency on Proton Pass beyond this bootstrap role, and design any
+  new secret-handling code so the source can later swap to OpenBao
+  without changing Terragrunt/OpenTofu module contracts — see `tg`'s
+  own `run_with_backend_credentials()` for the established pattern.
+- Preserve remote-state safety before any plan/apply/import/state
+  operation: check `git status`, confirm the working directory is
+  clean, and never run a mutating state operation without first
+  understanding what's currently applied.
+
 ## Agent-specific guardrails
 
 - Never revert, overwrite, stage, reformat, or rename a user's own
@@ -244,3 +303,7 @@ vulnerability-reporting process.
 - Treat automated review-bot billing/paywall notices (e.g. "trial
   expired", "reviews paused for this user") as non-actionable noise, not
   findings — but still read every review for genuine findings underneath.
+- Always use `infrastructure/live/scripts/tg` for local
+  `terragrunt`/`tofu` against real OCI — never invoke them directly, and
+  never manually export the OCI Customer Secret Key as a bypass. See
+  "Terragrunt/OpenTofu remote-state backend credentials" above.
