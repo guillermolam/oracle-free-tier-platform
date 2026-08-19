@@ -24,6 +24,7 @@ variable "platform_name" {
   description = "Platform.System defined-tag value -- matches infrastructure/modules/foundation's own default."
 }
 
+<<<<<<< HEAD
 variable "use_managed_nat" {
   type        = bool
   description = "Create the managed NAT Gateway resource. Set to false when relying on the software-NAT instance (micro-nat) instead. Defaults to false since NAT gateway limit = 0 on Always Free."
@@ -56,6 +57,22 @@ check "nat_egress_target_and_managed_nat_are_mutually_exclusive" {
     condition     = !(var.use_managed_nat && var.nat_egress_target_ocid != null)
     error_message = "nat_egress_target_ocid and use_managed_nat are mutually exclusive: the explicit private-IP target wins the resolution order, leaving any created managed NAT gateway unused. Set only one."
   }
+}
+
+variable "manage_inert_drg_route_table" {
+  type        = bool
+  default     = false
+  description = <<-EOT
+    Gates oci_core_drg_route_table.inert and oci_core_drg_attachment.vcn
+    (REQ-NET-009/ADR-0008 Option B's custom empty DRG route table + its
+    attachment). Defaults to false: a real apply against this tenancy hit
+    a genuine OCI per-DRG-route-table-count service-limit error creating
+    this 3rd table (a DRG auto-generates 2 default route tables that
+    already consume the quota) -- see gateways.tf's own comment on this
+    resource and GAP-NET-004 in the threat-model corpus. Does not affect
+    oci_core_drg_route_table.vcn_default, which models an OCI-created
+    table (no quota consumed) and is unconditional.
+  EOT
 }
 
 # No CIDR variables, deliberately: REQ-NET-001/REQ-NET-002 mandate exact

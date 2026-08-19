@@ -43,6 +43,7 @@ PR C3 exactly as originally scoped.
 | `use_managed_nat` | bool | no (default `false`) | — |
 | `use_managed_service_gateway` | bool | no (default `false`) | — |
 | `nat_egress_target_ocid` | string | no (default `null`) | must be `null` or match `^ocid1\.privateip\.`; mutually exclusive with `use_managed_nat` (checked) |
+| `manage_inert_drg_route_table` | bool | no (default `false`) | gates the custom inert DRG route table + attachment — see Security invariants |
 
 `use_managed_nat`/`use_managed_service_gateway` default to `false` because
 this Always Free account has a hard limit of 0 NAT gateways and 0 service
@@ -68,6 +69,7 @@ hardcoded constants, not tunables.
 | `subnet_cidrs` | map keyed by zone — downstream Security List/NSG rules referencing zone ranges |
 | `igw_id` / `nat_id` / `sgw_id` / `drg_id` | consumed internally by `routing.tf`; `drg_id` also for I21 once hybrid connectivity begins |
 | `drg_route_table_id` | I21 — the table it populates once hybrid routing activates |
+| `vcn_default_drg_route_table_id` | not yet consumed — Phase B1 ownership proof; available for a future, separately-authorized phase if ADR-0008 is amended |
 | `route_table_ids` | map keyed by zone — I04 (compute subnet attachment) |
 | `security_list_ids` | map keyed by zone — PR C3's NSGs layer on top of these; I04 attaches compute to the same zone's list |
 
@@ -160,15 +162,44 @@ Resolution order (first match wins):
   `management_workload_data_never_reference_the_internet_gateway` asserts
   the *absence* directly — not merely that a NAT rule is also present,
   which alone wouldn't catch a table carrying both.
-- **REQ-NET-009/ADR-0008 (DRG inertness)**: the DRG attachment references
-  this module's own `oci_core_drg_route_table.inert`, which carries zero
-  static routes (no `oci_core_drg_route_table_route_rule` resource exists
-  in this module) and no `import_drg_route_distribution_id` (unset —
-  no propagation configured). Both together are what "present but inert"
-  means. `mock_provider` cannot prove the second half of this (see
+- **REQ-NET-009/ADR-0008 (DRG inertness), gated by
+  `var.manage_inert_drg_route_table` (default `false`)**: when enabled,
+  the DRG attachment references this module's own
+  `oci_core_drg_route_table.inert`, which carries zero static routes (no
+  `oci_core_drg_route_table_route_rule` resource exists in this module)
+  and no `import_drg_route_distribution_id` (unset — no propagation
+  configured). Both together are what "present but inert" means.
+  `mock_provider` cannot prove the second half of this (see
   `tests/gateways.tftest.hcl`'s `drg_route_table_is_inert` comment) —
   verified against the real provider in the PR C2 deployment report
-  instead.
+  instead. **Default is `false`**: a real apply against this tenancy hit
+  a genuine OCI per-DRG-route-table-count service-limit error creating
+  `inert` (a DRG auto-generates 2 default route tables that already
+  consume the quota — see `gateways.tf`'s own comment on
+  `oci_core_drg_route_table.vcn_default` below). With the default,
+  `oci_core_drg_route_table.inert` and `oci_core_drg_attachment.vcn` both
+  plan zero instances (`count = 0`) — the DRG itself stays genuinely
+  unattached, not attached-to-nothing; `tests/gateways.tftest.hcl`'s
+  `inert_drg_route_table_disabled_by_default` verifies this. Nothing in
+  M1–M10 depends on the attachment existing yet (ADR-0008's own
+  Reversibility section), so this is an honest reflection of current
+  deployment capability, not a REQ-NET-009 violation-in-progress.
+- **Phase B1 (DRG default-route-table ownership proof, in evaluation —
+  ADR-0008/REQ-NET-009 NOT amended by this addition)**:
+  `oci_core_drg_route_table.vcn_default` + `data.oci_core_drg_route_tables.vcn_default`
+  model OCI's own auto-generated "VCN attachments" DRG route table for
+  state ownership only — self-discovered via `drg_id` + OCI's fixed
+  auto-generated display name (same pattern as the Service Gateway
+  lookup above), so no tenancy-specific OCID flows through this module.
+  Unconditional (no quota consumed importing an OCI-created object) and
+  independent of `var.manage_inert_drg_route_table`. Does not set
+  `remove_import_trigger`, and is not yet the decided design — it exists
+  so a real `import` block (generated at the Terragrunt live layer,
+  since OpenTofu requires import blocks in the root module and this
+  module is also called as a child module by `examples/minimal`) can
+  prove ownership with zero behavior change before any ADR-0008
+  amendment is considered. See the DRG import-only gate report for the
+  real-plan evidence.
 - **REQ-NET-008/014 (Service Gateway target)**: the Services Network CIDR
   label is resolved via `data.oci_core_services` and matched by name
   pattern (`"All .* Services In Oracle Services Network"`), never
@@ -208,7 +239,7 @@ Resolution order (first match wins):
 | REQ-NET-006 | SPEC-NET-002 | — | ARCH-FLOW-INGRESS (RED) | ARCH-FLOW-INGRESS | Internet Gateway | `oci_core_internet_gateway.this` | `internet_gateway_enabled` |
 | REQ-NET-007 | SPEC-NET-002 | — | ARCH-FLOW-EGRESS (GREEN) | ARCH-FLOW-EGRESS | NAT Gateway | `oci_core_nat_gateway.this` | `nat_gateway_exists` |
 | REQ-NET-008 | SPEC-NET-002 | — | ARCH-FLOW-SERVICE (BLUE) | ARCH-FLOW-SERVICE | Service Gateway | `oci_core_service_gateway.this` | `service_gateway_targets_all_services` |
-| REQ-NET-009 | SPEC-NET-002 | ADR-0008 | ARCH-FLOW-HYBRID (ORANGE) | ARCH-FLOW-HYBRID | DRG + attachment + empty DRG RT | `oci_core_drg.this` / `.inert` / `.vcn` | `drg_exists_and_is_attached`, `drg_route_table_is_inert` |
+| REQ-NET-009 | SPEC-NET-002 | ADR-0008 | ARCH-FLOW-HYBRID (ORANGE) | ARCH-FLOW-HYBRID | DRG (unconditional) + attachment + empty DRG RT (gated, `var.manage_inert_drg_route_table`) | `oci_core_drg.this` / `.inert[0]` / `.vcn[0]` | `drg_exists_and_is_attached`, `drg_route_table_is_inert`, `inert_drg_route_table_disabled_by_default` |
 | REQ-NET-010 | SPEC-NET-002 | — | ARCH-FLOW-INGRESS | ARCH-FLOW-INGRESS | (constraint on all gateways) | n/a — no other gateway carries a `0.0.0.0/0` inbound rule by construction | covered by route-table tests, not a gateway-object test |
 | REQ-NET-011 | SPEC-NET-003 | ADR-0006 | ARCH-ZONE-* | — | Route Table ×4 | `oci_core_route_table.this` | `four_route_tables_one_per_zone`, `every_subnet_uses_its_own_zone_route_table_not_the_default` |
 | REQ-NET-012 | SPEC-NET-003 | — | ARCH-FLOW-INGRESS (RED) | ARCH-FLOW-INGRESS | Route rule (Edge → IGW) | `oci_core_route_table.this["edge"]` | `edge_route_table_routes_internet_to_igw` |
@@ -221,7 +252,12 @@ Resolution order (first match wins):
 No orphan infrastructure: every resource and route rule in `gateways.tf`/
 `routing.tf`/`security_lists.tf` traces to one of the rows above. Nothing
 was added that isn't required by REQ-NET-006 through REQ-NET-018 (with
-REQ-NET-017/019/020 explicitly out of scope — see Purpose).
+REQ-NET-017/019/020 explicitly out of scope — see Purpose). The one
+deliberate exception: `oci_core_drg_route_table.vcn_default` and
+`data.oci_core_drg_route_tables.vcn_default` (Phase B1) trace to
+REQ-NET-009/ADR-0008 too, but as an ownership-only evaluation artifact,
+not a new requirement — see the "Phase B1" bullet under Security
+invariants above and the DRG import-only gate report for status.
 
 ## Route matrix
 
