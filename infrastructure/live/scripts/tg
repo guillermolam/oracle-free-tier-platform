@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+# Local-development wrapper around terragrunt. NOT used by CI (plan.yml
+# calls gruntwork-io/terragrunt-action directly with credentials supplied
+# as GitHub Actions secrets) -- this exists solely so a human or agent
+# running terragrunt/tofu against real OCI from a laptop doesn't have to
+# `export AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=...` by hand every
+# session (see infrastructure/README.md#secrets-and-credentials-strategy).
+#
+# Despite the AWS-shaped variable names, this is NOT AWS credential
+# material -- it's the OCI Customer Secret Key (`platform-tfstate-backend`)
+# read via OCI's S3 Compatibility API client interface. This script never
+# touches a real AWS account, ~/.aws/credentials, or AWS SSO -- see
+# root.hcl's CREDENTIAL SCOPE NOTE for why the backend itself also
+# refuses to fall through to those.
+#
+# One-time setup (run these yourself -- this script never sees the
+# secret value, and neither should any agent):
+#
+#   security add-generic-password -a platform-tfstate-backend \
+#     -s oracle-free-tier-platform-s3-compat-access-key -w
+#   security add-generic-password -a platform-tfstate-backend \
+#     -s oracle-free-tier-platform-s3-compat-secret-key -w
+#
+# `security` will prompt for the value interactively (paste it there, not
+# on the command line, so it never lands in shell history).
+set -euo pipefail
+
+KEYCHAIN_ACCOUNT="platform-tfstate-backend"
+KEYCHAIN_SERVICE_ACCESS_KEY="oracle-free-tier-platform-s3-compat-access-key"
+KEYCHAIN_SERVICE_SECRET_KEY="oracle-free-tier-platform-s3-compat-secret-key"
+
+fail() {
+  printf 'ERROR: %s\n' "$1" >&2
+  exit 1
+}
+
+# Resolves one Customer Secret Key half from macOS Keychain. Never prints
+# the retrieved value -- only whether resolution succeeded.
+resolve_from_keychain() {
+  local service="$1"
+  command -v security >/dev/null 2>&1 || return 1
+  security find-generic-password -a "$KEYCHAIN_ACCOUNT" -s "$service" -w 2>/dev/null
+}
+
+if [[ -z "${AWS_ACCESS_KEY_ID:-}" ]]; then
+  if value="$(resolve_from_keychain "$KEYCHAIN_SERVICE_ACCESS_KEY")" && [[ -n "$value" ]]; then
+    export AWS_ACCESS_KEY_ID="$value"
+    printf 'tg: AWS_ACCESS_KEY_ID resolved from Keychain\n' >&2
+  else
+    fail "AWS_ACCESS_KEY_ID not set and not found in Keychain (service=$KEYCHAIN_SERVICE_ACCESS_KEY, account=$KEYCHAIN_ACCOUNT). Export it, or run the one-time 'security add-generic-password' setup (see this script's header)."
+  fi
+fi
+
+if [[ -z "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
+  if value="$(resolve_from_keychain "$KEYCHAIN_SERVICE_SECRET_KEY")" && [[ -n "$value" ]]; then
+    export AWS_SECRET_ACCESS_KEY="$value"
+    printf 'tg: AWS_SECRET_ACCESS_KEY resolved from Keychain\n' >&2
+  else
+    fail "AWS_SECRET_ACCESS_KEY not set and not found in Keychain (service=$KEYCHAIN_SERVICE_SECRET_KEY, account=$KEYCHAIN_ACCOUNT). Export it, or run the one-time 'security add-generic-password' setup (see this script's header)."
+  fi
+fi
+
+# Object Storage namespace is account data, not a secret -- safe to
+# auto-resolve live from the already-configured OCI CLI/API key profile
+# (~/.oci/config) rather than requiring a separate manually-exported env
+# var. CI does NOT use this path; it supplies OCI_OBJECT_STORAGE_NAMESPACE
+# as its own explicit secret in plan.yml, unrelated to this script.
+if [[ -z "${OCI_OBJECT_STORAGE_NAMESPACE:-}" ]]; then
+  command -v oci >/dev/null 2>&1 || fail "OCI_OBJECT_STORAGE_NAMESPACE not set and the 'oci' CLI is not on PATH to resolve it."
+  namespace="$(oci os ns get --raw-output --query data 2>/dev/null)" ||
+    fail "OCI_OBJECT_STORAGE_NAMESPACE not set and 'oci os ns get' failed -- check ~/.oci/config."
+  [[ -n "$namespace" ]] || fail "OCI_OBJECT_STORAGE_NAMESPACE not set and 'oci os ns get' returned an empty namespace."
+  export OCI_OBJECT_STORAGE_NAMESPACE="$namespace"
+  printf 'tg: OCI_OBJECT_STORAGE_NAMESPACE resolved from OCI API (namespace=%s)\n' "$namespace" >&2
+fi
+
+exec terragrunt "$@"
