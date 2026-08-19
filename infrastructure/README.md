@@ -190,11 +190,37 @@ that Spec's own scope decision rather than silently "upgrading" it ahead
 of the Spec that owns the decision. Recorded here as a confirmed-available
 follow-on for EPIC-OCI-04, not a gap.
 
-Local development authentication strategy (OCI CLI config / API key
-profile vs. session token) is not yet decided — tracked as an open item
-for whichever PR first needs a human to run `tofu`/`terragrunt` locally
-against real OCI (likely `00-foundation`'s own PR, since REQ-OCI-007's
-bootstrap is inherently a local/manual one-time step, not a CI step).
+**Local development (resolved)**: two distinct credential types, kept
+explicitly separate, matching the CREDENTIAL SCOPE NOTE in
+`live/root.hcl`:
+
+- **Native OCI API** (the `oci` CLI, the `oracle/oci` provider) — reads
+  `~/.oci/config` (tenancy/user OCID, fingerprint, region, API private
+  key) directly. No repository-owned tooling involved; this is the OCI
+  CLI's own standard config file.
+- **OCI Object Storage's S3 Compatibility API** (the OpenTofu `s3`
+  backend used for remote state) — requires an OCI Customer Secret Key
+  (`platform-tfstate-backend`), exposed to the AWS-SDK-shaped S3 client
+  as `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`. Despite the variable
+  names, this is never AWS account credential material — see
+  `live/root.hcl`'s CREDENTIAL SCOPE NOTE for how the backend is made to
+  fail closed against any local `~/.aws/credentials` or cached AWS SSO
+  session rather than silently borrowing one.
+
+Rather than requiring `export AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=...`
+by hand every session, `live/scripts/tg` wraps `terragrunt` for local runs:
+it resolves the Customer Secret Key pair from macOS Keychain (one-time
+setup via `security add-generic-password`, documented in the script's own
+header — the script never sees or prints the secret value) if not already
+exported, auto-resolves the non-secret Object Storage namespace live via
+`oci os ns get` (native OCI auth, already configured) instead of requiring
+a separately-exported `OCI_OBJECT_STORAGE_NAMESPACE`, and fails closed
+with a clear error if neither source can supply the Customer Secret Key —
+never falling through to an unrelated AWS profile. CI is unaffected: it
+never invokes this wrapper, supplying `OCI_OBJECT_STORAGE_NAMESPACE` and
+the Customer Secret Key pair as their own explicit GitHub Actions secrets
+in `plan.yml`. See `live/scripts/tg.test.sh` for the wrapper's own
+deterministic (stubbed, no real Keychain/OCI access) test coverage.
 
 ## Tagging contract
 
