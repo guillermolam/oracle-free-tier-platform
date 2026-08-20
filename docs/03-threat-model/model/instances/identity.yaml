@@ -1,0 +1,608 @@
+domain: identity
+schema_version: 2.0.0
+model_version: 0.1.0
+generated_from:
+  - { source_type: arch-view, ref: VIEW-ID-HUMAN, status: specified }
+  - { source_type: arch-view, ref: VIEW-ID-K8S-RBAC, status: specified }
+  - { source_type: arch-view, ref: VIEW-ID-OCI, status: specified }
+  - { source_type: arch-view, ref: VIEW-ID-ZITI, status: specified }
+  - { source_type: arch-view, ref: VIEW-ID-WORKLOAD, status: specified }
+  - { source_type: arch-view, ref: "identity-reconciliation.md", status: specified }
+  - { source_type: spec, ref: "SPEC-OCI-001.md", status: specified }
+  - { source_type: spec, ref: "SPEC-OCI-002.md", status: specified }
+  - { source_type: spec, ref: "SPEC-OCI-003.md", status: specified }
+  - { source_type: adr, ref: ADR-0003, status: specified }
+  - { source_type: contributing, ref: "CONTRIBUTING.md", status: specified }
+  - { source_type: roadmap, ref: "roadmap.md#SPIKE-IDP-01", status: decision-pending }
+  - { source_type: roadmap, ref: "roadmap.md#SPIKE-SPIFFE-01", status: decision-pending }
+
+scopes:
+  - id: SCOPE-SPIFFE-TRUST-DOMAIN
+    name: SPIFFE trust domain
+    description: >-
+      The SPIFFE trust domain named in roadmap.md's MVP definition -- the
+      namespace SPIRE-issued identities are scoped to. Cross-cluster
+      federation across trust domains is DECISION PENDING (SPIKE-SPIFFE-01).
+    scope_type: other
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-ID-WORKLOAD, status: specified }
+
+actors:
+  - id: ACTOR-GITHUB-ACTIONS-WORKFLOW
+    name: GitHub Actions workflow
+    actor_type: automated-agent
+    description: >-
+      The automated CI actor identity-reconciliation.md's delivery matrix
+      names as the Workflow Identity for IaC, Platform GitOps (validate
+      only), Policy (validate only), and Node configuration (review only)
+      workloads. Never deploys to the cluster (ADR-0005) -- validates and
+      plans only.
+    identity_refs: ["IDENT-GITHUB-ACTIONS-WORKFLOW"]
+    state: specified
+    evidence:
+      - { source_type: arch-view, ref: "identity-reconciliation.md", status: specified }
+      - { source_type: adr, ref: ADR-0005, status: specified }
+
+identities:
+  - id: IDENT-ADMIN-GITHUB
+    name: Administrator's GitHub account
+    system: github
+    class_ref: ARCH-ID-HUMAN
+    principal_type: user
+    description: >-
+      The platform administrator's GitHub identity -- signed commits, DCO
+      trailer, branch-protection-gated contributor. Distinct from
+      IDENT-ZITI-ADMIN (network.yaml) and IDENT-ADMIN-OIDC -- three
+      separate, non-federated principals held by the same human
+      (identity-reconciliation.md: "GitHub ↔ OCI IAM: No... a human
+      currently holds both credential sets separately").
+    state: specified
+    evidence:
+      - { source_type: arch-view, ref: VIEW-ID-HUMAN, status: specified }
+      - { source_type: contributing, ref: "CONTRIBUTING.md", status: specified }
+
+  - id: IDENT-ADMIN-OIDC
+    name: Administrator's OIDC identity
+    system: human-idp
+    class_ref: ARCH-ID-OIDC
+    principal_type: user
+    description: >-
+      The administrator's OIDC subject/token -- mechanism decided (OIDC),
+      issuing product genuinely undecided (SPIKE-IDP-01, open). Intended
+      authentication targets per VIEW-ID-HUMAN: Kubernetes API (I10),
+      OpenBao (I11), observability dashboards (I16) -- none yet wired.
+    maps_to:
+      - { identity_ref: IDENT-ADMIN-GITHUB, mapping_mechanism: "none automated; the same human holds both credential sets independently", same_principal: false }
+      - { identity_ref: IDENT-ZITI-ADMIN, mapping_mechanism: "none documented; ADR-0003's Ziti enrollment is independent of any OIDC IdP", same_principal: false }
+    state: decision-pending
+    evidence:
+      - { source_type: arch-view, ref: VIEW-ID-HUMAN, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#SPIKE-IDP-01", status: decision-pending }
+
+  - id: IDENT-IAM-BOOTSTRAP-USER
+    name: OCI IAM bootstrap user
+    system: oci-iam
+    class_ref: ARCH-ID-OCI-PRINCIPAL
+    principal_type: user
+    description: >-
+      Bootstrap/CI OCI IAM User carrying the static Customer Secret Key
+      backend credential (REQ-OCI-006) -- see AGENTS.md's Terragrunt/
+      OpenTofu remote-state credential contract for the operational rules
+      around this identity's key material.
+    state: specified
+    evidence:
+      - { source_type: arch-view, ref: VIEW-ID-OCI, status: specified }
+      - { source_type: spec, ref: "SPEC-OCI-001.md#REQ-OCI-006", status: specified }
+
+  - id: IDENT-TALOS-INSTANCE-PRINCIPAL
+    name: Talos node instance principal
+    system: oci-iam
+    class_ref: ARCH-ID-OCI-PRINCIPAL
+    principal_type: machine
+    description: OCI Instance Principal for Talos control-plane/worker nodes, matched into IDENT-DYNAMIC-GROUP by compartment/tag once provisioned (I04).
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-ID-OCI, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I04", status: planned }
+
+  - id: IDENT-DYNAMIC-GROUP
+    name: Platform dynamic group
+    system: oci-iam
+    class_ref: ARCH-ID-DYNAMIC-GROUP
+    principal_type: group
+    description: Matches instance principals by compartment/tag rule (REQ-OCI-003) -- the mechanism machine identity is granted KMS/Logging policy through.
+    state: specified
+    evidence:
+      - { source_type: arch-view, ref: VIEW-ID-OCI, status: specified }
+      - { source_type: spec, ref: "SPEC-OCI-001.md#REQ-OCI-003", status: specified }
+
+  - id: IDENT-GITHUB-ACTIONS-WORKFLOW
+    name: GitHub Actions workflow identity
+    system: github
+    principal_type: service
+    description: The CI runner identity ACTOR-GITHUB-ACTIONS-WORKFLOW acts through -- validates/plans, never applies to the live cluster (ADR-0005).
+    state: specified
+    evidence:
+      - { source_type: arch-view, ref: "identity-reconciliation.md", status: specified }
+
+  - id: IDENT-FLUX-SERVICEACCOUNT
+    name: Flux ServiceAccount
+    system: kubernetes-serviceaccount
+    class_ref: ARCH-ID-SA
+    principal_type: service
+    description: The Kubernetes-side principal for Platform GitOps, PLANNED I12 -- Flux is the only controller with cluster-deploy authority (ADR-0005).
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: "identity-reconciliation.md", status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I12", status: planned }
+
+  - id: IDENT-KYVERNO-SERVICEACCOUNT
+    name: Kyverno ServiceAccount
+    system: kubernetes-serviceaccount
+    class_ref: ARCH-ID-SA
+    principal_type: service
+    description: The Kubernetes-side principal for policy admission, PLANNED I14 (ADR-0004 names Kyverno as the admission engine).
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: "identity-reconciliation.md", status: specified }
+      - { source_type: adr, ref: ADR-0004, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I14", status: planned }
+
+  - id: IDENT-K8S-SERVICEACCOUNT-GENERIC
+    name: Generic Kubernetes ServiceAccount
+    system: kubernetes-serviceaccount
+    class_ref: ARCH-ID-SA
+    principal_type: service
+    description: >-
+      The generic namespaced-workload ServiceAccount shape
+      kubernetes-identity-rbac.mmd shows binding to a RoleBinding/Role/
+      Namespace -- no concrete namespace or role exists yet (I05 has zero
+      depth, per governance/kubernetes-tenancy.mmd).
+    maps_to:
+      - { identity_ref: IDENT-SPIFFE-WORKLOAD, mapping_mechanism: "SPIRE k8s workload attestor (specific attestor TBD) -- contributes to attestation, is not the SPIFFE identity itself", same_principal: false }
+    state: candidate
+    evidence:
+      - { source_type: arch-view, ref: VIEW-ID-K8S-RBAC, status: specified }
+
+  - id: IDENT-ZITI-DEVICE
+    name: OpenZiti device identity
+    system: openziti
+    principal_type: machine
+    description: >-
+      Device identity contributing to OpenZiti identity issuance, distinct
+      from the identity itself (mirrors the ServiceAccount/SPIFFE
+      contributes-to-but-is-not pattern). Enrollment mechanism not yet
+      Spec'd, I08 territory.
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-ID-ZITI, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I08", status: planned }
+
+  - id: IDENT-SPIFFE-WORKLOAD
+    name: Representative workload SPIFFE identity
+    system: spiffe
+    class_ref: ARCH-ID-SPIFFE
+    principal_type: service
+    description: >-
+      A representative workload's SPIFFE ID/SVID, issued by SPIRE after
+      node + workload attestation. ServiceAccount and Pod contribute to
+      attestation but are explicitly not this identity
+      (identity-reconciliation.md: "ServiceAccount ↔ SPIFFE/SVID:
+      Explicitly no").
+    maps_to:
+      - { identity_ref: IDENT-K8S-SERVICEACCOUNT-GENERIC, mapping_mechanism: "SPIRE k8s workload attestor (specific attestor TBD) -- contributes to attestation, is not the SPIFFE identity itself", same_principal: false }
+    state: decision-pending
+    evidence:
+      - { source_type: arch-view, ref: VIEW-ID-WORKLOAD, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I09", status: planned }
+
+credentials:
+  - id: CRED-OIDC-TOKEN
+    name: Administrator's OIDC token
+    credential_type: oidc-token
+    subject_identity_ref: IDENT-ADMIN-OIDC
+    issuer_ref: COMP-OIDC-IDP
+    state: decision-pending
+    evidence:
+      - { source_type: arch-view, ref: VIEW-ID-HUMAN, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#SPIKE-IDP-01", status: decision-pending }
+
+  - id: CRED-IAM-BOOTSTRAP-KEYS
+    name: OCI Customer Secret Key (bootstrap/CI)
+    credential_type: oci-signing-key
+    subject_identity_ref: IDENT-IAM-BOOTSTRAP-USER
+    description: >-
+      The S3-client-mandated AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY-shaped
+      credential Terragrunt's remote-state backend uses -- sourced from
+      Proton Pass only, per AGENTS.md's credential-handling contract, never
+      exported or persisted directly.
+    state: specified
+    evidence:
+      - { source_type: spec, ref: "SPEC-OCI-001.md#REQ-OCI-006", status: specified }
+
+  - id: CRED-GITHUB-COMMIT-SIGNATURE
+    name: Administrator's GPG commit-signing key
+    credential_type: gpg-key
+    subject_identity_ref: IDENT-ADMIN-GITHUB
+    description: OpenPGP key used for `git commit -S` -- required alongside DCO's `Signed-off-by:` trailer, per AGENTS.md's commit-signing contract.
+    state: specified
+    evidence:
+      - { source_type: contributing, ref: "CONTRIBUTING.md", status: specified }
+
+  - id: CRED-SVID
+    name: Representative workload SVID
+    credential_type: spiffe-svid
+    subject_identity_ref: IDENT-SPIFFE-WORKLOAD
+    state: candidate
+    evidence:
+      - { source_type: arch-view, ref: VIEW-ID-WORKLOAD, status: specified }
+
+  - id: CRED-GITHUB-ACTIONS-OIDC
+    name: GitHub Actions OIDC token (future OCI federation)
+    credential_type: github-oidc-token
+    subject_identity_ref: IDENT-GITHUB-ACTIONS-WORKFLOW
+    description: >-
+      GitHub's own OIDC token, federating to OCI IAM to replace static keys
+      -- named EPIC-OCI-04, not yet built (see GAP-ID-006). Today
+      IDENT-IAM-BOOTSTRAP-USER's static key is used instead.
+    state: candidate
+    evidence:
+      - { source_type: arch-view, ref: "identity-reconciliation.md", status: specified }
+
+components:
+  - id: COMP-OIDC-IDP
+    name: FOSS OIDC identity provider
+    component_type: other
+    description: >-
+      The OIDC IdP product itself -- deliberately not assumed to be any
+      specific product (SPIKE-IDP-01 open). OIDC as a mechanism is decided;
+      the provider is not.
+    state: decision-pending
+    evidence:
+      - { source_type: arch-view, ref: VIEW-ID-HUMAN, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#SPIKE-IDP-01", status: decision-pending }
+
+  - id: COMP-ZITI-CONTROLLER
+    name: OpenZiti controller
+    component_type: control-plane
+    description: >-
+      OpenZiti's control plane -- identity enrollment and policy
+      management -- distinct from the public/private routers modeled in
+      network.yaml (COMP-ZITI-PUBLIC-ROUTER/COMP-ZITI-PRIVATE-ROUTER),
+      which are data-plane fabric hops.
+    state: planned
+    evidence:
+      - { source_type: adr, ref: ADR-0003, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I08", status: planned }
+
+  - id: COMP-OPENBAO
+    name: OpenBao
+    component_type: service
+    description: Secrets/PKI engine PLANNED I11 -- also names an auth backend for OIDC tokens and (candidate) SPIFFE SVIDs.
+    state: planned
+    evidence:
+      - { source_type: roadmap, ref: "roadmap.md#I11", status: planned }
+
+  - id: COMP-SPIRE-SERVER
+    name: SPIRE Server
+    component_type: controller
+    description: Issues SPIFFE IDs/SVIDs after SPIRE Agent attestation. Node/workload attestation mechanism not yet Spec'd.
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-ID-WORKLOAD, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I09", status: planned }
+
+  - id: COMP-SPIRE-AGENT
+    name: SPIRE Agent
+    component_type: controller
+    description: Performs node and workload attestation, requesting SVIDs from COMP-SPIRE-SERVER on a workload's behalf.
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-ID-WORKLOAD, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I09", status: planned }
+
+  - id: COMP-OBSERVABILITY-LOGIN
+    name: Observability dashboard login
+    component_type: service
+    description: OIDC-authenticated login surface for observability dashboards, PLANNED I16.
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-ID-HUMAN, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I16", status: planned }
+
+policies:
+  - id: POLICY-OCI-COMPARTMENT-IAM
+    name: Compartment-scoped IAM policy
+    policy_type: oci-iam-policy
+    principal_refs: ["IDENT-IAM-BOOTSTRAP-USER"]
+    resource_refs: ["ARCH-OCI-COMPARTMENT"]
+    actions: ["manage all-resources in compartment"]
+    effect: allow
+    state: specified
+    evidence:
+      - { source_type: spec, ref: "SPEC-OCI-001.md#REQ-OCI-002", status: specified }
+
+  - id: POLICY-OCI-KMS-KEY-USAGE
+    name: KMS key-usage policy
+    policy_type: oci-iam-policy
+    principal_refs: ["IDENT-DYNAMIC-GROUP"]
+    resource_refs: ["ARCH-SVC-KMS"]
+    actions: ["use keys", "use key-delegate"]
+    effect: allow
+    state: specified
+    evidence:
+      - { source_type: spec, ref: "SPEC-OCI-002.md#REQ-OCI-010", status: specified }
+
+  - id: POLICY-OCI-LOG-WRITE
+    name: Log-write policy
+    policy_type: oci-iam-policy
+    principal_refs: ["IDENT-DYNAMIC-GROUP"]
+    resource_refs: ["ARCH-SVC-LOGGING"]
+    actions: ["use log-content"]
+    effect: allow
+    state: specified
+    evidence:
+      - { source_type: spec, ref: "SPEC-OCI-003.md#REQ-OCI-015", status: specified }
+
+  - id: POLICY-GITHUB-BRANCH-PROTECTION-MAIN
+    name: GitHub branch protection on main
+    policy_type: github-branch-protection
+    principal_refs: ["ACTOR-ADMINISTRATOR"]
+    actions: ["require signed commits", "require DCO", "require status checks"]
+    effect: allow
+    state: specified
+    evidence:
+      - { source_type: contributing, ref: "CONTRIBUTING.md", status: specified }
+
+  - id: POLICY-K8S-CLUSTERROLEBINDING-PRIVILEGED
+    name: Cluster-scoped privileged ClusterRoleBinding (candidate shape)
+    policy_type: kubernetes-clusterrolebinding
+    principal_refs: ["IDENT-ADMIN-OIDC"]
+    actions: []
+    effect: allow
+    state: candidate
+    evidence:
+      - { source_type: arch-view, ref: VIEW-ID-K8S-RBAC, status: specified }
+
+  - id: POLICY-K8S-ROLEBINDING-NAMESPACED
+    name: Namespaced RoleBinding (candidate shape)
+    policy_type: kubernetes-rolebinding
+    principal_refs: ["IDENT-K8S-SERVICEACCOUNT-GENERIC"]
+    actions: []
+    effect: allow
+    state: candidate
+    evidence:
+      - { source_type: arch-view, ref: VIEW-ID-K8S-RBAC, status: specified }
+
+controls:
+  - id: CTRL-GITHUB-SIGNED-DCO-COMMITS
+    name: Signed + DCO commit requirement
+    control_type: preventive
+    description: Branch protection technically enforces signed commits and DCO sign-off before merge to main.
+    implements_refs: ["POLICY-GITHUB-BRANCH-PROTECTION-MAIN"]
+    state: specified
+    evidence:
+      - { source_type: contributing, ref: "CONTRIBUTING.md", status: specified }
+
+gaps:
+  - id: GAP-ID-001
+    subject_ref: COMP-OIDC-IDP
+    field: "component_type / provider selection"
+    reason: FOSS OIDC IdP product not yet selected -- SPIKE-IDP-01 is still open.
+    blocking: true
+    resolution_ref: SPIKE-IDP-01
+    evidence:
+      - { source_type: roadmap, ref: "roadmap.md#SPIKE-IDP-01", status: decision-pending }
+
+  - id: GAP-ID-002
+    subject_ref: IDENT-ADMIN-OIDC
+    field: "system (issuing IdP product)"
+    reason: Which product issues this identity's OIDC tokens is undecided -- same root cause as GAP-ID-001.
+    blocking: true
+    resolution_ref: SPIKE-IDP-01
+    evidence:
+      - { source_type: roadmap, ref: "roadmap.md#SPIKE-IDP-01", status: decision-pending }
+
+  - id: GAP-ID-003
+    subject_ref: IDENT-ADMIN-OIDC
+    field: "maps_to -> IDENT-ZITI-ADMIN"
+    reason: >-
+      No Spec binds an OIDC login to OpenZiti identity issuance
+      (identity-reconciliation.md, "Human IdP ↔ OpenZiti" row). No SPIKE
+      currently tracks this decision in roadmap.md's Open Spikes table --
+      a real planning gap, not just an unresolved value.
+    blocking: false
+    evidence:
+      - { source_type: arch-view, ref: "identity-reconciliation.md", status: specified }
+
+  - id: GAP-ID-004
+    subject_ref: IDENT-SPIFFE-WORKLOAD
+    field: "state (node/workload attestation mechanism)"
+    reason: >-
+      SPIRE node/workload attestation mechanism (e.g. k8s_psat vs k8s_sat
+      node attestor) not yet decided -- named as a component, not yet
+      configured, per identity-reconciliation.md's gap summary. Blocks I09.
+    blocking: true
+    evidence:
+      - { source_type: arch-view, ref: "identity-reconciliation.md", status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I09", status: planned }
+
+  - id: GAP-ID-005
+    subject_ref: FLOW-ID-SVID-TO-OPENBAO
+    field: "authentication.mechanisms"
+    reason: SVID-as-OpenBao-auth-method integration point named but not yet Spec'd, I11.
+    blocking: false
+    evidence:
+      - { source_type: roadmap, ref: "roadmap.md#I11", status: planned }
+
+  - id: GAP-ID-006
+    subject_ref: IDENT-IAM-BOOTSTRAP-USER
+    field: "credential_type (federation)"
+    reason: >-
+      GitHub OIDC -> OCI IAM federation (EPIC-OCI-04) not yet built --
+      static keys (REQ-OCI-006) are used instead today. Not blocking; the
+      static-key path already works.
+    blocking: false
+    evidence:
+      - { source_type: arch-view, ref: "identity-reconciliation.md", status: specified }
+
+  - id: GAP-ID-007
+    subject_ref: CRED-OIDC-TOKEN
+    field: "issuer_ref (issuing IdP product)"
+    reason: Same root cause as GAP-ID-001/002 -- the token's issuer is undecided until SPIKE-IDP-01 resolves.
+    blocking: true
+    resolution_ref: SPIKE-IDP-01
+    evidence:
+      - { source_type: roadmap, ref: "roadmap.md#SPIKE-IDP-01", status: decision-pending }
+
+data_flows:
+  - id: FLOW-ID-ADMIN-SIGNS-GITHUB
+    name: Administrator signs into / commits to GitHub
+    description: Signed, DCO'd commits and GitHub authentication -- the real, live governance-plane relationship (identity-reconciliation.md's governance matrix marks this "Live").
+    source_ref: ACTOR-ADMINISTRATOR
+    destination_ref: ACTOR-GITHUB
+    transport: { network_protocol: tcp, application_protocol: https, ports: [443], encrypted: true }
+    direction: outbound
+    authentication:
+      required: true
+      mechanisms: [{ type: gpg-signature, identity_ref: IDENT-ADMIN-GITHUB, state: specified }]
+    authorization:
+      required: true
+      mechanisms: [{ type: github-branch-protection, authority_ref: POLICY-GITHUB-BRANCH-PROTECTION-MAIN, state: specified }]
+    security_requirements: { confidentiality: low, integrity: high, availability: moderate }
+    state: specified
+    evidence:
+      - { source_type: contributing, ref: "CONTRIBUTING.md", status: specified }
+
+  - id: FLOW-ID-ADMIN-ENROLLS-ZITI
+    name: Administrator enrolls with OpenZiti controller
+    description: Identity issuance/enrollment, distinct from FLOW-ADMIN-01 (network.yaml), which is the later usage/dial flow.
+    source_ref: ACTOR-ADMINISTRATOR
+    destination_ref: COMP-ZITI-CONTROLLER
+    transport: { network_protocol: tcp, application_protocol: tls, ports: [], encrypted: true }
+    direction: outbound
+    authentication:
+      required: true
+      mechanisms: [{ type: openziti-identity, identity_ref: IDENT-ZITI-ADMIN, state: planned }]
+    authorization: { required: true, mechanisms: [{ type: openziti-policy, state: planned }] }
+    security_requirements: { confidentiality: high, integrity: high, availability: moderate }
+    traffic_class_ref: ARCH-FLOW-ADMIN
+    state: planned
+    evidence:
+      - { source_type: adr, ref: ADR-0003, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I08", status: planned }
+
+  - id: FLOW-ID-ADMIN-AUTHN-IDP
+    name: Administrator authenticates to OIDC IdP
+    description: Depends on COMP-OIDC-IDP and IDENT-ADMIN-OIDC, both blocked on SPIKE-IDP-01 (GAP-ID-001/002).
+    source_ref: ACTOR-ADMINISTRATOR
+    destination_ref: COMP-OIDC-IDP
+    transport: { network_protocol: tcp, application_protocol: https, ports: [443], encrypted: true }
+    direction: outbound
+    authentication: { required: true, mechanisms: [{ type: oidc-token, identity_ref: IDENT-ADMIN-OIDC, state: candidate }] }
+    authorization: { required: false, mechanisms: [] }
+    security_requirements: { confidentiality: high, integrity: high, availability: moderate }
+    state: candidate
+    evidence:
+      - { source_type: arch-view, ref: VIEW-ID-HUMAN, status: specified }
+
+  - id: FLOW-ID-ADMIN-OIDC-TO-K8SAPI
+    name: OIDC token presented to Kubernetes API
+    description: Kubernetes API OIDC integration PLANNED, I10.
+    source_ref: ACTOR-ADMINISTRATOR
+    destination_ref: COMP-KUBE-APISERVER
+    transport: { network_protocol: tcp, application_protocol: https, ports: [6443], encrypted: true }
+    direction: outbound
+    authentication: { required: true, mechanisms: [{ type: oidc-token, identity_ref: IDENT-ADMIN-OIDC, state: candidate }] }
+    authorization: { required: true, mechanisms: [{ type: kubernetes-rbac, policy_refs: ["POLICY-K8S-CLUSTERROLEBINDING-PRIVILEGED"], state: candidate }] }
+    security_requirements: { confidentiality: high, integrity: high, availability: high }
+    traffic_class_ref: ARCH-FLOW-CONTROL
+    state: candidate
+    evidence:
+      - { source_type: arch-view, ref: VIEW-ID-HUMAN, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I10", status: planned }
+
+  - id: FLOW-ID-ADMIN-OIDC-TO-OPENBAO
+    name: OIDC token presented to OpenBao
+    description: OpenBao auth-backend integration for OIDC tokens, PLANNED I11 -- not yet Spec'd.
+    source_ref: ACTOR-ADMINISTRATOR
+    destination_ref: COMP-OPENBAO
+    transport: { network_protocol: tcp, application_protocol: https, ports: [], encrypted: true }
+    direction: outbound
+    authentication: { required: true, mechanisms: [{ type: oidc-token, identity_ref: IDENT-ADMIN-OIDC, state: candidate }] }
+    authorization: { required: true, mechanisms: [{ type: openziti-policy, state: candidate }] }
+    security_requirements: { confidentiality: high, integrity: high, availability: moderate }
+    state: candidate
+    evidence:
+      - { source_type: arch-view, ref: VIEW-ID-HUMAN, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I11", status: planned }
+
+  - id: FLOW-ID-ADMIN-OIDC-TO-OBSERVABILITY
+    name: OIDC token presented to observability login
+    description: Observability dashboard login, PLANNED I16 -- not yet Spec'd.
+    source_ref: ACTOR-ADMINISTRATOR
+    destination_ref: COMP-OBSERVABILITY-LOGIN
+    transport: { network_protocol: tcp, application_protocol: https, ports: [], encrypted: true }
+    direction: outbound
+    authentication: { required: true, mechanisms: [{ type: oidc-token, identity_ref: IDENT-ADMIN-OIDC, state: candidate }] }
+    authorization: { required: false, mechanisms: [] }
+    security_requirements: { confidentiality: moderate, integrity: moderate, availability: low }
+    state: candidate
+    evidence:
+      - { source_type: arch-view, ref: VIEW-ID-HUMAN, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I16", status: planned }
+
+  - id: FLOW-ID-BOOTSTRAP-USER-TO-COMPARTMENT
+    name: Bootstrap IAM user provisions compartment resources
+    description: The real, live bootstrap provisioning path (REQ-OCI-006) -- static OCI signing key, no federation yet (see GAP-ID-006).
+    source_ref: ACTOR-ADMINISTRATOR
+    destination_ref: ARCH-OCI-COMPARTMENT
+    transport: { network_protocol: tcp, application_protocol: https, ports: [443], encrypted: true }
+    direction: outbound
+    authentication: { required: true, mechanisms: [{ type: oci-signing-key, identity_ref: IDENT-IAM-BOOTSTRAP-USER, state: specified }] }
+    authorization: { required: true, mechanisms: [{ type: oci-iam-policy, policy_refs: ["POLICY-OCI-COMPARTMENT-IAM"], state: specified }] }
+    security_requirements: { confidentiality: moderate, integrity: high, availability: moderate }
+    state: specified
+    evidence:
+      - { source_type: spec, ref: "SPEC-OCI-001.md#REQ-OCI-006", status: specified }
+
+  - id: FLOW-ID-WORKLOAD-ATTESTATION
+    name: SPIRE agent attests workload to SPIRE server
+    description: >-
+      Node and workload attestation. ServiceAccount and Pod contribute to
+      attestation but are not the resulting identity
+      (identity-reconciliation.md, explicit invariant). Attestation
+      mechanism itself not yet decided -- see GAP-ID-004 on
+      IDENT-SPIFFE-WORKLOAD.
+    source_ref: COMP-SPIRE-AGENT
+    destination_ref: COMP-SPIRE-SERVER
+    transport: { network_protocol: tcp, application_protocol: mtls, ports: [], encrypted: true }
+    direction: outbound
+    authentication: { required: true, mechanisms: [{ type: mtls, state: planned }] }
+    authorization: { required: false, mechanisms: [] }
+    security_requirements: { confidentiality: high, integrity: high, availability: moderate }
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-ID-WORKLOAD, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I09", status: planned }
+
+  - id: FLOW-ID-SVID-TO-OPENBAO
+    name: Workload SVID presented to OpenBao (representative)
+    description: >-
+      Representative SVID-as-auth-method flow for a SPIRE-attested
+      workload authenticating to OpenBao; not yet Spec'd (I11). Modeled
+      via the SPIRE agent as a stand-in for "a workload possessing an
+      SVID" -- no generic workload component is minted at this domain
+      level (see kubernetes.yaml).
+    source_ref: COMP-SPIRE-AGENT
+    destination_ref: COMP-OPENBAO
+    transport: { network_protocol: tcp, application_protocol: mtls, ports: [], encrypted: true }
+    direction: outbound
+    authentication: { required: true, mechanisms: [{ type: spiffe-svid, identity_ref: IDENT-SPIFFE-WORKLOAD, state: decision-pending }] }
+    authorization: { required: false, mechanisms: [] }
+    security_requirements: { confidentiality: high, integrity: high, availability: moderate }
+    state: decision-pending
+    evidence:
+      - { source_type: arch-view, ref: VIEW-ID-WORKLOAD, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I11", status: planned }

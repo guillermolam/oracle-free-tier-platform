@@ -1,0 +1,356 @@
+domain: governance
+schema_version: 2.0.0
+model_version: 0.1.0
+generated_from:
+  - { source_type: arch-view, ref: VIEW-GOV-K8S-TENANCY, status: specified }
+  - { source_type: arch-view, ref: VIEW-GOV-OCI-ACCESS, status: specified }
+  - { source_type: arch-view, ref: VIEW-GOV-PLATFORM, status: specified }
+  - { source_type: spec, ref: "SPEC-OCI-001.md", status: specified }
+  - { source_type: spec, ref: "SPEC-OCI-002.md", status: specified }
+  - { source_type: spec, ref: "SPEC-OCI-003.md", status: specified }
+  - { source_type: adr, ref: ADR-0004, status: specified }
+  - { source_type: adr, ref: ADR-0005, status: specified }
+
+components:
+  - id: COMP-K8S-NAMESPACE-GENERIC
+    name: Generic Kubernetes namespace
+    component_type: other
+    description: >-
+      The per-namespace structure (ServiceAccount -> RBAC, NetworkPolicy,
+      admission policy, ResourceQuota, LimitRange, secrets boundary,
+      ownership) governance/kubernetes-tenancy.mmd shows applying once a
+      real namespace exists. Candidate taxonomy only, none Spec'd (I05
+      has zero depth): flux-system, networking, identity, security,
+      secrets, storage, observability, delivery, platform-system, and
+      workload namespaces are all named as candidates, not decisions.
+    state: candidate
+    evidence:
+      - { source_type: arch-view, ref: VIEW-GOV-K8S-TENANCY, status: specified }
+
+  - id: COMP-CI-VALIDATION
+    name: CI validation
+    component_type: ci-runner
+    description: The live validate.yml/security.yml/docs.yml/dco.yml GitHub Actions jobs -- validates and plans only, per ADR-0005; never deploys.
+    state: specified
+    evidence:
+      - { source_type: arch-view, ref: VIEW-GOV-PLATFORM, status: specified }
+
+  - id: COMP-FLUX
+    name: Flux
+    component_type: controller
+    description: The only path to the cluster (ADR-0005) -- PLANNED, I12, not yet installed.
+    state: planned
+    evidence:
+      - { source_type: adr, ref: ADR-0005, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I12", status: planned }
+
+  - id: COMP-KYVERNO-ADMISSION
+    name: Kyverno admission policy engine
+    component_type: security-control
+    description: Admission engine named by ADR-0004; reconciled via Flux, never applied by CI directly. PLANNED, I14, not yet installed.
+    state: planned
+    evidence:
+      - { source_type: adr, ref: ADR-0004, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I14", status: planned }
+
+  - id: COMP-K8S-ADMISSION-CONTROL
+    name: Kubernetes admission control
+    component_type: control-plane
+    description: Generic Kubernetes admission control -- PLANNED, no cluster yet exists to host it (I05).
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-GOV-PLATFORM, status: specified }
+
+  - id: COMP-RUNTIME-ENFORCEMENT
+    name: Runtime enforcement
+    component_type: security-control
+    description: Cilium NetworkPolicy (I07) and Tetragon/Falco (I17) runtime enforcement -- both PLANNED.
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-GOV-PLATFORM, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I07", status: planned }
+      - { source_type: roadmap, ref: "roadmap.md#I17", status: planned }
+
+  - id: COMP-OCI-AUDIT
+    name: OCI Audit
+    component_type: security-control
+    description: REQ-OCI-014 -- PRESENT, the one governance-chain stage that is real today.
+    state: specified
+    evidence:
+      - { source_type: spec, ref: "SPEC-OCI-003.md#REQ-OCI-014", status: specified }
+
+  - id: COMP-K8S-AUDIT-LOG
+    name: Kubernetes audit log
+    component_type: security-control
+    description: PLANNED -- no cluster yet exists to produce it.
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-GOV-PLATFORM, status: specified }
+
+data_stores:
+  - id: DS-K8S-NAMESPACE-SECRETS
+    name: Namespace secrets boundary
+    trust_zone_ref: ARCH-ZONE-WORKLOAD
+    data_classification: secret
+    description: OpenBao/ESO named as the intended mechanism (I11); not yet Spec'd. Per-namespace boundary, candidate shape only.
+    state: candidate
+    evidence:
+      - { source_type: arch-view, ref: VIEW-GOV-K8S-TENANCY, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I11", status: planned }
+
+assets:
+  - id: ASSET-GOVERNANCE-AUDIT-TRAIL
+    name: Governance audit trail (OCI + Kubernetes)
+    asset_type: data
+    security_requirements: { confidentiality: moderate, integrity: high, availability: moderate }
+    description: The combined OCI Audit (real) and future Kubernetes audit log (planned) record of who changed what, through which control-plane stage.
+    owner_refs: ["ACTOR-ADMINISTRATOR"]
+    state: specified
+    evidence:
+      - { source_type: spec, ref: "SPEC-OCI-003.md#REQ-OCI-014", status: specified }
+
+policies:
+  - id: POLICY-OCI-STATE-BUCKET-ACCESS
+    name: OpenTofu state bucket access (bootstrap identity only)
+    policy_type: oci-iam-policy
+    principal_refs: ["IDENT-IAM-BOOTSTRAP-USER"]
+    actions: ["manage objects"]
+    effect: allow
+    state: specified
+    evidence:
+      - { source_type: spec, ref: "SPEC-OCI-001.md#REQ-OCI-005", status: specified }
+      - { source_type: spec, ref: "SPEC-OCI-001.md#REQ-OCI-006", status: specified }
+
+  - id: POLICY-OCI-BACKUP-BUCKET-ACCESS
+    name: Object Storage backup bucket access
+    policy_type: oci-iam-policy
+    principal_refs: ["IDENT-DYNAMIC-GROUP"]
+    resource_refs: ["ARCH-SVC-BACKUP-BUCKET"]
+    actions: []
+    effect: allow
+    state: planned
+    evidence:
+      - { source_type: roadmap, ref: "roadmap.md#I19", status: planned }
+
+  - id: POLICY-OCI-NETWORK-ACCESS
+    name: Network (VCN/NSG/route) management access
+    policy_type: oci-iam-policy
+    principal_refs: ["IDENT-IAM-BOOTSTRAP-USER"]
+    resource_refs: ["ARCH-NET-VCN"]
+    actions: []
+    effect: unspecified
+    state: decision-pending
+    evidence:
+      - { source_type: arch-view, ref: VIEW-GOV-OCI-ACCESS, status: specified }
+
+  - id: POLICY-OCI-COMPUTE-ACCESS
+    name: Compute (Talos node lifecycle) access
+    policy_type: oci-iam-policy
+    principal_refs: ["IDENT-DYNAMIC-GROUP"]
+    actions: []
+    effect: allow
+    state: planned
+    evidence:
+      - { source_type: roadmap, ref: "roadmap.md#I04", status: planned }
+
+  - id: POLICY-OCI-MONITORING-ACCESS
+    name: Monitoring access
+    policy_type: oci-iam-policy
+    principal_refs: ["IDENT-DYNAMIC-GROUP"]
+    resource_refs: ["ARCH-SVC-MONITORING"]
+    actions: []
+    effect: unspecified
+    state: decision-pending
+    evidence:
+      - { source_type: arch-view, ref: VIEW-GOV-OCI-ACCESS, status: specified }
+
+  - id: POLICY-OCI-HYBRID-DRG-ACCESS
+    name: Hybrid / DRG route management access
+    policy_type: oci-iam-policy
+    principal_refs: ["IDENT-IAM-BOOTSTRAP-USER"]
+    resource_refs: ["ARCH-GW-DRG"]
+    actions: []
+    effect: allow
+    state: planned
+    evidence:
+      - { source_type: roadmap, ref: "roadmap.md#I21", status: planned }
+
+  - id: POLICY-K8S-NAMESPACE-NETWORKPOLICY
+    name: Per-namespace NetworkPolicy (candidate shape)
+    policy_type: cilium-networkpolicy
+    actions: []
+    effect: unspecified
+    state: candidate
+    evidence:
+      - { source_type: arch-view, ref: VIEW-GOV-K8S-TENANCY, status: specified }
+
+  - id: POLICY-K8S-NAMESPACE-ADMISSION
+    name: Per-namespace Kyverno admission policy (candidate shape)
+    policy_type: kyverno-policy
+    actions: []
+    effect: unspecified
+    state: candidate
+    evidence:
+      - { source_type: arch-view, ref: VIEW-GOV-K8S-TENANCY, status: specified }
+      - { source_type: adr, ref: ADR-0004, status: specified }
+
+controls:
+  - id: CTRL-OCI-AUDIT-TRAIL
+    name: OCI Audit as a detective control
+    control_type: detective
+    description: The one governance-chain audit stage that is real today (REQ-OCI-014); Kubernetes audit is planned, not yet a control.
+    state: specified
+    evidence:
+      - { source_type: spec, ref: "SPEC-OCI-003.md#REQ-OCI-014", status: specified }
+
+gaps:
+  - id: GAP-GOV-001
+    subject_ref: POLICY-OCI-NETWORK-ACCESS
+    field: effect
+    reason: >-
+      REQ-OCI-002 requires policies to enumerate specific verbs/
+      resource-types; it does not itself grant network permissions. No
+      Spec yet enumerates the actual network-management policy statements.
+    blocking: false
+    evidence:
+      - { source_type: arch-view, ref: VIEW-GOV-OCI-ACCESS, status: specified }
+
+  - id: GAP-GOV-002
+    subject_ref: POLICY-OCI-MONITORING-ACCESS
+    field: effect
+    reason: No Spec addresses OCI Monitoring access policy yet.
+    blocking: false
+    evidence:
+      - { source_type: arch-view, ref: VIEW-GOV-OCI-ACCESS, status: specified }
+
+data_flows:
+  - id: FLOW-GOV-SPEC-TO-PR
+    name: Specification to Pull Request
+    description: A written Spec becomes a PR -- branch protection, signed + DCO commits required.
+    source_ref: ACTOR-GITHUB
+    destination_ref: COMP-CI-VALIDATION
+    transport: { network_protocol: unknown, ports: [] }
+    direction: outbound
+    authentication: { required: true, mechanisms: [{ type: gpg-signature, state: specified }] }
+    authorization:
+      required: true
+      mechanisms: [{ type: github-branch-protection, authority_ref: POLICY-GITHUB-BRANCH-PROTECTION-MAIN, state: specified }]
+    security_requirements: { confidentiality: low, integrity: high, availability: moderate }
+    state: specified
+    evidence:
+      - { source_type: arch-view, ref: VIEW-GOV-PLATFORM, status: specified }
+
+  - id: FLOW-GOV-CI-TO-IAC
+    name: CI validation to IaC
+    description: Once CI validates, OpenTofu/Terragrunt applies -- tooling ready, infrastructure/ not yet fully populated (per ADR-0001/ADR-0007).
+    source_ref: COMP-CI-VALIDATION
+    destination_ref: ARCH-CICD-IAC
+    transport: { network_protocol: unknown, ports: [] }
+    direction: outbound
+    authentication: { required: true, mechanisms: [{ type: oci-signing-key, identity_ref: IDENT-IAM-BOOTSTRAP-USER, state: specified }] }
+    authorization: { required: true, mechanisms: [{ type: oci-iam-policy, policy_refs: ["POLICY-OCI-COMPARTMENT-IAM"], state: specified }] }
+    security_requirements: { confidentiality: moderate, integrity: high, availability: moderate }
+    state: specified
+    evidence:
+      - { source_type: arch-view, ref: VIEW-GOV-PLATFORM, status: specified }
+
+  - id: FLOW-GOV-IAC-TO-AUDIT
+    name: IaC apply to OCI Audit
+    description: Every IaC apply is recorded by OCI Audit (REQ-OCI-014) -- the one branch of the chain that is real today.
+    source_ref: ARCH-CICD-IAC
+    destination_ref: COMP-OCI-AUDIT
+    transport: { network_protocol: unknown, ports: [] }
+    direction: outbound
+    authentication: { required: false, mechanisms: [] }
+    authorization: { required: false, mechanisms: [] }
+    security_requirements: { confidentiality: low, integrity: high, availability: moderate }
+    state: specified
+    evidence:
+      - { source_type: spec, ref: "SPEC-OCI-003.md#REQ-OCI-014", status: specified }
+
+  - id: FLOW-GOV-IAC-TO-FLUX
+    name: IaC to Flux
+    description: PLANNED, I12 -- Flux is not yet installed; this edge names the intended chain, not a real one.
+    source_ref: ARCH-CICD-IAC
+    destination_ref: COMP-FLUX
+    transport: { network_protocol: unknown, ports: [] }
+    direction: outbound
+    authentication: { required: false, mechanisms: [] }
+    authorization: { required: false, mechanisms: [] }
+    security_requirements: { confidentiality: low, integrity: high, availability: moderate }
+    state: planned
+    evidence:
+      - { source_type: adr, ref: ADR-0005, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I12", status: planned }
+
+  - id: FLOW-GOV-FLUX-TO-KYVERNO
+    name: Flux to Kyverno admission
+    description: PLANNED, I14 -- Kyverno policy is reconciled through Flux, never applied by CI directly (ADR-0005).
+    source_ref: COMP-FLUX
+    destination_ref: COMP-KYVERNO-ADMISSION
+    transport: { network_protocol: unknown, ports: [] }
+    direction: outbound
+    authentication: { required: false, mechanisms: [] }
+    authorization: { required: false, mechanisms: [] }
+    security_requirements: { confidentiality: low, integrity: high, availability: moderate }
+    state: planned
+    evidence:
+      - { source_type: adr, ref: ADR-0004, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I14", status: planned }
+
+  - id: FLOW-GOV-KYVERNO-TO-ADMISSION
+    name: Kyverno to Kubernetes admission control
+    description: PLANNED -- no cluster yet exists to host either stage.
+    source_ref: COMP-KYVERNO-ADMISSION
+    destination_ref: COMP-K8S-ADMISSION-CONTROL
+    transport: { network_protocol: unknown, ports: [] }
+    direction: outbound
+    authentication: { required: false, mechanisms: [] }
+    authorization: { required: false, mechanisms: [] }
+    security_requirements: { confidentiality: low, integrity: high, availability: moderate }
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-GOV-PLATFORM, status: specified }
+
+  - id: FLOW-GOV-ADMISSION-TO-RUNTIME
+    name: Admission control to runtime enforcement
+    description: PLANNED -- Cilium NetworkPolicy (I07) and Tetragon/Falco (I17) enforcement, neither installed yet.
+    source_ref: COMP-K8S-ADMISSION-CONTROL
+    destination_ref: COMP-RUNTIME-ENFORCEMENT
+    transport: { network_protocol: unknown, ports: [] }
+    direction: outbound
+    authentication: { required: false, mechanisms: [] }
+    authorization: { required: false, mechanisms: [] }
+    security_requirements: { confidentiality: low, integrity: high, availability: high }
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-GOV-PLATFORM, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I07", status: planned }
+
+  - id: FLOW-GOV-RUNTIME-TO-K8S-AUDIT
+    name: Runtime enforcement to Kubernetes audit log
+    description: PLANNED -- dashed/optional in VIEW-GOV-PLATFORM; no cluster yet exists to produce audit records.
+    source_ref: COMP-RUNTIME-ENFORCEMENT
+    destination_ref: COMP-K8S-AUDIT-LOG
+    transport: { network_protocol: unknown, ports: [] }
+    direction: outbound
+    authentication: { required: false, mechanisms: [] }
+    authorization: { required: false, mechanisms: [] }
+    security_requirements: { confidentiality: low, integrity: high, availability: moderate }
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-GOV-PLATFORM, status: specified }
+
+  - id: FLOW-GOV-NAMESPACE-TO-SECRETS
+    name: Namespace to secrets boundary
+    description: Candidate shape -- OpenBao/ESO named as the intended mechanism (I11), not yet Spec'd.
+    source_ref: COMP-K8S-NAMESPACE-GENERIC
+    destination_ref: DS-K8S-NAMESPACE-SECRETS
+    transport: { network_protocol: unknown, ports: [] }
+    direction: outbound
+    authentication: { required: false, mechanisms: [] }
+    authorization: { required: false, mechanisms: [] }
+    security_requirements: { confidentiality: high, integrity: high, availability: moderate }
+    state: candidate
+    evidence:
+      - { source_type: arch-view, ref: VIEW-GOV-K8S-TENANCY, status: specified }
