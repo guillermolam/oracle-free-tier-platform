@@ -77,12 +77,17 @@ run "management_workload_data_never_reference_the_internet_gateway" {
 run "management_workload_data_route_internet_to_nat_only" {
   command = plan
 
+  variables {
+    use_managed_nat             = true
+    use_managed_service_gateway = true
+  }
+
   assert {
     condition = alltrue([
       for zone in ["management", "workload", "data"] :
       anytrue([
         for r in oci_core_route_table.this[zone].route_rules :
-        r.destination == "0.0.0.0/0" && r.network_entity_id == oci_core_nat_gateway.this.id
+        r.destination == "0.0.0.0/0" && r.network_entity_id == oci_core_nat_gateway.this[0].id
       ])
     ])
     error_message = "REQ-NET-013: Management, Workload, and Data must route 0.0.0.0/0 to the NAT Gateway"
@@ -92,15 +97,55 @@ run "management_workload_data_route_internet_to_nat_only" {
 run "all_four_zones_route_services_cidr_to_service_gateway" {
   command = plan
 
+  variables {
+    use_managed_nat             = true
+    use_managed_service_gateway = true
+  }
+
   assert {
     condition = alltrue([
       for zone, rt in oci_core_route_table.this :
       anytrue([
         for r in rt.route_rules :
-        r.destination_type == "SERVICE_CIDR_BLOCK" && r.network_entity_id == oci_core_service_gateway.this.id
+        r.destination_type == "SERVICE_CIDR_BLOCK" && r.network_entity_id == oci_core_service_gateway.this[0].id
       ])
     ])
     error_message = "REQ-NET-014: all four route tables must route the OCI Services Network CIDR label to the Service Gateway"
+  }
+}
+
+run "management_workload_data_route_internet_to_software_nat_target" {
+  command = plan
+
+  variables {
+    use_managed_nat        = false
+    nat_egress_target_ocid = "ocid1.privateip.oc1.eu-madrid-1.aaaaaaaamocksoftwarenat"
+  }
+
+  assert {
+    condition = alltrue([
+      for zone in ["management", "workload", "data"] :
+      anytrue([
+        for r in oci_core_route_table.this[zone].route_rules :
+        r.destination == "0.0.0.0/0" && r.network_entity_id == "ocid1.privateip.oc1.eu-madrid-1.aaaaaaaamocksoftwarenat"
+      ])
+    ])
+    error_message = "REQ-NET-013: with use_managed_nat=false the 0.0.0.0/0 route must target the supplied software-NAT private IP OCID"
+  }
+}
+
+run "interim_no_egress_state_has_no_internet_route_outside_edge" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      for zone in ["management", "workload", "data"] :
+      !anytrue([
+        for r in oci_core_route_table.this[zone].route_rules :
+        r.destination == "0.0.0.0/0"
+      ])
+    ])
+    error_message = "before micro-nat exists (nat_egress_target_ocid unset) and with the managed NAT disabled, Management/Workload/Data must have NO 0.0.0.0/0 route at all -- the interim no-egress state, not an invalid reference"
   }
 }
 

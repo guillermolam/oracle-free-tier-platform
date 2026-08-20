@@ -24,6 +24,24 @@ variable "platform_name" {
   description = "Platform.System defined-tag value -- matches infrastructure/modules/foundation's own default."
 }
 
+variable "use_managed_nat" {
+  type        = bool
+  description = "Create the managed NAT Gateway resource. Set to false when relying on the software-NAT instance (micro-nat) instead. Defaults to false since NAT gateway limit = 0 on Always Free."
+  default     = false
+}
+
+variable "use_managed_service_gateway" {
+  type        = bool
+  description = "Create the managed Service Gateway resource. Set to false when relying on public endpoints through the NAT instance for OCI service access. Defaults to false since SGW limit = 0 on Always Free."
+  default     = false
+}
+
+variable "nat_egress_target_ocid" {
+  type        = string
+  default     = null
+  description = "OCID of the NAT egress target (the software-NAT instance micro-nat's private IP OCID from I04/compute). When set, the Management/Workload/Data 0.0.0.0/0 route rules use this instead of the managed NAT Gateway; null when using the managed gateway."
+}
+
 # No CIDR variables, deliberately: REQ-NET-001/REQ-NET-002 mandate exact
 # values ("MUST create ... using CIDR 10.10.0.0/16", "MUST create four
 # subnets: Edge (10.10.10.0/24)..."), and ADR-0006 is explicit --

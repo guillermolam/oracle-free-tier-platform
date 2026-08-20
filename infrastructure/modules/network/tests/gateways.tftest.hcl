@@ -18,8 +18,10 @@ mock_provider "oci" {
 }
 
 variables {
-  compartment_ocid = "ocid1.compartment.oc1..aaaaaaaaexampleexampleexampleexampleexampleexampleexampleaaaa"
-  environment      = "lab"
+  compartment_ocid            = "ocid1.compartment.oc1..aaaaaaaaexampleexampleexampleexampleexampleexampleexampleaaaa"
+  environment                 = "lab"
+  use_managed_nat             = true
+  use_managed_service_gateway = true
 }
 
 run "internet_gateway_enabled" {
@@ -35,7 +37,7 @@ run "nat_gateway_exists" {
   command = plan
 
   assert {
-    condition     = oci_core_nat_gateway.this.vcn_id == oci_core_vcn.this.id
+    condition     = oci_core_nat_gateway.this[0].vcn_id == oci_core_vcn.this.id
     error_message = "REQ-NET-007: the NAT Gateway must be attached to the platform VCN"
   }
 }
@@ -44,7 +46,7 @@ run "service_gateway_targets_all_services" {
   command = plan
 
   assert {
-    condition     = tolist(oci_core_service_gateway.this.services)[0].service_id == "ocid1.service.oc1..aaaaaaaamockallservices"
+    condition     = tolist(oci_core_service_gateway.this[0].services)[0].service_id == "ocid1.service.oc1..aaaaaaaamockallservices"
     error_message = "REQ-NET-008: the Service Gateway must target the OCI Services Network CIDR label, resolved via data.oci_core_services, not hardcoded"
   }
 }
@@ -92,8 +94,8 @@ run "gateways_carry_no_oracle_managed_tag_keys" {
   assert {
     condition = alltrue([
       !anytrue([for k in keys(oci_core_internet_gateway.this.defined_tags) : strcontains(k, "Oracle-Tags")]),
-      !anytrue([for k in keys(oci_core_nat_gateway.this.defined_tags) : strcontains(k, "Oracle-Tags")]),
-      !anytrue([for k in keys(oci_core_service_gateway.this.defined_tags) : strcontains(k, "Oracle-Tags")]),
+      !anytrue([for k in keys(oci_core_nat_gateway.this[0].defined_tags) : strcontains(k, "Oracle-Tags")]),
+      !anytrue([for k in keys(oci_core_service_gateway.this[0].defined_tags) : strcontains(k, "Oracle-Tags")]),
       !anytrue([for k in keys(oci_core_drg.this.defined_tags) : strcontains(k, "Oracle-Tags")]),
     ])
     error_message = "this module must never itself declare an Oracle-Tags.* key on any gateway resource"
