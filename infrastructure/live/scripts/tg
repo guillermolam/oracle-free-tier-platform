@@ -145,6 +145,18 @@ run_with_backend_credentials() {
     pass-cli run -- "$@"
 }
 
+# Sanitize ambient AWS SDK hints inherited from the operator's shell
+# profile. An exported AWS_PROFILE makes the S3 backend's AWS SDK try to
+# load that named profile from root.hcl's deliberately nonexistent
+# shared_config_files/shared_credentials_files, failing init with
+# "failed to get shared config profile, default" -- observed live on
+# `tg init` (2026-08-20). Unsetting here (not in the caller's shell) is
+# not a credential bypass: it changes no credential source -- the OCI
+# Customer Secret Key still comes only from Proton Pass above -- it just
+# removes a variable root.hcl already refuses to honor. AWS_PAGER is
+# unset alongside only to keep tg's output piping predictable.
+unset AWS_PROFILE AWS_PAGER AWS_SDK_LOAD_CONFIG 2>/dev/null || true
+
 # Object Storage namespace is account data, not a secret -- safe to
 # auto-resolve live from the already-configured OCI CLI/API key profile
 # (~/.oci/config) rather than requiring a separate manually-exported env
