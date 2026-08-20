@@ -241,6 +241,9 @@ components:
       - { source_type: adr, ref: ADR-0008, status: specified }
       - { source_type: adr, ref: ADR-0009, status: specified }
       - { source_type: deployed-observation, mechanism: oci-api, ref: "oci network drg list, 2026-08-18, state=AVAILABLE", status: implemented }
+      - { source_type: deployed-observation, mechanism: oci-api, ref: "oci network drg-attachment list, 2026-08-20, platform-drg-attachment state=ATTACHED", status: implemented }
+      - { source_type: deployed-observation, mechanism: oci-api, ref: "oci network drg-route-table get, 2026-08-20, import-drg-route-distribution-id=null, route-rules empty", status: implemented }
+      - { source_type: deployed-observation, mechanism: oci-api, ref: "oci network drg-attachment get, 2026-08-20, export-drg-route-distribution-id=null", status: implemented }
 
   - id: COMP-NAT-GATEWAY
     name: NAT Gateway
