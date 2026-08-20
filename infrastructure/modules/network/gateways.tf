@@ -20,7 +20,13 @@ resource "oci_core_internet_gateway" "this" {
   }
 }
 
+# REQ-NET-007: NAT Gateway. Count-driven rather than unconditional because
+# the Always Free tier has a hard limit of 0 NAT gateways
+# (nat-gateway-count: 0 on this account) -- the software-NAT instance
+# (I04/compute micro-nat) is the real egress path, and this managed
+# resource exists only when use_managed_nat is explicitly true.
 resource "oci_core_nat_gateway" "this" {
+  count          = var.use_managed_nat ? 1 : 0
   compartment_id = var.compartment_ocid
   vcn_id         = oci_core_vcn.this.id
   display_name   = "platform-nat"
@@ -39,7 +45,12 @@ resource "oci_core_nat_gateway" "this" {
 # REQ-NET-008: private access to OCI services (Object Storage, KMS,
 # Logging, Monitoring) without traversing the internet. The Services
 # Network CIDR label is a per-region OCI construct, looked up rather than
-# hardcoded -- data.oci_core_services below.
+# hardcoded -- data.oci_core_services below. Like the NAT Gateway, the
+# managed Service Gateway is count-driven because the Always Free tier
+# caps this account at 0 service gateways; the data source is still
+# declared unconditionally so the route rules can resolve the CIDR label
+# either way, but the resource itself exists only when
+# use_managed_service_gateway is explicitly true.
 data "oci_core_services" "all" {}
 
 locals {
@@ -53,6 +64,7 @@ locals {
 }
 
 resource "oci_core_service_gateway" "this" {
+  count          = var.use_managed_service_gateway ? 1 : 0
   compartment_id = var.compartment_ocid
   vcn_id         = oci_core_vcn.this.id
   display_name   = "platform-sgw"
