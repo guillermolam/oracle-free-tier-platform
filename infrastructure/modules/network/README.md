@@ -68,8 +68,7 @@ hardcoded constants, not tunables.
 | `subnet_ids` | map keyed by zone (`edge`/`management`/`workload`/`data`) — `SPEC-NET-004`/I04 attach resources to specific subnets by zone |
 | `subnet_cidrs` | map keyed by zone — downstream Security List/NSG rules referencing zone ranges |
 | `igw_id` / `nat_id` / `sgw_id` / `drg_id` | consumed internally by `routing.tf`; `drg_id` also for I21 once hybrid connectivity begins |
-| `drg_route_table_id` | I21 — the table it populates once hybrid routing activates |
-| `vcn_default_drg_route_table_id` | not yet consumed — Phase B1 ownership proof; available for a future, separately-authorized phase if ADR-0008 is amended |
+| `drg_route_table_id` | I21 — the table it populates once hybrid routing activates; `null` when `manage_inert_drg_route_table` is `false` |
 | `route_table_ids` | map keyed by zone — I04 (compute subnet attachment) |
 | `security_list_ids` | map keyed by zone — PR C3's NSGs layer on top of these; I04 attaches compute to the same zone's list |
 
@@ -176,7 +175,7 @@ Resolution order (first match wins):
   a genuine OCI per-DRG-route-table-count service-limit error creating
   `inert` (a DRG auto-generates 2 default route tables that already
   consume the quota — see `gateways.tf`'s own comment on
-  `oci_core_drg_route_table.vcn_default` below). With the default,
+  `oci_core_drg_route_table.inert`). With the default,
   `oci_core_drg_route_table.inert` and `oci_core_drg_attachment.vcn` both
   plan zero instances (`count = 0`) — the DRG itself stays genuinely
   unattached, not attached-to-nothing; `tests/gateways.tftest.hcl`'s
@@ -184,22 +183,10 @@ Resolution order (first match wins):
   M1–M10 depends on the attachment existing yet (ADR-0008's own
   Reversibility section), so this is an honest reflection of current
   deployment capability, not a REQ-NET-009 violation-in-progress.
-- **Phase B1 (DRG default-route-table ownership proof, in evaluation —
-  ADR-0008/REQ-NET-009 NOT amended by this addition)**:
-  `oci_core_drg_route_table.vcn_default` + `data.oci_core_drg_route_tables.vcn_default`
-  model OCI's own auto-generated "VCN attachments" DRG route table for
-  state ownership only — self-discovered via `drg_id` + OCI's fixed
-  auto-generated display name (same pattern as the Service Gateway
-  lookup above), so no tenancy-specific OCID flows through this module.
-  Unconditional (no quota consumed importing an OCI-created object) and
-  independent of `var.manage_inert_drg_route_table`. Does not set
-  `remove_import_trigger`, and is not yet the decided design — it exists
-  so a real `import` block (generated at the Terragrunt live layer,
-  since OpenTofu requires import blocks in the root module and this
-  module is also called as a child module by `examples/minimal`) can
-  prove ownership with zero behavior change before any ADR-0008
-  amendment is considered. See the DRG import-only gate report for the
-  real-plan evidence.
+  **Mechanism-gated pending resolution of the real OCI service-limit
+  constraint; the attached-but-inert intent is unchanged** — tracked as
+  `GAP-NET-004` in `docs/03-threat-model/model/instances/network.yaml`
+  (decision-pending), with an ADR-0008 amendment to follow.
 - **REQ-NET-008/014 (Service Gateway target)**: the Services Network CIDR
   label is resolved via `data.oci_core_services` and matched by name
   pattern (`"All .* Services In Oracle Services Network"`), never
@@ -253,11 +240,11 @@ No orphan infrastructure: every resource and route rule in `gateways.tf`/
 `routing.tf`/`security_lists.tf` traces to one of the rows above. Nothing
 was added that isn't required by REQ-NET-006 through REQ-NET-018 (with
 REQ-NET-017/019/020 explicitly out of scope — see Purpose). The one
-deliberate exception: `oci_core_drg_route_table.vcn_default` and
-`data.oci_core_drg_route_tables.vcn_default` (Phase B1) trace to
-REQ-NET-009/ADR-0008 too, but as an ownership-only evaluation artifact,
-not a new requirement — see the "Phase B1" bullet under Security
-invariants above and the DRG import-only gate report for status.
+deliberate exception: `oci_core_drg_route_table.inert` and
+`oci_core_drg_attachment.vcn` are gated by
+`var.manage_inert_drg_route_table` (default `false`) pending resolution of
+the real OCI service-limit constraint — tracked as GAP-NET-004 (see the
+"REQ-NET-009/ADR-0008" bullet under Security invariants above).
 
 ## Route matrix
 

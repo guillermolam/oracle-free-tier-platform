@@ -24,7 +24,6 @@ variable "platform_name" {
   description = "Platform.System defined-tag value -- matches infrastructure/modules/foundation's own default."
 }
 
-<<<<<<< HEAD
 variable "use_managed_nat" {
   type        = bool
   description = "Create the managed NAT Gateway resource. Set to false when relying on the software-NAT instance (micro-nat) instead. Defaults to false since NAT gateway limit = 0 on Always Free."
@@ -69,9 +68,7 @@ variable "manage_inert_drg_route_table" {
     a genuine OCI per-DRG-route-table-count service-limit error creating
     this 3rd table (a DRG auto-generates 2 default route tables that
     already consume the quota) -- see gateways.tf's own comment on this
-    resource and GAP-NET-004 in the threat-model corpus. Does not affect
-    oci_core_drg_route_table.vcn_default, which models an OCI-created
-    table (no quota consumed) and is unconditional.
+    resource and GAP-NET-004 in the threat-model corpus.
   EOT
 }
 

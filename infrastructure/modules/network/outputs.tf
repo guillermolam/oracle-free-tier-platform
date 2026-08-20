@@ -49,18 +49,6 @@ output "drg_route_table_id" {
   description = "OCID of the DRG's own (empty, no-propagation) route table -- REQ-NET-009's inert mechanism. null when var.manage_inert_drg_route_table is false (current default -- see gateways.tf)."
 }
 
-# Phase B1 (ownership proof, ADR-0008 amendment under evaluation -- not
-# yet decided): the OCID of OCI's own auto-generated VCN-attachments DRG
-# route table, now under this module's state ownership (see
-# gateways.tf's own comment on oci_core_drg_route_table.vcn_default).
-# Not yet consumed by anything in this module -- exposed so a future,
-# separately-authorized phase (attachment repointing, if the ADR-0008
-# amendment is accepted) has it available without re-deriving it.
-output "vcn_default_drg_route_table_id" {
-  value       = data.oci_core_drg_route_tables.vcn_default.drg_route_tables[0].id
-  description = "OCID of OCI's auto-generated VCN-attachments DRG route table (Phase B1 ownership proof; not yet the attachment target -- see ADR-0008)."
-}
-
 # SPEC-NET-003 Interfaces: route_table_ids{edge,management,workload,data}
 # -- consumed by I04 (compute subnet attachment).
 output "route_table_ids" {
