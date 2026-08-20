@@ -58,6 +58,20 @@ check "nat_egress_target_and_managed_nat_are_mutually_exclusive" {
   }
 }
 
+variable "manage_inert_drg_route_table" {
+  type        = bool
+  default     = false
+  description = <<-EOT
+    Gates oci_core_drg_route_table.inert and oci_core_drg_attachment.vcn
+    (REQ-NET-009/ADR-0008 Option B's custom empty DRG route table + its
+    attachment). Defaults to false: a real apply against this tenancy hit
+    a genuine OCI per-DRG-route-table-count service-limit error creating
+    this 3rd table (a DRG auto-generates 2 default route tables that
+    already consume the quota) -- see gateways.tf's own comment on this
+    resource and GAP-NET-004 in the threat-model corpus.
+  EOT
+}
+
 # No CIDR variables, deliberately: REQ-NET-001/REQ-NET-002 mandate exact
 # values ("MUST create ... using CIDR 10.10.0.0/16", "MUST create four
 # subnets: Edge (10.10.10.0/24)..."), and ADR-0006 is explicit --
