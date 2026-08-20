@@ -41,12 +41,12 @@ output "sgw_id" {
 
 output "drg_id" {
   value       = oci_core_drg.this.id
-  description = "OCID of the DRG (REQ-NET-009). Attachment is gated by var.manage_inert_drg_route_table (see drg_route_table_id) -- see ADR-0008."
+  description = "OCID of the DRG (REQ-NET-009) -- attached to the VCN via the stripped auto-created DRG route table; see ADR-0008."
 }
 
 output "drg_route_table_id" {
-  value       = try(oci_core_drg_route_table.inert[0].id, null)
-  description = "OCID of the DRG's own (empty, no-propagation) route table -- REQ-NET-009's inert mechanism. null when var.manage_inert_drg_route_table is false (current default -- see gateways.tf)."
+  value       = oci_core_drg_route_table.vcn_default.id
+  description = "OCID of the DRG route table the VCN attachment uses -- OCI's auto-created VCN-attachments table, reused and stripped of its import distribution (REQ-NET-009's inert mechanism; resolves GAP-NET-004). Empty until I21 populates it."
 }
 
 # SPEC-NET-003 Interfaces: route_table_ids{edge,management,workload,data}

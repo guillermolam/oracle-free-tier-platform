@@ -124,7 +124,14 @@ canonicalized — see
 
 ## ADR Impact
 
-None beyond [ADR-0006](../02-decisions/ADR-0006-trust-zone-network-segmentation.md).
+[ADR-0008](../02-decisions/ADR-0008-drg-reserved-inert-m1.md) (REQ-NET-009's
+attach-now-inert decision) as amended by
+[ADR-0009](../02-decisions/ADR-0009-drg-reuse-and-strip-inert-table.md)
+(the inert table is OCI's auto-created VCN-attachments table, reused and
+stripped of its import distribution — REQ-NET-009's "zero route rules,
+import/propagation disabled" contract is unchanged).
+[ADR-0006](../02-decisions/ADR-0006-trust-zone-network-segmentation.md)
+remains the trust-zone base.
 
 ## Threat Model Impact
 
