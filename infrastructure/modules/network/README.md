@@ -42,7 +42,7 @@ PR C3 exactly as originally scoped.
 | `platform_name` | string | no (default `"oracle-free-tier-platform"`) | — |
 | `use_managed_nat` | bool | no (default `false`) | — |
 | `use_managed_service_gateway` | bool | no (default `false`) | — |
-| `nat_egress_target_ocid` | string | no (default `null`) | — |
+| `nat_egress_target_ocid` | string | no (default `null`) | must be `null` or match `^ocid1\.privateip\.`; mutually exclusive with `use_managed_nat` (checked) |
 
 `use_managed_nat`/`use_managed_service_gateway` default to `false` because
 this Always Free account has a hard limit of 0 NAT gateways and 0 service
@@ -381,8 +381,12 @@ enforced by `tofu validate`'s type system at parse time (a non-CIDR-shaped
 string literal fails HCL evaluation immediately); overlap/containment/
 duplication protection is enforced by `vcn.tf`'s `check` block instead
 (see Security invariants). This file's negative tests instead cover the
-one real variable-driven invariant this module has: rejecting an invalid
-`environment` value.
+variable-driven invariants this module has: rejecting an invalid
+`environment` value, rejecting a non-private-IP OCID for
+`nat_egress_target_ocid` (an IGW OCID would otherwise be copied verbatim
+into all three private-zone routes, silently bypassing the Edge-only
+gateway invariant), and rejecting the `use_managed_nat` + explicit-target
+conflict via the mutual-exclusivity `check` block.
 
 `tests/gateways.tftest.hcl` (positive): Internet Gateway enabled, NAT
 Gateway attached, Service Gateway resolves the real Services CIDR label

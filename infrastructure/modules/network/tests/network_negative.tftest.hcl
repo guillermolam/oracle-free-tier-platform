@@ -55,3 +55,26 @@ run "invalid_compartment_ocid_rejected" {
 
   expect_failures = [var.compartment_ocid]
 }
+
+run "nat_egress_target_ocid_must_be_private_ip_ocid" {
+  command = plan
+
+  variables {
+    # An Internet Gateway OCID would silently black-hole private-zone
+    # egress if copied into the route rules -- validation must reject it.
+    nat_egress_target_ocid = "ocid1.internetgateway.oc1.eu-madrid-1.aaaaaaaamockigw"
+  }
+
+  expect_failures = [var.nat_egress_target_ocid]
+}
+
+run "nat_egress_target_ocid_and_managed_nat_are_mutually_exclusive" {
+  command = plan
+
+  variables {
+    use_managed_nat        = true
+    nat_egress_target_ocid = "ocid1.privateip.oc1.eu-madrid-1.aaaaaaaamocksoftwarenat"
+  }
+
+  expect_failures = [check.nat_egress_target_and_managed_nat_are_mutually_exclusive]
+}

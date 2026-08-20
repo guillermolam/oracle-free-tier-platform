@@ -40,6 +40,22 @@ variable "nat_egress_target_ocid" {
   type        = string
   default     = null
   description = "OCID of the NAT egress target (the software-NAT instance micro-nat's private IP OCID from I04/compute). When set, the Management/Workload/Data 0.0.0.0/0 route rules use this instead of the managed NAT Gateway; null when using the managed gateway."
+
+  validation {
+    condition     = var.nat_egress_target_ocid == null || can(regex("^ocid1\\.privateip\\.", var.nat_egress_target_ocid))
+    error_message = "nat_egress_target_ocid must be a private IP OCID (ocid1.privateip....) or null. A route rule's network_entity_id must reference a private IP, never a gateway or other route-compatible OCID."
+  }
+}
+
+# Mutual-exclusivity guard: nat_egress_target_ocid takes precedence over
+# use_managed_nat in routing.tf's resolution order (explicit > managed >
+# discovered). Setting both silently creates a managed NAT gateway that no
+# route references -- a wasted, never-used resource. Fail loudly instead.
+check "nat_egress_target_and_managed_nat_are_mutually_exclusive" {
+  assert {
+    condition     = !(var.use_managed_nat && var.nat_egress_target_ocid != null)
+    error_message = "nat_egress_target_ocid and use_managed_nat are mutually exclusive: the explicit private-IP target wins the resolution order, leaving any created managed NAT gateway unused. Set only one."
+  }
 }
 
 # No CIDR variables, deliberately: REQ-NET-001/REQ-NET-002 mandate exact
