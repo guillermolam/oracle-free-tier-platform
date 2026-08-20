@@ -25,13 +25,19 @@ locals {
   } : null
 
   # REQ-NET-013: the Management/Workload/Data 0.0.0.0/0 route. Resolves to
-  # (in order): an explicitly supplied software-NAT egress target
-  # (nat_egress_target_ocid), else the managed NAT Gateway when it is
-  # enabled, else -- when neither exists, i.e. the interim no-egress state
-  # after the first 10-network apply and before I04/compute provisions
-  # micro-nat -- null, which filters the rule out entirely. A count=0
-  # oci_core_nat_gateway is never indexed here because the conditional
-  # short-circuits: the "else" branch only evaluates when
+  # (in order):
+  #   1. an explicitly supplied software-NAT egress target
+  #      (nat_egress_target_ocid) -- the escape hatch for operators who
+  #      prefer to pin the target rather than rely on tag discovery;
+  #   2. the managed NAT Gateway when it is enabled (use_managed_nat);
+  #   3. the software-NAT instance discovered at runtime from OCI by its
+  #      freeform tag role=software-nat (data.tf) -- the Always Free
+  #      default path;
+  #   4. null otherwise -- the interim no-egress state after the first
+  #      10-network apply and before I04/compute provisions micro-nat --
+  #      which filters the rule out entirely.
+  # A count=0 oci_core_nat_gateway is never indexed here because the
+  # conditional short-circuits: that branch only evaluates when
   # use_managed_nat is true.
   nat_egress_route_rule = var.nat_egress_target_ocid != null ? {
     destination       = "0.0.0.0/0"
@@ -42,6 +48,11 @@ locals {
     destination       = "0.0.0.0/0"
     destination_type  = "CIDR_BLOCK"
     network_entity_id = oci_core_nat_gateway.this[0].id
+    description       = "REQ-NET-013: internet-bound traffic via NAT only"
+    } : local.software_nat_private_ip_ocid != null ? {
+    destination       = "0.0.0.0/0"
+    destination_type  = "CIDR_BLOCK"
+    network_entity_id = local.software_nat_private_ip_ocid
     description       = "REQ-NET-013: internet-bound traffic via NAT only"
   } : null
 
