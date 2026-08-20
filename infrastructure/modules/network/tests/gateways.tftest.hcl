@@ -25,10 +25,11 @@ mock_provider "oci" {
 }
 
 variables {
-  compartment_ocid            = "ocid1.compartment.oc1..aaaaaaaaexampleexampleexampleexampleexampleexampleexampleaaaa"
-  environment                 = "lab"
-  use_managed_nat             = true
-  use_managed_service_gateway = true
+  compartment_ocid             = "ocid1.compartment.oc1..aaaaaaaaexampleexampleexampleexampleexampleexampleexampleaaaa"
+  environment                  = "lab"
+  use_managed_nat              = true
+  use_managed_service_gateway  = true
+  manage_inert_drg_route_table = true # exercises the still-authoritative ADR-0008 Option B path -- see the dedicated "disabled by default" run below for the current real-deployment default
 }
 
 run "internet_gateway_enabled" {
@@ -62,12 +63,12 @@ run "drg_exists_and_is_attached" {
   command = plan
 
   assert {
-    condition     = oci_core_drg_attachment.vcn.drg_id == oci_core_drg.this.id
+    condition     = oci_core_drg_attachment.vcn[0].drg_id == oci_core_drg.this.id
     error_message = "REQ-NET-009: the DRG must be attached to the VCN"
   }
 
   assert {
-    condition     = tolist(oci_core_drg_attachment.vcn.network_details)[0].type == "VCN"
+    condition     = tolist(oci_core_drg_attachment.vcn[0].network_details)[0].type == "VCN"
     error_message = "REQ-NET-009: the DRG attachment must attach the VCN specifically"
   }
 }
@@ -76,7 +77,7 @@ run "drg_route_table_is_inert" {
   command = plan
 
   assert {
-    condition     = oci_core_drg_attachment.vcn.drg_route_table_id == oci_core_drg_route_table.inert.id
+    condition     = oci_core_drg_attachment.vcn[0].drg_route_table_id == oci_core_drg_route_table.inert[0].id
     error_message = "REQ-NET-009/ADR-0008: the DRG attachment must reference this module's own empty DRG route table, not the account default"
   }
 
@@ -93,6 +94,29 @@ run "drg_route_table_is_inert" {
   # never declaring an oci_core_drg_route_distribution resource at all --
   # grep-verifiable, not runtime-verifiable -- and (b) the real
   # post-apply plan/OCI CLI check in the PR C2 deployment report.
+}
+
+run "inert_drg_route_table_disabled_by_default" {
+  command = plan
+
+  variables {
+    manage_inert_drg_route_table = false # this run's own override -- the current real-deployment default
+  }
+
+  assert {
+    condition     = length(oci_core_drg_route_table.inert) == 0
+    error_message = "manage_inert_drg_route_table defaults to false (real OCI service-limit constraint, see gateways.tf) -- the custom inert table must not be planned"
+  }
+
+  assert {
+    condition     = length(oci_core_drg_attachment.vcn) == 0
+    error_message = "with the inert table disabled, the DRG attachment (which requires it) must also not be planned -- REQ-NET-009's attachment stays genuinely absent, not attached-to-nothing"
+  }
+
+  assert {
+    condition     = oci_core_drg.this.display_name == "platform-drg"
+    error_message = "the DRG object itself is unconditional -- only its attachment/inert-table are gated"
+  }
 }
 
 run "gateways_carry_no_oracle_managed_tag_keys" {
