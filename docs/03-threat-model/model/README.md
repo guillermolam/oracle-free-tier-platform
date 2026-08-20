@@ -268,8 +268,10 @@ limitation: ref resolution checks existence, not type.
 
 ## Status
 
-`network.yaml` is the only populated instance — migrated to schema v2 as
-this hardening pass's proof of concept. Remaining domains (`identity`,
-`governance`, `cicd`, `kubernetes`, `context`) come next, once this schema
-is confirmed ready to scale. See `docs/03-threat-model/README.md` for
-where this fits in the overall threat-modeling sequence.
+All six domains are now populated: `network.yaml` (schema v2 proof of
+concept), plus `context`, `identity`, `governance`, `cicd`, and
+`kubernetes`, added once the schema proved ready to scale. The corpus
+validates together (`npm run validate:threat-model`) with zero schema or
+referential-integrity failures. See `docs/03-threat-model/README.md` for
+where this fits in the overall threat-modeling sequence — DFD generation
+(Phase 3A's remaining step) is next, not started here.
