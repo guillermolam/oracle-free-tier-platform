@@ -19,6 +19,13 @@ mock_provider "oci" {
       ]
     }
   }
+
+  override_data {
+    target = data.oci_core_instances.software_nat
+    values = {
+      instances = []
+    }
+  }
 }
 
 variables {

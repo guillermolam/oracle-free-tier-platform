@@ -30,13 +30,13 @@ output "igw_id" {
 }
 
 output "nat_id" {
-  value       = oci_core_nat_gateway.this.id
-  description = "OCID of the NAT Gateway (REQ-NET-007)."
+  value       = var.use_managed_nat ? one(oci_core_nat_gateway.this[*].id) : null
+  description = "OCID of the NAT Gateway (REQ-NET-007), or null when use_managed_nat=false (Always Free default)."
 }
 
 output "sgw_id" {
-  value       = oci_core_service_gateway.this.id
-  description = "OCID of the Service Gateway (REQ-NET-008)."
+  value       = var.use_managed_service_gateway ? one(oci_core_service_gateway.this[*].id) : null
+  description = "OCID of the Service Gateway (REQ-NET-008), or null when use_managed_service_gateway=false (Always Free default)."
 }
 
 output "drg_id" {

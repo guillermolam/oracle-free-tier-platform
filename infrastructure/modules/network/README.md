@@ -40,6 +40,18 @@ PR C3 exactly as originally scoped.
 | `compartment_ocid` | string | yes | must match `^ocid1\.compartment\.` |
 | `environment` | string | yes | one of `lab`, `staging`, `prod` |
 | `platform_name` | string | no (default `"oracle-free-tier-platform"`) | — |
+| `use_managed_nat` | bool | no (default `false`) | — |
+| `use_managed_service_gateway` | bool | no (default `false`) | — |
+| `nat_egress_target_ocid` | string | no (default `null`) | must be `null` or match `^ocid1\.privateip\.`; mutually exclusive with `use_managed_nat` (checked) |
+
+`use_managed_nat`/`use_managed_service_gateway` default to `false` because
+this Always Free account has a hard limit of 0 NAT gateways and 0 service
+gateways — the managed resources cannot be the real egress path. The
+software-NAT instance (I04/compute `micro-nat`) is the default egress
+target, resolved at runtime by freeform tag (`data.tf`), not by a
+cross-unit Terragrunt dependency — see "Software-NAT discovery" below.
+`nat_egress_target_ocid` is the explicit escape hatch: set it to pin the
+egress target and bypass tag discovery.
 
 No CIDR variables. REQ-NET-001/REQ-NET-002 mandate exact values, and
 ADR-0006 is explicit they're fixed absent a superseding ADR — see
@@ -62,14 +74,17 @@ hardcoded constants, not tunables.
 ## Resource ownership
 
 `oci_core_vcn` (1), `oci_core_subnet` (4, one per trust zone, via
-`for_each`), `oci_core_internet_gateway` (1), `oci_core_nat_gateway` (1),
-`oci_core_service_gateway` (1), `oci_core_drg` (1),
+`for_each`), `oci_core_internet_gateway` (1), `oci_core_nat_gateway` (0–1,
+count-gated by `use_managed_nat`), `oci_core_service_gateway` (0–1,
+count-gated by `use_managed_service_gateway`), `oci_core_drg` (1),
 `oci_core_drg_route_table` (1, empty — the inert mechanism),
 `oci_core_drg_attachment` (1), `oci_core_route_table` (4, one per trust
 zone, via `for_each`), `oci_core_security_list` (4, one per trust zone,
 via `for_each` — baseline only, REQ-NET-016/018),
 `data.oci_core_services` (1, read-only — resolves the region's Services
-Network CIDR label).
+Network CIDR label), `data.oci_core_instances` (1, read-only — software-NAT
+tag discovery), `data.oci_core_private_ips` (1, read-only — resolves the
+discovered instance's private IP for the egress route).
 
 **Not owned here**: NSGs (`SPEC-NET-004`'s remaining scope,
 REQ-NET-017/019/020), DNS/DHCP options (`SPEC-NET-006`), compute
@@ -78,6 +93,36 @@ creates the DRG attached-but-empty, never populates it). Subnets no
 longer use OCI's default route table or default Security List — each has
 its own zone-specific pair now (`routing.tf`, `security_lists.tf`); the
 OCI defaults become intentionally unused, not deleted.
+
+## Software-NAT discovery
+
+The Always Free account cannot hold a managed NAT gateway (quota: 0), so
+egress for Management/Workload/Data zones must target the `micro-nat`
+compute instance instead. To keep `10-network` and `30-compute` as
+independent Terragrunt state units — no circular dependency — the network
+module discovers the instance at plan time by its freeform tag
+(`role = "software-nat"`), never by importing `30-compute`'s outputs:
+
+- `data.oci_core_instances.software_nat` lists instances in the
+  compartment filtered by `freeform_tags."role" = "software-nat"`
+  (defensive `try()`/`one()` so a tag never missing is not a hard error at
+  plan time — an empty result is simply `null`).
+- `data.oci_core_private_ips.software_nat` resolves that instance's VNIC
+  private IP by `ip_address` alone (no `subnet_id` filter — the private-IP
+  lookup must not read the route table it feeds, which would re-introduce
+  a cycle through `oci_core_subnet`).
+- `local.nat_egress_target`/`local.nat_egress_target_ocid` resolve to the
+  explicit `nat_egress_target_ocid` when set, otherwise to the managed NAT
+  when `use_managed_nat` is set, otherwise to the discovered instance.
+
+Resolution order (first match wins):
+
+| Source | Condition |
+| --- | --- |
+| `nat_egress_target_ocid` | non-null (explicit escape hatch) |
+| `oci_core_nat_gateway.this[0]` | `use_managed_nat` |
+| discovered `micro-nat` instance | tag match present |
+| none | egress route is `null` (no `0.0.0.0/0` rule) |
 
 ## Security invariants
 
@@ -184,17 +229,23 @@ REQ-NET-017/019/020 explicitly out of scope — see Purpose).
 | --- | --- | --- | --- | --- | --- | --- |
 | Edge | Internet | Internet Gateway | `0.0.0.0/0` | RED (INGRESS)/GREEN (EGRESS) | REQ-NET-012 | Yes |
 | Edge | OCI services | Service Gateway | Services Network CIDR label | BLUE (SERVICE) | REQ-NET-014 | Yes |
-| Management | Internet (egress only) | NAT Gateway | `0.0.0.0/0` | GREEN (EGRESS) | REQ-NET-013 | Yes |
+| Management | Internet (egress only) | software-NAT instance (or managed NAT if enabled) | `0.0.0.0/0` | GREEN (EGRESS) | REQ-NET-013 | Yes |
 | Management | OCI services | Service Gateway | Services Network CIDR label | BLUE (SERVICE) | REQ-NET-014 | Yes |
 | Management | future on-prem/other-cloud | DRG | (reserved, unpopulated) | ORANGE (HYBRID) | REQ-NET-015 | No — I21 |
-| Workload | Internet (egress only) | NAT Gateway | `0.0.0.0/0` | GREEN (EGRESS) | REQ-NET-013 | Yes |
+| Workload | Internet (egress only) | software-NAT instance (or managed NAT if enabled) | `0.0.0.0/0` | GREEN (EGRESS) | REQ-NET-013 | Yes |
 | Workload | OCI services | Service Gateway | Services Network CIDR label | BLUE (SERVICE) | REQ-NET-014 | Yes |
-| Data | Internet (egress only) | NAT Gateway | `0.0.0.0/0` | GREEN (EGRESS) | REQ-NET-013 | Yes |
+| Data | Internet (egress only) | software-NAT instance (or managed NAT if enabled) | `0.0.0.0/0` | GREEN (EGRESS) | REQ-NET-013 | Yes |
 | Data | OCI services (incl. backup) | Service Gateway | Services Network CIDR label | BLUE (SERVICE)/BLUE (BACKUP) | REQ-NET-014 | Yes |
+
+The Management/Workload/Data egress target resolves via "Software-NAT
+discovery" below: explicit `nat_egress_target_ocid` → managed NAT →
+tag-discovered `micro-nat` → no rule. The interim state (no target yet)
+is a deliberate `null` — the rule is absent, not broken.
 
 No unexplained `0.0.0.0/0` — every occurrence above is either Edge→IGW
 (REQ-NET-012, the only place it's allowed) or Management/Workload/Data→NAT
-(REQ-NET-013, explicitly never IGW).
+(REQ-NET-013, explicitly never IGW; the NAT is the software-NAT instance
+by default, the managed gateway only when enabled).
 
 ## Security List baseline matrix
 
@@ -221,6 +272,20 @@ check. Egress is deliberately **not** a blanket copy of OCI's default
 row above traces to a route this module's own `routing.tf` already
 creates; there is no egress destination in this table that routing
 doesn't also send traffic to.
+
+**Software-NAT is route-only today — forwarding is not yet authorized.**
+The `micro-nat` instance (I04/compute) lives on the Edge subnet, so the
+Management/Workload/Data → `0.0.0.0/0` route's traffic arrives at its
+VNIC as *ingress to Edge*. With this baseline's zero Edge ingress rules,
+that traffic is deliberately dropped — the software-NAT path cannot
+forward until I04 attaches micro-nat's own authorization (an NSG or
+Security List ingress rule permitting the Management/Workload/Data CIDRs
+to reach it) *and* sets `skip_source_dest_check` on its VNIC, both of
+which are I04/compute concerns outside this module. Until then, "routable
+but not authorized" holds *for the forwarded path itself*, not just for
+unrelated inbound traffic — this is the intended interim state, not a
+gap: the route exists so the target is pinned correctly, and the drop is
+the baseline's default-deny doing its job.
 
 ## Traffic-flow reconciliation (post–PR C2)
 
@@ -282,6 +347,16 @@ tofu test
   say, the NAT Gateway leaves the Internet Gateway and Service Gateway
   correctly in state — re-running `tofu apply` retries only what's
   missing.
+- **Software-NAT discovery empty**: if the compartment contains no
+  instance tagged `role = "software-nat"` and neither
+  `nat_egress_target_ocid` nor `use_managed_nat` is set, the egress route
+  resolves to `null` and Management/Workload/Data simply have no
+  `0.0.0.0/0` rule — an explicit, documented interim state (see Route
+  matrix), not a broken plan. The route appears automatically on the next
+  `10-network` apply after `30-compute` provisions `micro-nat`.
+- **Multiple software-NAT instances tagged**: `one()` fails loudly at plan
+  time if discovery matches more than one instance — a
+  miscustomization, surfaced rather than silently choosing one.
 
 ## Upgrade expectations
 
@@ -320,8 +395,12 @@ enforced by `tofu validate`'s type system at parse time (a non-CIDR-shaped
 string literal fails HCL evaluation immediately); overlap/containment/
 duplication protection is enforced by `vcn.tf`'s `check` block instead
 (see Security invariants). This file's negative tests instead cover the
-one real variable-driven invariant this module has: rejecting an invalid
-`environment` value.
+variable-driven invariants this module has: rejecting an invalid
+`environment` value, rejecting a non-private-IP OCID for
+`nat_egress_target_ocid` (an IGW OCID would otherwise be copied verbatim
+into all three private-zone routes, silently bypassing the Edge-only
+gateway invariant), and rejecting the `use_managed_nat` + explicit-target
+conflict via the mutual-exclusivity `check` block.
 
 `tests/gateways.tftest.hcl` (positive): Internet Gateway enabled, NAT
 Gateway attached, Service Gateway resolves the real Services CIDR label
@@ -344,7 +423,11 @@ important assertion —
 `management_workload_data_never_reference_the_internet_gateway` — is
 written as a positive assertion of an *absence*, which is what actually
 proves REQ-NET-013's binding control; a presence-only check for the NAT
-rule wouldn't catch a table that had both. No separate
+rule wouldn't catch a table that had both. A second run
+(`management_workload_data_route_internet_to_discovered_software_nat`)
+mocks the software-NAT discovery (`data.tf`) and asserts the
+Management/Workload/Data tables target the discovered instance's private
+IP. No separate
 `routing_negative.tftest.hcl` exists: this module's route rules are
 built entirely from hardcoded locals (`local.route_tables`), not
 variables, so there's no user-input surface for `expect_failures`-style
