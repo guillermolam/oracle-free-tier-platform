@@ -1,6 +1,10 @@
 # ADR-0008: Reserve the DRG in M1; defer hybrid routing to I21
 
-Status: Accepted
+Status: Accepted (implementation mechanism amended by
+[ADR-0009](ADR-0009-drg-reuse-and-strip-inert-table.md) — the inert route
+table is now the reused, stripped OCI auto-created table, not a custom
+one; the "created and attached in M1, inert until I21" decision below is
+unchanged)
 
 ## Context
 

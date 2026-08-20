@@ -150,7 +150,9 @@ canonicalized — see
 
 [ADR-0008](../02-decisions/ADR-0008-drg-reserved-inert-m1.md) — this Spec
 is what verifies that ADR's "inert until I21" decision actually holds
-(REQ-NET-027).
+(REQ-NET-027). [ADR-0009](../02-decisions/ADR-0009-drg-reuse-and-strip-inert-table.md)
+amends the mechanism (reused, stripped auto-created DRG route table), not
+the invariant this Spec verifies.
 
 ## Threat Model Impact
 

@@ -68,6 +68,7 @@ OpenZiti, policy engine = Kyverno, GitOps controller = Flux. Recorded as
 
 | Spike | Question | Blocks |
 | --- | --- | --- |
+| SPIKE-NET-01 | Can NAT GW (limit 0, confirmed via `oci limits`) and SGW (per-VCN limit 0) be raised on this Always Free tenancy? Console-only limit-increase request (no CLI/API path) — submitted manually; outcome decides managed gateways vs software-NAT as M1's egress mechanism | I03 |
 | SPIKE-STOR-01 | Longhorn vs Rook/Ceph vs OCI Block Volume CSI under the 200 GB / 2-worker envelope | I15 |
 | SPIKE-RT-01 | youki compatibility with Talos/containerd on ARM64 | I06 |
 | SPIKE-COMP-01 | Ampere A1 shape split within the 4 OCPU / 24 GB total | I04 |
