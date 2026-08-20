@@ -1,0 +1,462 @@
+domain: cicd
+schema_version: 2.0.0
+model_version: 0.1.0
+generated_from:
+  - { source_type: arch-view, ref: VIEW-CICD-SUPPLYCHAIN, status: specified }
+  - { source_type: arch-view, ref: VIEW-CICD-IAC, status: specified }
+  - { source_type: arch-view, ref: VIEW-CICD-NODE-CONFIG, status: specified }
+  - { source_type: arch-view, ref: VIEW-CICD-PLATFORM-GITOPS, status: specified }
+  - { source_type: arch-view, ref: VIEW-CICD-POLICY, status: specified }
+  - { source_type: adr, ref: ADR-0001, status: specified }
+  - { source_type: adr, ref: ADR-0002, status: specified }
+  - { source_type: adr, ref: ADR-0004, status: specified }
+  - { source_type: adr, ref: ADR-0005, status: specified }
+  - { source_type: adr, ref: ADR-0007, status: specified }
+  - { source_type: contributing, ref: "CONTRIBUTING.md", status: specified }
+
+components:
+  - id: COMP-CI-SUPPLYCHAIN-CHECKS
+    name: Common supply-chain CI checks
+    component_type: ci-runner
+    description: >-
+      The real, live pre-merge chain, common to every workload class:
+      markdownlint/tflint (docs.yml/validate.yml), Semgrep SAST, gitleaks
+      secret scan, Checkov IaC scan (advisory today, not yet a required
+      branch-protection check), zizmor workflow lint, mmdc diagram
+      validation (all in .github/workflows/). Feeds POLICY-GITHUB-BRANCH-
+      PROTECTION-MAIN (identity.yaml).
+    state: specified
+    evidence:
+      - { source_type: arch-view, ref: VIEW-CICD-SUPPLYCHAIN, status: specified }
+
+  - id: COMP-SUPPLYCHAIN-POST-MERGE
+    name: Post-merge supply-chain pipeline (aggregate)
+    component_type: other
+    description: >-
+      Everything past merge -- dependency scan, SBOM, image build, image
+      vulnerability scan -- aggregated into one stage since this repo has
+      zero container workloads today (views.md: "everything past 'merge'
+      is PLANNED, not invented"); PLANNED, I18.
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-CICD-SUPPLYCHAIN, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I18", status: planned }
+
+  - id: COMP-IMAGE-SIGNING
+    name: Image signing (cosign)
+    component_type: security-control
+    description: Signing and provenance attestation via cosign -- PLANNED, I18.
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-CICD-SUPPLYCHAIN, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I18", status: planned }
+
+  - id: COMP-CONTAINER-REGISTRY
+    name: OCI container registry
+    component_type: registry
+    description: PLANNED -- no registry product selected yet.
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-CICD-SUPPLYCHAIN, status: specified }
+
+  - id: COMP-IAC-STATIC-CHECKS
+    name: IaC static checks
+    component_type: ci-runner
+    description: "tofu fmt -check, tofu validate, tofu test (*.tftest.hcl), TFLint -- the real, live checks preceding the shared security/policy scans (COMP-CI-SUPPLYCHAIN-CHECKS)."
+    state: specified
+    evidence:
+      - { source_type: arch-view, ref: VIEW-CICD-IAC, status: specified }
+      - { source_type: adr, ref: ADR-0001, status: specified }
+
+  - id: COMP-STATE-BACKEND
+    name: OpenTofu state backend
+    component_type: storage
+    description: Two-phase bootstrap (REQ-OCI-005/007) -- `infrastructure/live/scripts/tg` is the only supported entry point; static-key auth today, OIDC federation PLANNED (EPIC-OCI-04).
+    state: specified
+    evidence:
+      - { source_type: adr, ref: ADR-0007, status: specified }
+
+  - id: COMP-PLAN-ARTIFACT
+    name: Plan artifact
+    component_type: other
+    description: tofu plan output uploaded for PR review (plan.yml, gated on infrastructure/live/**).
+    state: specified
+    evidence:
+      - { source_type: arch-view, ref: VIEW-CICD-IAC, status: specified }
+
+  - id: COMP-CONTROLLED-APPLY
+    name: Controlled apply
+    component_type: other
+    description: Manual apply, outside CI -- GitHub Actions never applies (ADR-0005).
+    state: specified
+    evidence:
+      - { source_type: adr, ref: ADR-0005, status: specified }
+
+  - id: COMP-DRIFT-DETECTION
+    name: Drift detection
+    component_type: other
+    description: PLANNED, I23.
+    state: planned
+    evidence:
+      - { source_type: roadmap, ref: "roadmap.md#I23", status: planned }
+
+  - id: COMP-TALOS-MACHINE-CONFIG-SOURCE
+    name: Talos machine-config source
+    component_type: other
+    description: "bootstrap/talos/ -- not yet created; I04 has zero Spec depth."
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-CICD-NODE-CONFIG, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I04", status: planned }
+
+  - id: COMP-TALOSCTL
+    name: talosctl
+    component_type: controller
+    description: The only permitted node-configuration path -- no SSH, ever (ADR-0002).
+    state: planned
+    evidence:
+      - { source_type: adr, ref: ADR-0002, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I04", status: planned }
+
+  - id: COMP-TALOS-NODE-GENERIC
+    name: Talos node (control-plane or worker)
+    component_type: compute
+    description: >-
+      Generic machine-config target -- control-plane and worker are not
+      yet distinguished at this pipeline-detail level (see
+      COMP-KUBE-APISERVER and COMP-WORKER-NODE in network.yaml for the
+      network-layer placement of each role once provisioned).
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-CICD-NODE-CONFIG, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I04", status: planned }
+
+  - id: COMP-PLATFORM-CONFIG-SOURCE
+    name: Platform config source
+    component_type: other
+    description: "platform/ directory -- not yet created; I12 has zero Spec depth."
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-CICD-PLATFORM-GITOPS, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I12", status: planned }
+
+  - id: COMP-POLICY-SOURCE
+    name: Policy source
+    component_type: other
+    description: Kyverno rules (ADR-0004) and Cilium policy (roadmap.md) -- engines decided, content and CI wiring PLANNED, I14.
+    state: planned
+    evidence:
+      - { source_type: adr, ref: ADR-0004, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I14", status: planned }
+
+controls:
+  - id: CTRL-IAC-PLAN-SKIP-ON-MISSING-CREDS
+    name: Plan skips on missing backend credentials
+    control_type: preventive
+    description: >-
+      When OCI auth credentials are absent (fork PRs, missing secrets),
+      plan.yml skips the plan step and produces no artifact, rather than
+      failing open or attempting a plan without credentials.
+    state: specified
+    evidence:
+      - { source_type: arch-view, ref: VIEW-CICD-IAC, status: specified }
+
+  - id: CTRL-NO-SSH-NODE-CONFIG
+    name: No-SSH node configuration
+    control_type: preventive
+    description: talosctl / declarative machine config only -- no SSH path exists or is permitted (ADR-0002).
+    state: planned
+    evidence:
+      - { source_type: adr, ref: ADR-0002, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I04", status: planned }
+
+  - id: CTRL-GITOPS-DEPLOY-ONLY-VIA-FLUX
+    name: GitHub Actions never deploys
+    control_type: preventive
+    description: Flux is the only path to the cluster -- CI validates and plans, it never applies to a live cluster (ADR-0005).
+    implements_refs: []
+    state: specified
+    evidence:
+      - { source_type: adr, ref: ADR-0005, status: specified }
+
+gaps:
+  - id: GAP-CICD-001
+    subject_ref: ARCH-CICD-SUPPLYCHAIN
+    field: "per-workload-class decomposition (application)"
+    reason: >-
+      This program's I01-I25 initiative model has no application-workload
+      initiative -- VIEW-CICD-APPLICATION is listed unscheduled in
+      views.md's Planned views table with no owning initiative. A
+      product-scope question, not an architecture gap this corpus can
+      close (identity-reconciliation.md's gap summary, item 6).
+    blocking: false
+    evidence:
+      - { source_type: arch-view, ref: VIEW-CICD-SUPPLYCHAIN, status: specified }
+      - { source_type: arch-view, ref: "identity-reconciliation.md", status: specified }
+
+data_flows:
+  - id: FLOW-CICD-GITHUB-TO-SUPPLYCHAIN
+    name: GitHub PR to common supply-chain checks
+    description: Every PR, regardless of workload class, enters the shared pre-merge chain.
+    source_ref: ACTOR-GITHUB
+    destination_ref: COMP-CI-SUPPLYCHAIN-CHECKS
+    transport: { network_protocol: unknown, ports: [] }
+    direction: outbound
+    authentication: { required: false, mechanisms: [] }
+    authorization: { required: false, mechanisms: [] }
+    security_requirements: { confidentiality: low, integrity: high, availability: moderate }
+    state: specified
+    evidence:
+      - { source_type: arch-view, ref: VIEW-CICD-SUPPLYCHAIN, status: specified }
+      - { source_type: arch-view, ref: ARCH-CICD-SUPPLYCHAIN, status: specified }
+
+  - id: FLOW-CICD-SUPPLYCHAIN-TO-MERGE
+    name: Common checks gate merge
+    description: All six live checks (lint, SAST, secret-scan, IaC-scan advisory, workflow-lint, diagram-validation) gate squash-merge; DCO + GPG required.
+    source_ref: COMP-CI-SUPPLYCHAIN-CHECKS
+    destination_ref: ARCH-GOV-GITHUB
+    transport: { network_protocol: unknown, ports: [] }
+    direction: outbound
+    authentication: { required: false, mechanisms: [] }
+    authorization:
+      required: true
+      mechanisms: [{ type: github-branch-protection, authority_ref: POLICY-GITHUB-BRANCH-PROTECTION-MAIN, state: specified }]
+    security_requirements: { confidentiality: low, integrity: high, availability: moderate }
+    state: specified
+    evidence:
+      - { source_type: contributing, ref: "CONTRIBUTING.md", status: specified }
+
+  - id: FLOW-CICD-MERGE-TO-POST-MERGE-SUPPLYCHAIN
+    name: Merge to post-merge supply chain
+    description: PLANNED, I18 -- no container workloads exist to trigger this today.
+    source_ref: ARCH-GOV-GITHUB
+    destination_ref: COMP-SUPPLYCHAIN-POST-MERGE
+    transport: { network_protocol: unknown, ports: [] }
+    direction: outbound
+    authentication: { required: false, mechanisms: [] }
+    authorization: { required: false, mechanisms: [] }
+    security_requirements: { confidentiality: low, integrity: moderate, availability: low }
+    state: planned
+    evidence:
+      - { source_type: roadmap, ref: "roadmap.md#I18", status: planned }
+
+  - id: FLOW-CICD-POST-MERGE-TO-SIGNING
+    name: Post-merge pipeline to image signing
+    source_ref: COMP-SUPPLYCHAIN-POST-MERGE
+    destination_ref: COMP-IMAGE-SIGNING
+    description: PLANNED, I18.
+    transport: { network_protocol: unknown, ports: [] }
+    direction: outbound
+    authentication: { required: false, mechanisms: [] }
+    authorization: { required: false, mechanisms: [] }
+    security_requirements: { confidentiality: low, integrity: high, availability: low }
+    state: planned
+    evidence:
+      - { source_type: roadmap, ref: "roadmap.md#I18", status: planned }
+
+  - id: FLOW-CICD-SIGNING-TO-REGISTRY
+    name: Signed image to registry
+    source_ref: COMP-IMAGE-SIGNING
+    destination_ref: COMP-CONTAINER-REGISTRY
+    description: PLANNED -- no registry product selected yet.
+    transport: { network_protocol: unknown, ports: [] }
+    direction: outbound
+    authentication: { required: false, mechanisms: [] }
+    authorization: { required: false, mechanisms: [] }
+    security_requirements: { confidentiality: low, integrity: high, availability: moderate }
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-CICD-SUPPLYCHAIN, status: specified }
+
+  - id: FLOW-CICD-REGISTRY-TO-FLUX
+    name: Registry reference to Flux GitOps
+    source_ref: COMP-CONTAINER-REGISTRY
+    destination_ref: COMP-FLUX
+    description: PLANNED, I12 -- Flux not yet installed (governance.yaml).
+    transport: { network_protocol: unknown, ports: [] }
+    direction: outbound
+    authentication: { required: false, mechanisms: [] }
+    authorization: { required: false, mechanisms: [] }
+    security_requirements: { confidentiality: low, integrity: high, availability: moderate }
+    state: planned
+    evidence:
+      - { source_type: roadmap, ref: "roadmap.md#I12", status: planned }
+
+  - id: FLOW-CICD-MERGE-TO-IAC-STATIC-CHECKS
+    name: Merge-eligible PR to IaC static checks
+    description: OpenTofu/Terragrunt-specific checks precede the shared supply-chain scans in practice; modeled here as the IaC-specific entry point.
+    source_ref: ARCH-CICD-IAC
+    destination_ref: COMP-IAC-STATIC-CHECKS
+    transport: { network_protocol: unknown, ports: [] }
+    direction: outbound
+    authentication: { required: false, mechanisms: [] }
+    authorization: { required: false, mechanisms: [] }
+    security_requirements: { confidentiality: low, integrity: high, availability: moderate }
+    state: specified
+    evidence:
+      - { source_type: arch-view, ref: VIEW-CICD-IAC, status: specified }
+
+  - id: FLOW-CICD-IAC-CHECKS-TO-STATE-BACKEND
+    name: IaC checks (with credentials) to state backend
+    description: "AUTH gate: static keys via GitHub Actions secrets (REQ-OCI-006); credentials-absent branch handled by CTRL-IAC-PLAN-SKIP-ON-MISSING-CREDS."
+    source_ref: COMP-IAC-STATIC-CHECKS
+    destination_ref: COMP-STATE-BACKEND
+    transport: { network_protocol: tcp, application_protocol: https, ports: [443], encrypted: true }
+    direction: outbound
+    authentication: { required: true, mechanisms: [{ type: oci-signing-key, identity_ref: IDENT-IAM-BOOTSTRAP-USER, state: specified }] }
+    authorization: { required: true, mechanisms: [{ type: oci-iam-policy, policy_refs: ["POLICY-OCI-STATE-BUCKET-ACCESS"], state: specified }] }
+    security_requirements: { confidentiality: moderate, integrity: high, availability: moderate }
+    state: specified
+    evidence:
+      - { source_type: spec, ref: "SPEC-OCI-001.md#REQ-OCI-005", status: specified }
+      - { source_type: spec, ref: "SPEC-OCI-001.md#REQ-OCI-007", status: specified }
+
+  - id: FLOW-CICD-STATE-BACKEND-TO-PLAN-ARTIFACT
+    name: State backend to plan artifact
+    source_ref: COMP-STATE-BACKEND
+    destination_ref: COMP-PLAN-ARTIFACT
+    description: "tofu plan, gated on infrastructure/live/**, uploaded for review."
+    transport: { network_protocol: unknown, ports: [] }
+    direction: outbound
+    authentication: { required: false, mechanisms: [] }
+    authorization: { required: false, mechanisms: [] }
+    security_requirements: { confidentiality: moderate, integrity: high, availability: low }
+    state: specified
+    evidence:
+      - { source_type: arch-view, ref: VIEW-CICD-IAC, status: specified }
+
+  - id: FLOW-CICD-PLAN-ARTIFACT-TO-APPLY
+    name: Reviewed plan to controlled apply
+    source_ref: COMP-PLAN-ARTIFACT
+    destination_ref: COMP-CONTROLLED-APPLY
+    description: "PR review (0 required approvals, solo maintainer; CI checks required) precedes manual apply, outside CI."
+    transport: { network_protocol: unknown, ports: [] }
+    direction: outbound
+    authentication: { required: true, mechanisms: [{ type: oci-signing-key, identity_ref: IDENT-IAM-BOOTSTRAP-USER, state: specified }] }
+    authorization: { required: true, mechanisms: [{ type: oci-iam-policy, policy_refs: ["POLICY-OCI-COMPARTMENT-IAM"], state: specified }] }
+    security_requirements: { confidentiality: moderate, integrity: high, availability: moderate }
+    state: specified
+    evidence:
+      - { source_type: adr, ref: ADR-0005, status: specified }
+
+  - id: FLOW-CICD-APPLY-TO-DRIFT
+    name: Controlled apply to drift detection
+    source_ref: COMP-CONTROLLED-APPLY
+    destination_ref: COMP-DRIFT-DETECTION
+    description: PLANNED, I23.
+    transport: { network_protocol: unknown, ports: [] }
+    direction: outbound
+    authentication: { required: false, mechanisms: [] }
+    authorization: { required: false, mechanisms: [] }
+    security_requirements: { confidentiality: low, integrity: moderate, availability: low }
+    state: planned
+    evidence:
+      - { source_type: roadmap, ref: "roadmap.md#I23", status: planned }
+
+  - id: FLOW-CICD-MACHINE-CONFIG-TO-TALOSCTL
+    name: Machine config source to talosctl
+    description: "SOPS-encrypted secret material per CONTRIBUTING.md, Talos-specific handling not yet Spec'd. Review is PR-based, no dedicated CI job yet."
+    source_ref: ARCH-CICD-NODE
+    destination_ref: COMP-TALOSCTL
+    transport: { network_protocol: unknown, ports: [] }
+    direction: outbound
+    authentication: { required: false, mechanisms: [] }
+    authorization: { required: false, mechanisms: [] }
+    security_requirements: { confidentiality: high, integrity: high, availability: moderate }
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-CICD-NODE-CONFIG, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I04", status: planned }
+
+  - id: FLOW-CICD-TALOSCTL-TO-NODE
+    name: talosctl to Talos node
+    description: No SSH, ever (ADR-0002) -- the only permitted configuration path.
+    source_ref: COMP-TALOSCTL
+    destination_ref: COMP-TALOS-NODE-GENERIC
+    transport: { network_protocol: tcp, application_protocol: tls, ports: [], encrypted: true }
+    direction: outbound
+    authentication: { required: true, mechanisms: [{ type: mtls, state: planned }] }
+    authorization: { required: false, mechanisms: [] }
+    security_requirements: { confidentiality: high, integrity: high, availability: high }
+    state: planned
+    evidence:
+      - { source_type: adr, ref: ADR-0002, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I04", status: planned }
+
+  - id: FLOW-CICD-PLATFORM-CONFIG-TO-POLICY-CHECK
+    name: Platform config PR to policy pre-admission check
+    description: Kyverno pre-admission check on the platform/ change, before merge -- not yet Spec'd, I12.
+    source_ref: COMP-PLATFORM-CONFIG-SOURCE
+    destination_ref: COMP-KYVERNO-ADMISSION
+    transport: { network_protocol: unknown, ports: [] }
+    direction: outbound
+    authentication: { required: false, mechanisms: [] }
+    authorization: { required: false, mechanisms: [] }
+    security_requirements: { confidentiality: low, integrity: high, availability: moderate }
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-CICD-PLATFORM-GITOPS, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I12", status: planned }
+
+  - id: FLOW-CICD-POLICY-CHECK-TO-FLUX
+    name: Policy-checked platform config to Flux
+    source_ref: COMP-KYVERNO-ADMISSION
+    destination_ref: COMP-FLUX
+    description: >-
+      Merge -> Flux source-controller -> reconciliation (kustomize/helm-
+      controller) -> Kubernetes API -> health status; rollback/remediation
+      is conceptual, not yet implemented.
+    transport: { network_protocol: unknown, ports: [] }
+    direction: outbound
+    authentication: { required: false, mechanisms: [] }
+    authorization: { required: false, mechanisms: [] }
+    security_requirements: { confidentiality: low, integrity: high, availability: moderate }
+    state: planned
+    evidence:
+      - { source_type: adr, ref: ADR-0005, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I12", status: planned }
+
+  - id: FLOW-CICD-FLUX-TO-K8SAPI
+    name: Flux reconciliation to Kubernetes API
+    source_ref: COMP-FLUX
+    destination_ref: COMP-KUBE-APISERVER
+    description: kustomize/helm-controller reconciliation applying desired state.
+    transport: { network_protocol: tcp, application_protocol: https, ports: [6443], encrypted: true }
+    direction: outbound
+    authentication: { required: true, mechanisms: [{ type: kubeconfig-cert, identity_ref: IDENT-FLUX-SERVICEACCOUNT, state: planned }] }
+    authorization: { required: true, mechanisms: [{ type: kubernetes-rbac, state: planned }] }
+    security_requirements: { confidentiality: moderate, integrity: high, availability: high }
+    traffic_class_ref: ARCH-FLOW-CONTROL
+    state: planned
+    evidence:
+      - { source_type: adr, ref: ADR-0005, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I12", status: planned }
+
+  - id: FLOW-CICD-POLICY-SOURCE-TO-FLUX
+    name: Policy source to Flux (policy pipeline)
+    description: Policy tests (not yet defined, I14) -> PR -> CI validation (no dedicated job yet) -> merge -> Flux, then split to Kyverno admission and Cilium network enforcement, both PLANNED.
+    source_ref: ARCH-CICD-POLICY
+    destination_ref: COMP-FLUX
+    transport: { network_protocol: unknown, ports: [] }
+    direction: outbound
+    authentication: { required: false, mechanisms: [] }
+    authorization: { required: false, mechanisms: [] }
+    security_requirements: { confidentiality: low, integrity: high, availability: moderate }
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-CICD-POLICY, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I14", status: planned }
+
+  - id: FLOW-CICD-FLUX-TO-RUNTIME-ENFORCEMENT
+    name: Flux to runtime policy enforcement
+    description: Splits to Kyverno admission enforcement and Cilium network enforcement -- both PLANNED, modeled via the shared COMP-RUNTIME-ENFORCEMENT (governance.yaml).
+    source_ref: COMP-FLUX
+    destination_ref: COMP-RUNTIME-ENFORCEMENT
+    transport: { network_protocol: unknown, ports: [] }
+    direction: outbound
+    authentication: { required: false, mechanisms: [] }
+    authorization: { required: false, mechanisms: [] }
+    security_requirements: { confidentiality: low, integrity: high, availability: high }
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-CICD-POLICY, status: specified }

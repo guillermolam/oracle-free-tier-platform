@@ -1,0 +1,217 @@
+domain: context
+schema_version: 2.0.0
+model_version: 0.1.0
+generated_from:
+  - { source_type: arch-view, ref: VIEW-CONTEXT-PLATFORM, status: specified }
+  - { source_type: contributing, ref: "CONTRIBUTING.md", status: specified }
+  - { source_type: adr, ref: ADR-0005, status: specified }
+
+actors:
+  - id: ACTOR-INTERNET-USERS
+    name: Internet users
+    actor_type: human
+    description: >-
+      Anonymous, unauthenticated internet users consuming platform-hosted
+      applications. Distinct from ACTOR-ADMINISTRATOR (defined in
+      network.yaml) -- carries no administrative access.
+    state: specified
+    evidence:
+      - { source_type: arch-view, ref: VIEW-CONTEXT-PLATFORM, status: specified }
+
+  - id: ACTOR-GITHUB
+    name: GitHub
+    actor_type: external-system
+    description: >-
+      The external system hosting Specs, ADRs, and GitOps desired state --
+      the platform's governance control plane (ARCH-GOV-GITHUB). Not
+      itself a human actor; the humans behind it are ACTOR-ADMINISTRATOR
+      (network.yaml) acting through GitHub's own authn/authz, out of scope
+      for this L0 view.
+    state: specified
+    evidence:
+      - { source_type: arch-view, ref: VIEW-CONTEXT-PLATFORM, status: specified }
+      - { source_type: arch-view, ref: ARCH-GOV-GITHUB, status: specified }
+
+components:
+  - id: COMP-PLATFORM
+    name: Oracle Free Tier Platform
+    component_type: other
+    description: >-
+      The platform as a whole -- the system this L0 context view answers
+      "what is this and what talks to it" for. Deliberately opaque at this
+      level (views.md: "Out of scope: route tables, VNICs, NSGs, individual
+      nodes") -- it decomposes into the network/identity/governance/cicd/
+      kubernetes domains modeled by the corpus's other instance files.
+      Provisioned into ARCH-OCI-TENANCY (see FLOW-CTX-PLATFORM-TO-OCI) but
+      not contained by it -- the platform also spans OpenTofu/Terragrunt
+      tooling and GitOps desired state that live outside the tenancy
+      boundary.
+    state: specified
+    evidence:
+      - { source_type: arch-view, ref: VIEW-CONTEXT-PLATFORM, status: specified }
+
+  - id: COMP-ONPREM-FUTURE
+    name: Future on-prem target (deferred)
+    component_type: other
+    description: >-
+      Reserved hybrid-connectivity target named by I21 (roadmap.md: "Hybrid
+      node/cluster PoC," M11, explicitly deferred past the MVP boundary --
+      "tracked, not omitted"). Drawn dashed in platform-context.mmd,
+      reserved/inert exactly as ARCH-GW-DRG and FLOW-HYBRID-VCN-TO-DRG are
+      at the network-domain level (see network.yaml).
+    state: candidate
+    evidence:
+      - { source_type: arch-view, ref: VIEW-CONTEXT-PLATFORM, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I21", status: candidate }
+
+  - id: COMP-OTHERCLOUD-FUTURE
+    name: Future other-cloud target (deferred)
+    component_type: other
+    description: >-
+      Reserved future target drawn dashed in platform-context.mmd, labeled
+      "(I21, deferred)" in the diagram itself. See GAP-CTX-001 -- this
+      likely corresponds to roadmap.md's I22 (multi-cloud expansion, M12),
+      not I21 (hybrid node/cluster PoC, M11), based on the roadmap's own
+      I21/I22 split; not corrected here since only the diagram or roadmap
+      owner can say which is right.
+    state: candidate
+    evidence:
+      - { source_type: arch-view, ref: VIEW-CONTEXT-PLATFORM, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I21", status: candidate }
+
+gaps:
+  - id: GAP-CTX-001
+    subject_ref: COMP-OTHERCLOUD-FUTURE
+    field: "evidence roadmap ref"
+    reason: >-
+      platform-context.mmd labels both ONPREM and OTHERCLOUD nodes
+      "(I21, deferred)", but roadmap.md's own initiative split names I21 as
+      "Hybrid node/cluster PoC" (M11) and I22 as "Multi-cloud expansion"
+      (M12) separately -- suggesting OTHERCLOUD is really I22's concern.
+      Filed per traceability.md's rule that disagreeing views are drift,
+      to be fixed against whichever source is wrong, not silently
+      reconciled here.
+    blocking: false
+    evidence:
+      - { source_type: arch-view, ref: VIEW-CONTEXT-PLATFORM, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I22", status: candidate }
+
+data_flows:
+  - id: FLOW-CTX-USERS-TO-PLATFORM
+    name: Internet users to platform (application traffic)
+    description: >-
+      L0 abstraction of application ingress. Ingress technology itself is
+      undecided (see GAP-NET-001 in network.yaml) -- not re-litigated here,
+      this flow only asserts the relationship exists per the L0 diagram.
+    source_ref: ACTOR-INTERNET-USERS
+    destination_ref: COMP-PLATFORM
+    transport: { network_protocol: unknown, ports: [] }
+    direction: inbound
+    authentication: { required: false, mechanisms: [{ type: none, state: specified }] }
+    authorization: { required: false, mechanisms: [] }
+    security_requirements: { confidentiality: low, integrity: low, availability: low }
+    state: specified
+    evidence:
+      - { source_type: arch-view, ref: VIEW-CONTEXT-PLATFORM, status: specified }
+
+  - id: FLOW-CTX-ADMIN-TO-PLATFORM
+    name: Administrator to platform (administrative access, ZTNA)
+    description: >-
+      L0 abstraction of ADR-0003's Ziti path. Decomposes into
+      FLOW-ADMIN-01/02/03 at the network-domain level (network.yaml) --
+      this flow only asserts the relationship this diagram shows.
+    source_ref: ACTOR-ADMINISTRATOR
+    destination_ref: COMP-PLATFORM
+    transport: { network_protocol: unknown, ports: [] }
+    direction: inbound
+    authentication:
+      required: true
+      mechanisms: [{ type: openziti-identity, identity_ref: IDENT-ZITI-ADMIN, state: planned }]
+    authorization:
+      required: true
+      mechanisms: [{ type: openziti-policy, state: planned }]
+    security_requirements: { confidentiality: high, integrity: high, availability: moderate }
+    traffic_class_ref: ARCH-FLOW-ADMIN
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-CONTEXT-PLATFORM, status: specified }
+      - { source_type: adr, ref: ADR-0003, status: specified }
+
+  - id: FLOW-CTX-GITHUB-TO-PLATFORM
+    name: GitHub to platform (Specs / ADRs / GitOps desired state)
+    description: >-
+      GitOps is a pull model (Flux reconciling desired state, ADR-0005) --
+      this flow follows the diagram's drawn arrow direction (GH -> PLATFORM)
+      rather than the underlying pull mechanics, consistent with L0's
+      system-context framing.
+    source_ref: ACTOR-GITHUB
+    destination_ref: COMP-PLATFORM
+    transport: { network_protocol: unknown, ports: [] }
+    direction: inbound
+    authentication: { required: true, mechanisms: [{ type: other, state: specified }] }
+    authorization:
+      required: true
+      mechanisms: [{ type: github-branch-protection, state: specified }]
+    data_semantics: ["source-code"]
+    security_requirements: { confidentiality: low, integrity: high, availability: moderate }
+    state: specified
+    evidence:
+      - { source_type: arch-view, ref: VIEW-CONTEXT-PLATFORM, status: specified }
+      - { source_type: adr, ref: ADR-0005, status: specified }
+      - { source_type: arch-view, ref: ARCH-GOV-GITHUB, status: specified }
+
+  - id: FLOW-CTX-PLATFORM-TO-OCI
+    name: Platform provisioned into OCI tenancy
+    description: >-
+      The OpenTofu/Terragrunt-driven provisioning relationship, not literal
+      application traffic -- modeled as a data flow per the diagram's own
+      PLATFORM -->|"provisioned into"| OCI edge.
+    source_ref: COMP-PLATFORM
+    destination_ref: ARCH-OCI-TENANCY
+    transport: { network_protocol: unknown, ports: [] }
+    direction: outbound
+    authentication: { required: true, mechanisms: [{ type: oci-signing-key, state: specified }] }
+    authorization: { required: true, mechanisms: [{ type: oci-iam-policy, state: specified }] }
+    data_semantics: ["other"]
+    security_requirements: { confidentiality: moderate, integrity: high, availability: moderate }
+    state: specified
+    evidence:
+      - { source_type: arch-view, ref: VIEW-CONTEXT-PLATFORM, status: specified }
+
+  - id: FLOW-CTX-PLATFORM-TO-ONPREM
+    name: Platform to future on-prem target (reserved, inert)
+    description: >-
+      Reserved hybrid-connectivity path, dashed in platform-context.mmd.
+      Deferred past the MVP boundary by I21 -- a settled deferral, not an
+      open question, mirroring FLOW-HYBRID-VCN-TO-DRG's ADR-0008 stance at
+      the network-domain level.
+    source_ref: COMP-PLATFORM
+    destination_ref: COMP-ONPREM-FUTURE
+    transport: { network_protocol: unknown, ports: [] }
+    direction: outbound
+    authentication: { required: false, mechanisms: [] }
+    authorization: { required: false, mechanisms: [] }
+    security_requirements: { confidentiality: none, integrity: none, availability: none }
+    traffic_class_ref: ARCH-FLOW-HYBRID
+    state: candidate
+    evidence:
+      - { source_type: arch-view, ref: VIEW-CONTEXT-PLATFORM, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I21", status: candidate }
+
+  - id: FLOW-CTX-PLATFORM-TO-OTHERCLOUD
+    name: Platform to future other-cloud target (reserved, inert)
+    description: >-
+      Reserved future path, dashed in platform-context.mmd. See
+      COMP-OTHERCLOUD-FUTURE and GAP-CTX-001 for the I21/I22 labeling
+      question.
+    source_ref: COMP-PLATFORM
+    destination_ref: COMP-OTHERCLOUD-FUTURE
+    transport: { network_protocol: unknown, ports: [] }
+    direction: outbound
+    authentication: { required: false, mechanisms: [] }
+    authorization: { required: false, mechanisms: [] }
+    security_requirements: { confidentiality: none, integrity: none, availability: none }
+    state: candidate
+    evidence:
+      - { source_type: arch-view, ref: VIEW-CONTEXT-PLATFORM, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I21", status: candidate }
