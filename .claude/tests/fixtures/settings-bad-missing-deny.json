@@ -1,0 +1,77 @@
+{
+  "$schema": "https://www.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(tofu fmt*)",
+      "Bash(tofu validate*)",
+      "Bash(terragrunt plan*)",
+      "Bash(terragrunt hcl fmt --check*)",
+      "Bash(tflint*)",
+      "Bash(checkov*)",
+      "Bash(pre-commit run*)",
+      "Bash(npm run validate:*)",
+      "Bash(npm run test:*)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git show*)",
+      "Bash(oci os ns get*)"
+    ],
+    "ask": [
+      "Bash(tofu plan*)",
+      "Bash(terragrunt state list*)",
+      "Bash(git push*)"
+    ],
+    "deny": [
+      "Bash(tofu destroy*)",
+      "Bash(tofu import*)",
+      "Bash(tofu state *)",
+      "Bash(tofu force-unlock*)",
+      "Bash(terragrunt apply*)",
+      "Bash(terragrunt destroy*)",
+      "Bash(terragrunt run-all apply*)",
+      "Bash(terragrunt run-all destroy*)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git reset --hard*)",
+      "Bash(git clean -f*)",
+      "Bash(git branch -D*)",
+      "Bash(pass-cli run*)",
+      "Read(**/.oci/**)",
+      "Read(**/*.kubeconfig)",
+      "Read(**/kubeconfig*)",
+      "Read(**/*.env)",
+      "Read(**/*.env.*)",
+      "Read(**/id_rsa*)",
+      "Read(**/id_ed25519*)",
+      "Read(**/*talos*secret*)"
+    ]
+  },
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": false,
+    "allowUnsandboxedCommands": false,
+    "filesystem": {
+      "denyRead": [
+        "~/.ssh",
+        "~/.aws/credentials",
+        "./.env",
+        "./.env.*",
+        "./**/*.kubeconfig",
+        "./**/kubeconfig*"
+      ]
+    },
+    "credentials": {
+      "files": [
+        {
+          "path": "~/.aws/credentials",
+          "mode": "deny"
+        },
+        {
+          "path": "~/.ssh",
+          "mode": "deny"
+        }
+      ]
+    }
+  }
+}

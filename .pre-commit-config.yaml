@@ -83,3 +83,17 @@ repos:
         entry: .githooks/commit-msg
         language: system
         stages: [commit-msg]
+
+      - id: claude-settings-permissions
+        name: Claude Code settings.json permission-boundary check
+        entry: .claude/tests/settings-permissions.test.sh
+        language: system
+        files: '^\.claude/(settings\.json|hooks/block-destructive-commands\.sh|tests/settings-permissions\.test\.sh|tests/fixtures/settings-.*\.json)$'
+        pass_filenames: false
+
+      - id: claude-hooks-selftest
+        name: Claude Code hooks self-tests
+        entry: bash -c 'status=0; for t in .claude/hooks/*.test.sh; do "$t" || status=1; done; exit $status'
+        language: system
+        files: '^\.claude/hooks/'
+        pass_filenames: false
