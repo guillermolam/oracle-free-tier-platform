@@ -13,14 +13,14 @@ identity/governance/CI-CD → Kubernetes), evidence-first. `infrastructure/`
 is no longer reserved-only: `00-foundation` (compartment, IAM, the
 Terragrunt state-backend bucket) and `10-network` (VCN, 4 trust-zone
 subnets, Internet Gateway, DRG object) are real modules with real,
-partially-applied resources in the lab environment — NAT/Service Gateway,
-DRG route tables/attachment, and per-zone route tables are still blocked
-on real OCI service-limit constraints (see
-`infrastructure/modules/network/README.md`'s Failure modes section), not
-yet built. Consult `docs/00-overview/roadmap.md` for what milestone is
-actually in progress before assuming a component exists further along
-than this — do not infer that a later phase (e.g. Kubernetes bootstrap)
-has started from this file.
+partially-applied resources in the lab environment — NAT/Service Gateway
+remain blocked on Always Free quota (both limit 0; SPIKE-NET-01 tracks a
+Console-only limit-increase request), while the DRG attachment is
+unblocked via ADR-0009's reuse-and-strip of the auto-created DRG route
+table (no quota consumed). Consult `docs/00-overview/roadmap.md` for what
+milestone is actually in progress before assuming a component exists
+further along than this — do not infer that a later phase (e.g.
+Kubernetes bootstrap) has started from this file.
 
 - `docs/00-overview/` — vision, personas, roadmap.
 - `docs/01-architecture/`, `docs/arch/`, and `*.mmd` files — architecture

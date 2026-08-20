@@ -225,17 +225,21 @@ components:
     component_type: network-gateway
     description: >-
       Reserved for I21 hybrid connectivity (ADR-0008). Deployed object
-      confirmed via independent OCI CLI query against the live tenancy --
-      not yet attached to the VCN (the DRG attachment failed during PR
-      C2's apply on an unrelated OCI service-limit block, see
-      GAP-NET-004), so only the DRG object's own existence is
-      implemented, not the REQ-NET-009 "attached and inert" requirement
-      in full.
+      confirmed via independent OCI CLI query against the live tenancy.
+      Attached to the VCN via the reused, stripped OCI auto-created
+      "VCN attachments" DRG route table (ADR-0009 reuse-and-strip --
+      resolves GAP-NET-004): the table's default import route
+      distribution is nulled (remove_import_trigger) and the attachment's
+      default export distribution is nulled
+      (remove_export_drg_route_distribution_trigger), so REQ-NET-009's
+      "attached and inert" is implemented in full with zero per-DRG
+      route-table quota consumed.
     trust_zone_ref: ARCH-NET-VCN
     state: implemented
     evidence:
       - { source_type: spec, ref: "SPEC-NET-002.md#REQ-NET-009", status: specified }
       - { source_type: adr, ref: ADR-0008, status: specified }
+      - { source_type: adr, ref: ADR-0009, status: specified }
       - { source_type: deployed-observation, mechanism: oci-api, ref: "oci network drg list, 2026-08-18, state=AVAILABLE", status: implemented }
 
   - id: COMP-NAT-GATEWAY
@@ -407,29 +411,10 @@ gaps:
     evidence:
       - { source_type: roadmap, ref: "roadmap.md#SPIKE-IDP-01", status: decision-pending }
 
-  - id: GAP-NET-004
-    subject_ref: COMP-DRG
-    field: attachment, inert-routing mechanism
-    reason: >-
-      REQ-NET-009 requires the DRG created AND attached AND inert (zero
-      route rules, no import distribution). The DRG object exists but
-      its VCN attachment failed during PR C2's apply: OCI auto-creates 2
-      default DRG route tables per DRG (one for VCN attachments, one for
-      RPC/VC/IPSec), consuming the tenancy's per-DRG route-table limit
-      of 2 before a third custom "inert" table (ADR-0008's original
-      mechanism) could be created. Both auto-created tables carry a
-      default "accept all routes, no match criteria" import distribution
-      -- not inert as-is. Decision pending: reuse and strip one
-      auto-created table's import distribution (via
-      remove_import_trigger, confirmed supported by the oracle/oci
-      provider) versus requesting a limit increase to 3 and keeping a
-      third custom table. ADR-0008 amendment required either way to
-      record the implementation-mechanism change; the "attached but
-      inert" intent itself is unchanged.
-    blocking: false
-    evidence:
-      - { source_type: adr, ref: ADR-0008, status: decision-pending }
-      - { source_type: spec, ref: "SPEC-NET-002.md#REQ-NET-009", status: decision-pending }
+  # GAP-NET-004 (COMP-DRG attachment/inert mechanism) resolved 2026-08-20
+  # by ADR-0009 (reuse-and-strip the auto-created VCN-attachments DRG
+  # route table; remove_import_trigger + remove_export trigger): no
+  # per-DRG route-table quota consumed, REQ-NET-009 implemented in full.
 
 data_flows:
   - id: FLOW-INTERNET-TO-IGW

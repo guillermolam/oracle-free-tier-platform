@@ -13,7 +13,8 @@ Each ADR is one file: `ADR-NNNN-short-title.md`, status one of `Proposed`,
 | [ADR-0005](ADR-0005-flux-gitops.md) | Flux as the sole Kubernetes GitOps controller | Accepted |
 | [ADR-0006](ADR-0006-trust-zone-network-segmentation.md) | Four-zone trust-boundary network segmentation | Accepted |
 | [ADR-0007](ADR-0007-terragrunt-state-boundaries.md) | Terragrunt state boundary architecture for OCI live environments | Accepted |
-| [ADR-0008](ADR-0008-drg-reserved-inert-m1.md) | Reserve the DRG in M1; defer hybrid routing to I21 | Accepted |
+| [ADR-0008](ADR-0008-drg-reserved-inert-m1.md) | Reserve the DRG in M1; defer hybrid routing to I21 | Accepted (mechanism amended by ADR-0009) |
+| [ADR-0009](ADR-0009-drg-reuse-and-strip-inert-table.md) | DRG inert route table — reuse-and-strip the auto-created table | Accepted |
 
 ADR-0001 through ADR-0005 record decisions that were already implicit in
 `CONTRIBUTING.md`'s ownership model before any ADR existed; they catch the
