@@ -94,3 +94,7 @@ build/
 coverage/
 *.test
 *.out
+
+# Claude Code — personal/runtime-only, not shared project config
+.claude/settings.local.json
+.claude/agent-memory/

@@ -1,0 +1,5 @@
+{
+  "//": "Copy to settings.local.json (gitignored) for personal overrides only.",
+  "//_never": "Never put credentials, loosened deny rules, or machine-specific secrets here — permission rules merge across scopes, so this file cannot weaken .claude/settings.json's deny list.",
+  "model": "sonnet"
+}
