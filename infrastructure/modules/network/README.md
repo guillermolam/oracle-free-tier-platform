@@ -273,6 +273,20 @@ row above traces to a route this module's own `routing.tf` already
 creates; there is no egress destination in this table that routing
 doesn't also send traffic to.
 
+**Software-NAT is route-only today — forwarding is not yet authorized.**
+The `micro-nat` instance (I04/compute) lives on the Edge subnet, so the
+Management/Workload/Data → `0.0.0.0/0` route's traffic arrives at its
+VNIC as *ingress to Edge*. With this baseline's zero Edge ingress rules,
+that traffic is deliberately dropped — the software-NAT path cannot
+forward until I04 attaches micro-nat's own authorization (an NSG or
+Security List ingress rule permitting the Management/Workload/Data CIDRs
+to reach it) *and* sets `skip_source_dest_check` on its VNIC, both of
+which are I04/compute concerns outside this module. Until then, "routable
+but not authorized" holds *for the forwarded path itself*, not just for
+unrelated inbound traffic — this is the intended interim state, not a
+gap: the route exists so the target is pinned correctly, and the drop is
+the baseline's default-deny doing its job.
+
 ## Traffic-flow reconciliation (post–PR C2)
 
 Using `docs/01-architecture/traceability.md`'s RED/GREEN/BLUE/PURPLE/
