@@ -56,9 +56,14 @@ output "route_table_ids" {
   description = "Route table OCIDs keyed by trust-zone name (REQ-NET-011)."
 }
 
-# SPEC-NET-004 Interfaces (partial -- security_list_ids only; nsg_ids
-# awaits PR C3): security_list_ids{edge,management,workload,data}.
+# SPEC-NET-004 Interfaces: security_list_ids{edge,management,workload,data}
+# and nsg_ids{ziti,ingress,control,worker,storage}.
 output "security_list_ids" {
   value       = { for zone, sl in oci_core_security_list.this : zone => sl.id }
-  description = "Baseline Security List OCIDs keyed by trust-zone name (REQ-NET-016). NSG creation/output (REQ-NET-017) is PR C3."
+  description = "Baseline Security List OCIDs keyed by trust-zone name (REQ-NET-016)."
+}
+
+output "nsg_ids" {
+  value       = { for purpose, nsg in oci_core_network_security_group.this : purpose => nsg.id }
+  description = "Network Security Group OCIDs keyed by purpose: ziti, ingress, control, worker, storage (REQ-NET-017). All five NSGs are required by SPEC-NET-004; the compute module tolerates omitted keys via object optional() fields."
 }
