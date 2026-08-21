@@ -121,7 +121,7 @@ run "no_nsg_permits_0_0_0_0_except_ingress_and_ziti" {
     condition = alltrue([
       for rule in oci_core_network_security_group_security_rule.control_inbound_ziti :
       rule.source != "0.0.0.0/0"
-    ]) && alltrue([
+      ]) && alltrue([
       for rule in oci_core_network_security_group_security_rule.control_inbound_worker_api :
       rule.source != "0.0.0.0/0"
     ])
@@ -132,7 +132,7 @@ run "no_nsg_permits_0_0_0_0_except_ingress_and_ziti" {
     condition = alltrue([
       for rule in oci_core_network_security_group_security_rule.worker_inbound_control_api :
       rule.source != "0.0.0.0/0"
-    ]) && alltrue([
+      ]) && alltrue([
       for rule in oci_core_network_security_group_security_rule.worker_inbound_control_kubelet :
       rule.source != "0.0.0.0/0"
     ])
