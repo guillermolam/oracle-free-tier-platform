@@ -23,10 +23,10 @@ dependency "network" {
   config_path = "../10-network"
   mock_outputs = {
     subnet_ids = {
-      edge     = "ocid1.subnet.oc1..mockmockmockmockmockmockmockmockmockmockmockmockmock"
+      edge       = "ocid1.subnet.oc1..mockmockmockmockmockmockmockmockmockmockmockmockmock"
       management = "ocid1.subnet.oc1..mockmockmockmockmockmockmockmockmockmockmockmockmock"
-      workload = "ocid1.subnet.oc1..mockmockmockmockmockmockmockmockmockmockmockmockmock"
-      data     = "ocid1.subnet.oc1..mockmockmockmockmockmockmockmockmockmockmockmockmock"
+      workload   = "ocid1.subnet.oc1..mockmockmockmockmockmockmockmockmockmockmockmockmock"
+      data       = "ocid1.subnet.oc1..mockmockmockmockmockmockmockmockmockmockmockmockmock"
     }
     nsg_ids = {
       ziti    = "ocid1.networksecuritygroup.oc1..mockmockmockmockmockmockmockmockmockmockmock"
