@@ -137,41 +137,6 @@ variable "firewall_rules" {
   }
 }
 
-variable "admin_user" {
-  type        = string
-  description = "Administrative user account name"
-  default     = "ubuntu"
-
-  validation {
-    condition     = can(regex("^[a-z_][a-z0-9_-]{0,31}$", var.admin_user))
-    error_message = "Admin user must be a valid Linux username."
-  }
-}
-
-variable "admin_ssh_key" {
-  type        = string
-  description = "Public SSH key for admin user (e.g., 'ssh-ed25519 AAAA...')"
-  default     = ""
-  sensitive   = true
-}
-
-variable "bootstrap_cidr" {
-  type        = string
-  description = "CIDR block allowed for bootstrap SSH access (e.g., '203.0.113.0/24')"
-  default     = ""
-}
-
-variable "ssh_port" {
-  type        = number
-  description = "SSH port number"
-  default     = 22
-
-  validation {
-    condition     = var.ssh_port >= 1 && var.ssh_port <= 65535
-    error_message = "SSH port must be between 1 and 65535."
-  }
-}
-
 variable "hostname" {
   type        = string
   description = "Server hostname"
@@ -216,10 +181,4 @@ variable "metadata_enabled" {
   type        = bool
   description = "Enable cloud-init metadata service"
   default     = true
-}
-
-variable "user_data" {
-  type        = string
-  description = "Cloud-init user data script"
-  default     = ""
 }
