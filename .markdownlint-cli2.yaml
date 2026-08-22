@@ -15,4 +15,6 @@ globs:
   - "*.md"
   - ".github/**/*.md"
   - "infrastructure/**/*.md"
-no-ignore: true
+ignores:
+  - "**/.terraform/**"
+  - "**/node_modules/**"

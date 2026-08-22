@@ -18,13 +18,20 @@ repos:
   - repo: https://github.com/antonbabenko/pre-commit-terraform
     rev: v1.108.1
     hooks:
+      # .claude/skills/new-tofu-module/templates/ holds HCL *templates* for
+      # scaffolding a module, not a configuration anyone applies. They are
+      # kept syntactically valid so `tofu fmt` stays clean over them, but
+      # they must not be init'd, validated, linted, or policy-scanned as if
+      # they were real infrastructure.
       - id: terraform_fmt
         args: ["--hook-config=--tf-path=tofu"]
       - id: terraform_validate
-        exclude: ^infrastructure/live/
+        exclude: ^(infrastructure/live/|\.claude/)
         args: ["--hook-config=--tf-path=tofu"]
       - id: terraform_tflint
+        exclude: ^\.claude/
       - id: checkov
+        exclude: ^\.claude/
         # CKV_OCI_9/16/19: see .github/workflows/validate.yml's checkov step
         # and infrastructure/modules/foundation/state_backend.tf /
         # infrastructure/modules/network/security_lists.tf's comments --
@@ -97,3 +104,46 @@ repos:
         language: system
         files: '^\.claude/hooks/'
         pass_filenames: false
+
+      - id: helm-charts-validate
+        name: Helm chart validation (lint / template / pinned appVersion)
+        entry: scripts/validate-helm-charts.sh
+        language: system
+        files: '^helm-charts/'
+        pass_filenames: false
+
+      - id: helm-charts-validator-test
+        name: Helm chart validator self-test
+        entry: scripts/validate-helm-charts.test.sh
+        language: system
+        files: '^scripts/validate-helm-charts(\.test)?\.sh$'
+        pass_filenames: false
+
+      - id: kyverno-policies-validate
+        name: Kyverno policy validation (structure + ADR-0004 boundary)
+        entry: scripts/validate-kyverno-policies.mjs
+        language: system
+        files: '^platform/kyverno-policies/'
+        pass_filenames: false
+
+      - id: kyverno-policies-validator-test
+        name: Kyverno policy validator self-test
+        entry: scripts/validate-kyverno-policies.test.mjs
+        language: system
+        files: '^scripts/validate-kyverno-policies(\.test)?\.mjs$'
+        pass_filenames: false
+
+      # shfmt is deliberately NOT wired in here (or in shell.yml), even
+      # though .trunk/trunk.yaml enables it: running it over the existing
+      # scripts produces a ~4.5k-line whole-repo reformat, mostly collapsing
+      # the double-space alignment this repo uses before `||`. Adopting it
+      # is a one-time reformat commit someone has to decide to make, not a
+      # gate to switch on underneath existing work.
+      - id: shellcheck
+        name: ShellCheck
+        # --severity=warning mirrors .github/workflows/shell.yml exactly --
+        # if these two drift, a commit that passes locally fails in CI.
+        entry: shellcheck --external-sources --severity=warning
+        language: system
+        types: [shell]
+        files: '\.sh$|^\.githooks/'

@@ -157,6 +157,13 @@ in [`views.md`](views.md).
 | `ARCH-K8S-NETWORK` | The pod/service network layer Cilium owns, distinct from the OCI/node network beneath it. | VIEW-K8S-NETWORK | — |
 | `ARCH-K8S-NAMESPACE` | The namespace boundary concept — every concrete namespace remains a candidate pending I05. | VIEW-GOV-K8S-TENANCY | VIEW-K8S-SECURITY-BOUNDARIES |
 
+### Compute
+
+| ID | Meaning | Primary View | Detail View |
+| --- | --- | --- | --- |
+| `ARCH-COMP-NODE` | A Talos compute node instance (control plane or worker) — the A1.Flex ARM64 machines the cluster runs on. | VIEW-K8S-DEPLOYMENT | VIEW-CLOUD-DEPLOYMENT |
+| `ARCH-COMP-MICRO-NAT` | The software-NAT forwarding instance (x86 AMD Micro, Edge zone) — private-zone egress target while managed NAT is quota-blocked. | VIEW-NET-ROUTING | VIEW-CLOUD-DEPLOYMENT |
+
 ### Identity (Kubernetes/workload)
 
 | ID | Meaning | Primary View | Detail View |
