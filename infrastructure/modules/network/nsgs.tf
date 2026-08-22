@@ -71,7 +71,6 @@ resource "oci_core_network_security_group" "this" {
 resource "oci_core_network_security_group_security_rule" "ziti_inbound_internet" {
   network_security_group_id = oci_core_network_security_group.this["ziti"].id
   direction                 = "INGRESS"
-  stateless                 = true
   protocol                  = "6" # TCP
 
   source      = "0.0.0.0/0"
@@ -91,7 +90,6 @@ resource "oci_core_network_security_group_security_rule" "ziti_inbound_internet"
 resource "oci_core_network_security_group_security_rule" "ziti_inbound_worker_status" {
   network_security_group_id = oci_core_network_security_group.this["ziti"].id
   direction                 = "INGRESS"
-  stateless                 = true
   protocol                  = "6" # TCP
 
   source      = oci_core_network_security_group.this["worker"].id
@@ -127,7 +125,6 @@ resource "oci_core_network_security_group_security_rule" "ziti_outbound_control"
 }
 
 # Outbound to workers (return traffic, all protocols)
-# checkov:skip=CKV2_OCI_2: Egress Ziti edge -> workers (return/status); internal NSG target, no RDP exposure
 resource "oci_core_network_security_group_security_rule" "ziti_outbound_worker" {
   network_security_group_id = oci_core_network_security_group.this["ziti"].id
   direction                 = "EGRESS"
@@ -145,7 +142,6 @@ resource "oci_core_network_security_group_security_rule" "ziti_outbound_worker" 
 resource "oci_core_network_security_group_security_rule" "ingress_inbound_http" {
   network_security_group_id = oci_core_network_security_group.this["ingress"].id
   direction                 = "INGRESS"
-  stateless                 = true
   protocol                  = "6"
 
   source      = "0.0.0.0/0"
@@ -165,7 +161,6 @@ resource "oci_core_network_security_group_security_rule" "ingress_inbound_http" 
 resource "oci_core_network_security_group_security_rule" "ingress_inbound_https" {
   network_security_group_id = oci_core_network_security_group.this["ingress"].id
   direction                 = "INGRESS"
-  stateless                 = true
   protocol                  = "6"
 
   source      = "0.0.0.0/0"
@@ -182,7 +177,6 @@ resource "oci_core_network_security_group_security_rule" "ingress_inbound_https"
 }
 
 # Outbound to workers
-# checkov:skip=CKV2_OCI_2: Egress ingress zone -> workers (application traffic); internal NSG target
 resource "oci_core_network_security_group_security_rule" "ingress_outbound_worker" {
   network_security_group_id = oci_core_network_security_group.this["ingress"].id
   direction                 = "EGRESS"
@@ -200,7 +194,6 @@ resource "oci_core_network_security_group_security_rule" "ingress_outbound_worke
 resource "oci_core_network_security_group_security_rule" "control_inbound_ziti" {
   network_security_group_id = oci_core_network_security_group.this["control"].id
   direction                 = "INGRESS"
-  stateless                 = true
   protocol                  = "6"
 
   source      = oci_core_network_security_group.this["ziti"].id
@@ -220,7 +213,6 @@ resource "oci_core_network_security_group_security_rule" "control_inbound_ziti" 
 resource "oci_core_network_security_group_security_rule" "control_inbound_worker_api" {
   network_security_group_id = oci_core_network_security_group.this["control"].id
   direction                 = "INGRESS"
-  stateless                 = true
   protocol                  = "6"
 
   source      = oci_core_network_security_group.this["worker"].id
@@ -237,11 +229,9 @@ resource "oci_core_network_security_group_security_rule" "control_inbound_worker
 }
 
 # Inbound from control to control (inter-control plane: etcd, leader election)
-# checkov:skip=CKV2_OCI_2: Inter-control-plane (etcd/leader election); control NSG source only
 resource "oci_core_network_security_group_security_rule" "control_inbound_self" {
   network_security_group_id = oci_core_network_security_group.this["control"].id
   direction                 = "INGRESS"
-  stateless                 = true
   protocol                  = "all"
 
   source      = oci_core_network_security_group.this["control"].id
@@ -251,7 +241,6 @@ resource "oci_core_network_security_group_security_rule" "control_inbound_self" 
 }
 
 # Outbound to workers
-# checkov:skip=CKV2_OCI_2: Egress control -> workers (API/kubelet); internal NSG target
 resource "oci_core_network_security_group_security_rule" "control_outbound_worker" {
   network_security_group_id = oci_core_network_security_group.this["control"].id
   direction                 = "EGRESS"
@@ -264,7 +253,6 @@ resource "oci_core_network_security_group_security_rule" "control_outbound_worke
 }
 
 # Outbound to storage (block volume operations)
-# checkov:skip=CKV2_OCI_2: Egress control -> storage (block volumes); internal NSG target
 resource "oci_core_network_security_group_security_rule" "control_outbound_storage" {
   network_security_group_id = oci_core_network_security_group.this["control"].id
   direction                 = "EGRESS"
@@ -282,7 +270,6 @@ resource "oci_core_network_security_group_security_rule" "control_outbound_stora
 resource "oci_core_network_security_group_security_rule" "worker_inbound_control_api" {
   network_security_group_id = oci_core_network_security_group.this["worker"].id
   direction                 = "INGRESS"
-  stateless                 = true
   protocol                  = "6"
 
   source      = oci_core_network_security_group.this["control"].id
@@ -302,7 +289,6 @@ resource "oci_core_network_security_group_security_rule" "worker_inbound_control
 resource "oci_core_network_security_group_security_rule" "worker_inbound_control_kubelet" {
   network_security_group_id = oci_core_network_security_group.this["worker"].id
   direction                 = "INGRESS"
-  stateless                 = true
   protocol                  = "6"
 
   source      = oci_core_network_security_group.this["control"].id
@@ -322,7 +308,6 @@ resource "oci_core_network_security_group_security_rule" "worker_inbound_control
 resource "oci_core_network_security_group_security_rule" "worker_inbound_control_vxlan" {
   network_security_group_id = oci_core_network_security_group.this["worker"].id
   direction                 = "INGRESS"
-  stateless                 = true
   protocol                  = "17"
 
   source      = oci_core_network_security_group.this["control"].id
@@ -342,7 +327,6 @@ resource "oci_core_network_security_group_security_rule" "worker_inbound_control
 resource "oci_core_network_security_group_security_rule" "worker_inbound_control_geneve" {
   network_security_group_id = oci_core_network_security_group.this["worker"].id
   direction                 = "INGRESS"
-  stateless                 = true
   protocol                  = "17"
 
   source      = oci_core_network_security_group.this["control"].id
@@ -359,11 +343,9 @@ resource "oci_core_network_security_group_security_rule" "worker_inbound_control
 }
 
 # Inbound from worker to worker (node-to-node communication)
-# checkov:skip=CKV2_OCI_2: Worker-to-worker overlay (VXLAN/Geneve); worker NSG source only
 resource "oci_core_network_security_group_security_rule" "worker_inbound_self" {
   network_security_group_id = oci_core_network_security_group.this["worker"].id
   direction                 = "INGRESS"
-  stateless                 = true
   protocol                  = "all"
 
   source      = oci_core_network_security_group.this["worker"].id
@@ -373,7 +355,6 @@ resource "oci_core_network_security_group_security_rule" "worker_inbound_self" {
 }
 
 # Outbound to control plane (API calls)
-# checkov:skip=CKV2_OCI_2: Egress workers -> control (K8s API 6443); internal NSG target
 resource "oci_core_network_security_group_security_rule" "worker_outbound_control" {
   network_security_group_id = oci_core_network_security_group.this["worker"].id
   direction                 = "EGRESS"
@@ -386,7 +367,6 @@ resource "oci_core_network_security_group_security_rule" "worker_outbound_contro
 }
 
 # Outbound to storage (block volume operations)
-# checkov:skip=CKV2_OCI_2: Egress workers -> storage (iSCSI 3260); internal NSG target
 resource "oci_core_network_security_group_security_rule" "worker_outbound_storage" {
   network_security_group_id = oci_core_network_security_group.this["worker"].id
   direction                 = "EGRESS"
@@ -404,7 +384,6 @@ resource "oci_core_network_security_group_security_rule" "worker_outbound_storag
 resource "oci_core_network_security_group_security_rule" "storage_inbound_worker_iscsi" {
   network_security_group_id = oci_core_network_security_group.this["storage"].id
   direction                 = "INGRESS"
-  stateless                 = true
   protocol                  = "6"
 
   source      = oci_core_network_security_group.this["worker"].id
@@ -424,7 +403,6 @@ resource "oci_core_network_security_group_security_rule" "storage_inbound_worker
 resource "oci_core_network_security_group_security_rule" "storage_inbound_control_iscsi" {
   network_security_group_id = oci_core_network_security_group.this["storage"].id
   direction                 = "INGRESS"
-  stateless                 = true
   protocol                  = "6"
 
   source      = oci_core_network_security_group.this["control"].id
@@ -441,7 +419,6 @@ resource "oci_core_network_security_group_security_rule" "storage_inbound_contro
 }
 
 # Outbound to workers (return traffic)
-# checkov:skip=CKV2_OCI_2: Egress storage -> workers (iSCSI); internal NSG target
 resource "oci_core_network_security_group_security_rule" "storage_outbound_worker" {
   network_security_group_id = oci_core_network_security_group.this["storage"].id
   direction                 = "EGRESS"
@@ -454,7 +431,6 @@ resource "oci_core_network_security_group_security_rule" "storage_outbound_worke
 }
 
 # Outbound to control plane (return traffic)
-# checkov:skip=CKV2_OCI_2: Egress storage -> control (iSCSI); internal NSG target
 resource "oci_core_network_security_group_security_rule" "storage_outbound_control" {
   network_security_group_id = oci_core_network_security_group.this["storage"].id
   direction                 = "EGRESS"
