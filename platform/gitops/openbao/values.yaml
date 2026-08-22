@@ -1,0 +1,53 @@
+global:
+  tlsDisable: false
+
+injector:
+  enabled: false
+
+server:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+  nodeSelector:
+    kubernetes.io/os: linux
+  affinity: ""
+  service:
+    type: ClusterIP
+  dataStorage:
+    enabled: true
+    size: 10Gi
+  auditStorage:
+    enabled: true
+    size: 5Gi
+  volumes:
+    - name: openbao-bootstrap-tls
+      secret:
+        secretName: openbao-bootstrap-tls
+  volumeMounts:
+    - name: openbao-bootstrap-tls
+      mountPath: /openbao/tls
+      readOnly: true
+  standalone:
+    enabled: true
+    config: |
+      ui = true
+
+      listener "tcp" {
+        address = "[::]:8200"
+        cluster_address = "[::]:8201"
+        tls_disable = 0
+        tls_cert_file = "/openbao/tls/tls.crt"
+        tls_key_file = "/openbao/tls/tls.key"
+      }
+
+      storage "file" {
+        path = "/openbao/data"
+      }
+
+ui:
+  enabled: true
+  serviceType: ClusterIP
