@@ -1,0 +1,52 @@
+name: platform-validate
+
+on:
+  pull_request:
+    paths:
+      - "platform/**"
+      - "scripts/validate-platform.sh"
+      - ".github/workflows/platform-validate.yml"
+      - "docs/02-decisions/ADR-0010-crossplane-bootstrap-boundary.md"
+      - "docs/05-security/supply-chain.md"
+  push:
+    branches: ["main"]
+    paths:
+      - "platform/**"
+      - "scripts/validate-platform.sh"
+      - ".github/workflows/platform-validate.yml"
+      - "docs/02-decisions/ADR-0010-crossplane-bootstrap-boundary.md"
+      - "docs/05-security/supply-chain.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: platform-validate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  render:
+    name: Platform render validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install kubectl
+        run: |
+          set -euo pipefail
+          curl -fsSLo kubectl "https://dl.k8s.io/release/v1.36.1/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo install kubectl /usr/local/bin/kubectl
+
+      - name: Install Helm
+        run: |
+          set -euo pipefail
+          curl -fsSLo helm.tar.gz "https://get.helm.sh/helm-v4.2.4-linux-amd64.tar.gz"
+          tar -xzf helm.tar.gz
+          sudo install linux-amd64/helm /usr/local/bin/helm
+
+      - name: Validate platform manifests
+        run: scripts/validate-platform.sh

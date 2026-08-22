@@ -1,0 +1,18 @@
+cluster:
+  mode: standalone
+
+clientApi:
+  advertisedHost: ziti-controller.openziti.svc.cluster.local
+  service:
+    type: ClusterIP
+
+managementApi:
+  service:
+    enabled: false
+
+ctrlPlane:
+  service:
+    enabled: false
+
+console:
+  enabled: false
