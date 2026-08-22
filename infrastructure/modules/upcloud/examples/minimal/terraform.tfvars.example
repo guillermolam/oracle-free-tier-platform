@@ -1,0 +1,25 @@
+# Minimal example terraform.tfvars
+# Copy this file to terraform.tfvars and customize values
+
+# Set UPCLOUD_API_TOKEN environment variable before running terraform:
+# export UPCLOUD_API_TOKEN="<your-api-token>"
+
+zone             = "es-mad1"
+plan             = "DEV-2xCPU-4GB"
+disk_size        = 60
+hostname         = "k8s-lab-1"
+admin_user       = "ubuntu"
+admin_ssh_key    = "ssh-ed25519 AAAA..." # Replace with your public key
+bootstrap_cidr   = "203.0.113.10/32"     # Replace with your IP address
+ssh_port         = 22
+network_name     = "k8s-lab-network"
+network_cidr     = "10.0.0.0/24"
+router_name      = "k8s-lab-router"
+storage_tier     = "standard"
+metadata_enabled = true
+
+tags = {
+  environment = "lab"
+  owner       = "platform"
+  purpose     = "kubernetes-bootstrap"
+}
