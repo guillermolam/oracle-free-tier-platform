@@ -98,3 +98,7 @@ coverage/
 # Claude Code — personal/runtime-only, not shared project config
 .claude/settings.local.json
 .claude/agent-memory/
+spikes/**/*.pem
+spikes/**/*.key
+spikes/**/*.log
+spikes/**/.env
