@@ -1,0 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - helmrepository-argocd.yaml
+  - ocirepository-cert-manager.yaml
+  - helmrepository-dex.yaml
+  - helmrepository-external-secrets.yaml
+  - helmrepository-openbao.yaml
+  - helmrepository-openziti.yaml
+  - helmrepository-spire.yaml

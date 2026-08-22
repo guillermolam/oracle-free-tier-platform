@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: openbao-bootstrap-tls
+  namespace: openbao
+type: kubernetes.io/tls
+data:
+  tls.crt: ENC[AES256_GCM,data:ZmFrZS1jcnQ=,iv:AAAAAAAAAAAAAAAAAAAAAA==,tag:AAAAAAAAAAAAAAAAAAAAAA==,type:str]
+  tls.key: ENC[AES256_GCM,data:ZmFrZS1rZXk=,iv:BBBBBBBBBBBBBBBBBBBBBB==,tag:BBBBBBBBBBBBBBBBBBBBBB==,type:str]
+sops:
+  age:
+    - recipient: age1exampleexampleexampleexampleexampleexampleexample
+      enc: |
+        -----BEGIN AGE ENCRYPTED FILE-----
+        ZmFrZS1lbmNyeXB0ZWQta2V5LW1hdGVyaWFs
+        -----END AGE ENCRYPTED FILE-----
+  lastmodified: "2026-08-22T00:00:00Z"
+  mac: ENC[AES256_GCM,data:fake-mac,iv:CCCCCCCCCCCCCCCCCCCCCC==,tag:CCCCCCCCCCCCCCCCCCCCCC==,type:str]
+  version: 3.9.0

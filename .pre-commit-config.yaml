@@ -5,7 +5,7 @@ repos:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
-        exclude: ^(infrastructure/live|infrastructure/compositions)/
+        exclude: ^(infrastructure/live|infrastructure/compositions)/|^platform/clusters/[^/]+/flux-system/gotk-(components|sync)\.yaml$
       - id: check-added-large-files
         args: ["--maxkb=2048"]
       - id: check-merge-conflict
@@ -47,6 +47,22 @@ repos:
         entry: scripts/check-gpg-signing.test.sh
         language: system
         files: '^scripts/check-gpg-signing(\.test)?\.sh$'
+        pass_filenames: false
+        stages: [pre-commit]
+
+      - id: m4-bootstrap-tls-test
+        name: M4 OpenBao bootstrap TLS self-test
+        entry: scripts/apply-openbao-bootstrap-tls.test.sh
+        language: system
+        files: '^scripts/(apply-openbao-bootstrap-tls(\.test|-inner)?\.sh|verify-m4\.sh|tests/fixtures/openbao-bootstrap-tls\.enc\.yaml)$|^bootstrap/sops/lab/README\.md$'
+        pass_filenames: false
+        stages: [pre-commit]
+
+      - id: platform-validate
+        name: Platform manifest render validation
+        entry: scripts/validate-platform.sh
+        language: system
+        files: '^platform/|^scripts/validate-platform\.sh$|^docs/02-decisions/ADR-0010-crossplane-bootstrap-boundary\.md$|^docs/05-security/supply-chain\.md$'
         pass_filenames: false
         stages: [pre-commit]
 

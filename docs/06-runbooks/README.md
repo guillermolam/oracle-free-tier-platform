@@ -1,10 +1,12 @@
 # Runbooks
 
-Empty until the components they operate exist. First runbooks land with I19
-(Backup & Disaster Recovery) and I24 (Operations & Day-2):
+Runbooks land with the same PRs that introduce the operated capability.
+M4 adds the first concrete bootstrap runbook for OpenBao TLS:
 
 | Runbook | Lands with |
 | --- | --- |
+| `m4-bootstrap-openbao.md` | I11/M4 bootstrap TLS Secret path |
+| `m4-bootstrap-dex.md` | I11/M4 Dex GitHub OAuth bootstrap Secret path |
 | `node-replacement.md` | I04/I24, after Talos compute exists |
 | `certificate-rotation.md` | I11 EPIC-SEC-03 |
 | `secret-rotation.md` | I11 EPIC-SEC-01/02 |
