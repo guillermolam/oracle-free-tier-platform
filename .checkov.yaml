@@ -1,0 +1,23 @@
+# Zero Trust DevSecOps Checkov Configuration
+# Based on emiresh/zero-trust-devsecops best practices
+#
+# NOTE: Pre-commit hook (`.pre-commit-config.yaml`) passes --skip-check args
+# directly to Checkov. Keep this file aligned with that configuration to avoid
+# conflicts. See .pre-commit-config.yaml:34 for the authoritative skip list.
+
+framework:
+  - terraform
+
+# BLOCK deployment on security failures (critical)
+soft-fail: false
+
+# Download external modules for comprehensive scanning
+download-external-modules: true
+
+# Output formats
+output:
+  - sarif
+  - cli
+
+# Reporting
+external-checks-dir: []
