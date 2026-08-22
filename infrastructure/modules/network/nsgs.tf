@@ -71,6 +71,7 @@ resource "oci_core_network_security_group" "this" {
 resource "oci_core_network_security_group_security_rule" "ziti_inbound_internet" {
   network_security_group_id = oci_core_network_security_group.this["ziti"].id
   direction                 = "INGRESS"
+  stateless                 = true
   protocol                  = "6" # TCP
 
   source      = "0.0.0.0/0"
@@ -90,6 +91,7 @@ resource "oci_core_network_security_group_security_rule" "ziti_inbound_internet"
 resource "oci_core_network_security_group_security_rule" "ziti_inbound_worker_status" {
   network_security_group_id = oci_core_network_security_group.this["ziti"].id
   direction                 = "INGRESS"
+  stateless                 = true
   protocol                  = "6" # TCP
 
   source      = oci_core_network_security_group.this["worker"].id
@@ -142,6 +144,7 @@ resource "oci_core_network_security_group_security_rule" "ziti_outbound_worker" 
 resource "oci_core_network_security_group_security_rule" "ingress_inbound_http" {
   network_security_group_id = oci_core_network_security_group.this["ingress"].id
   direction                 = "INGRESS"
+  stateless                 = true
   protocol                  = "6"
 
   source      = "0.0.0.0/0"
@@ -161,6 +164,7 @@ resource "oci_core_network_security_group_security_rule" "ingress_inbound_http" 
 resource "oci_core_network_security_group_security_rule" "ingress_inbound_https" {
   network_security_group_id = oci_core_network_security_group.this["ingress"].id
   direction                 = "INGRESS"
+  stateless                 = true
   protocol                  = "6"
 
   source      = "0.0.0.0/0"
@@ -194,6 +198,7 @@ resource "oci_core_network_security_group_security_rule" "ingress_outbound_worke
 resource "oci_core_network_security_group_security_rule" "control_inbound_ziti" {
   network_security_group_id = oci_core_network_security_group.this["control"].id
   direction                 = "INGRESS"
+  stateless                 = true
   protocol                  = "6"
 
   source      = oci_core_network_security_group.this["ziti"].id
@@ -213,6 +218,7 @@ resource "oci_core_network_security_group_security_rule" "control_inbound_ziti" 
 resource "oci_core_network_security_group_security_rule" "control_inbound_worker_api" {
   network_security_group_id = oci_core_network_security_group.this["control"].id
   direction                 = "INGRESS"
+  stateless                 = true
   protocol                  = "6"
 
   source      = oci_core_network_security_group.this["worker"].id
@@ -232,6 +238,7 @@ resource "oci_core_network_security_group_security_rule" "control_inbound_worker
 resource "oci_core_network_security_group_security_rule" "control_inbound_self" {
   network_security_group_id = oci_core_network_security_group.this["control"].id
   direction                 = "INGRESS"
+  stateless                 = true
   protocol                  = "all"
 
   source      = oci_core_network_security_group.this["control"].id
@@ -270,6 +277,7 @@ resource "oci_core_network_security_group_security_rule" "control_outbound_stora
 resource "oci_core_network_security_group_security_rule" "worker_inbound_control_api" {
   network_security_group_id = oci_core_network_security_group.this["worker"].id
   direction                 = "INGRESS"
+  stateless                 = true
   protocol                  = "6"
 
   source      = oci_core_network_security_group.this["control"].id
@@ -289,6 +297,7 @@ resource "oci_core_network_security_group_security_rule" "worker_inbound_control
 resource "oci_core_network_security_group_security_rule" "worker_inbound_control_kubelet" {
   network_security_group_id = oci_core_network_security_group.this["worker"].id
   direction                 = "INGRESS"
+  stateless                 = true
   protocol                  = "6"
 
   source      = oci_core_network_security_group.this["control"].id
@@ -308,6 +317,7 @@ resource "oci_core_network_security_group_security_rule" "worker_inbound_control
 resource "oci_core_network_security_group_security_rule" "worker_inbound_control_vxlan" {
   network_security_group_id = oci_core_network_security_group.this["worker"].id
   direction                 = "INGRESS"
+  stateless                 = true
   protocol                  = "17"
 
   source      = oci_core_network_security_group.this["control"].id
@@ -327,6 +337,7 @@ resource "oci_core_network_security_group_security_rule" "worker_inbound_control
 resource "oci_core_network_security_group_security_rule" "worker_inbound_control_geneve" {
   network_security_group_id = oci_core_network_security_group.this["worker"].id
   direction                 = "INGRESS"
+  stateless                 = true
   protocol                  = "17"
 
   source      = oci_core_network_security_group.this["control"].id
@@ -346,6 +357,7 @@ resource "oci_core_network_security_group_security_rule" "worker_inbound_control
 resource "oci_core_network_security_group_security_rule" "worker_inbound_self" {
   network_security_group_id = oci_core_network_security_group.this["worker"].id
   direction                 = "INGRESS"
+  stateless                 = true
   protocol                  = "all"
 
   source      = oci_core_network_security_group.this["worker"].id
@@ -384,6 +396,7 @@ resource "oci_core_network_security_group_security_rule" "worker_outbound_storag
 resource "oci_core_network_security_group_security_rule" "storage_inbound_worker_iscsi" {
   network_security_group_id = oci_core_network_security_group.this["storage"].id
   direction                 = "INGRESS"
+  stateless                 = true
   protocol                  = "6"
 
   source      = oci_core_network_security_group.this["worker"].id
@@ -403,6 +416,7 @@ resource "oci_core_network_security_group_security_rule" "storage_inbound_worker
 resource "oci_core_network_security_group_security_rule" "storage_inbound_control_iscsi" {
   network_security_group_id = oci_core_network_security_group.this["storage"].id
   direction                 = "INGRESS"
+  stateless                 = true
   protocol                  = "6"
 
   source      = oci_core_network_security_group.this["control"].id

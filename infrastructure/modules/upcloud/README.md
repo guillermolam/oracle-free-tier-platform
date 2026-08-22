@@ -85,7 +85,7 @@ None — all inputs have sensible defaults.
 | `router_id` | string | Router ID |
 | `storage_id` | string | Root disk storage ID |
 | `storage_size` | number | Storage size in GB |
-| `firewall_rule_ids` | list(string) | Firewall rule IDs |
+| `firewall_rule_count` | number | Number of configured firewall rules |
 
 ## Assumptions
 

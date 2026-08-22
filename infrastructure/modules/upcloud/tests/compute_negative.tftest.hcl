@@ -1,3 +1,20 @@
+mock_provider "upcloud" {
+  override_data {
+    target = data.upcloud_zones.available
+    values = {
+      zone_ids = ["es-mad1"]
+    }
+  }
+
+  override_data {
+    target = data.upcloud_storage.os_image
+    values = {
+      id    = "storage-debian-13-template"
+      title = "Debian 13"
+    }
+  }
+}
+
 run "invalid_disk_size_too_small" {
   command = plan
 
@@ -95,8 +112,7 @@ run "invalid_zone_format" {
     zone = "invalid-zone" # Wrong format
   }
 
-  # This may or may not fail validation depending on whether the zone check runs
-  # before the format check. The condition checks the zone value.
+  expect_failures = [var.zone]
 }
 
 run "invalid_storage_tier" {
@@ -127,6 +143,5 @@ run "invalid_network_cidr_format" {
     network_cidr = "not-a-cidr"
   }
 
-  # CIDR validation is loose in Terraform; UpCloud will reject invalid CIDRs
-  # This test documents the behavior but may not fail validation
+  expect_failures = [var.network_cidr]
 }

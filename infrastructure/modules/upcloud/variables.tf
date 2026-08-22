@@ -4,7 +4,7 @@ variable "zone" {
   default     = "es-mad1"
 
   validation {
-    condition     = can(regex("^[a-z]{2}-[a-z]+-\\d+$", var.zone))
+    condition     = can(regex("^[a-z]{2}-[a-z]+\\d+$", var.zone))
     error_message = "Zone must be a valid UpCloud zone identifier (e.g., 'es-mad1')."
   }
 }
@@ -41,6 +41,8 @@ variable "firewall_rules" {
       protocol               = string
       source_port_start      = optional(number)
       source_port_end        = optional(number)
+      source_address_start   = optional(string)
+      source_address_end     = optional(string)
       destination_port_start = number
       destination_port_end   = number
       family                 = optional(string, "IPv4")
@@ -50,6 +52,8 @@ variable "firewall_rules" {
       protocol               = string
       source_port_start      = optional(number)
       source_port_end        = optional(number)
+      source_address_start   = optional(string)
+      source_address_end     = optional(string)
       destination_port_start = number
       destination_port_end   = number
       family                 = optional(string, "IPv4")
@@ -137,13 +141,53 @@ variable "firewall_rules" {
   }
 }
 
+variable "admin_user" {
+  type        = string
+  description = "Administrative user account name"
+  default     = "ubuntu"
+
+  validation {
+    condition     = can(regex("^[a-z_][a-z0-9_-]{0,31}$", var.admin_user))
+    error_message = "Admin user must be a valid Linux username."
+  }
+}
+
+variable "admin_ssh_key" {
+  type        = string
+  description = "Public SSH key for admin user (e.g., 'ssh-ed25519 AAAA...')"
+  default     = ""
+  sensitive   = true
+}
+
+variable "bootstrap_cidr" {
+  type        = string
+  description = "CIDR block allowed for bootstrap SSH access (e.g., '203.0.113.0/24')"
+  default     = ""
+
+  validation {
+    condition     = var.bootstrap_cidr == "" || can(cidrhost(var.bootstrap_cidr, 0))
+    error_message = "Bootstrap CIDR must be empty or a valid CIDR block."
+  }
+}
+
+variable "ssh_port" {
+  type        = number
+  description = "SSH port number"
+  default     = 22
+
+  validation {
+    condition     = var.ssh_port >= 1 && var.ssh_port <= 65535
+    error_message = "SSH port must be between 1 and 65535."
+  }
+}
+
 variable "hostname" {
   type        = string
   description = "Server hostname"
   default     = "k8s-node"
 
   validation {
-    condition     = can(regex("^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$", var.hostname))
+    condition     = can(regex("^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$", var.hostname))
     error_message = "Hostname must be valid (lowercase alphanumeric and hyphens only)."
   }
 }
@@ -158,6 +202,11 @@ variable "network_cidr" {
   type        = string
   description = "Network CIDR block"
   default     = "10.0.0.0/24"
+
+  validation {
+    condition     = can(cidrhost(var.network_cidr, 0))
+    error_message = "Network CIDR must be a valid IPv4 or IPv6 CIDR block."
+  }
 }
 
 variable "router_name" {
@@ -181,4 +230,10 @@ variable "metadata_enabled" {
   type        = bool
   description = "Enable cloud-init metadata service"
   default     = true
+}
+
+variable "user_data" {
+  type        = string
+  description = "Cloud-init user data script"
+  default     = ""
 }

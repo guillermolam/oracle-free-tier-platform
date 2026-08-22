@@ -43,7 +43,7 @@ output "storage_size" {
   description = "Storage size in GB"
 }
 
-output "firewall_rule_ids" {
-  value       = upcloud_firewall_rules.node_firewall.firewall_rule[*].id
-  description = "Firewall rule IDs"
+output "firewall_rule_count" {
+  value       = length(upcloud_firewall_rules.node_firewall.firewall_rule)
+  description = "Number of configured firewall rules"
 }

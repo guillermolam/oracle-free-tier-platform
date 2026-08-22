@@ -1,3 +1,20 @@
+mock_provider "upcloud" {
+  override_data {
+    target = data.upcloud_zones.available
+    values = {
+      zone_ids = ["es-mad1"]
+    }
+  }
+
+  override_data {
+    target = data.upcloud_storage.os_image
+    values = {
+      id    = "storage-debian-13-template"
+      title = "Debian 13"
+    }
+  }
+}
+
 run "valid_minimal_configuration" {
   command = plan
 
@@ -114,7 +131,7 @@ run "valid_custom_tags" {
   }
 
   assert {
-    condition     = upcloud_server.node.tags["environment"] == "production"
+    condition     = contains(upcloud_server.node.tags, "environment=production")
     error_message = "Custom tags should be applied to server"
   }
 }

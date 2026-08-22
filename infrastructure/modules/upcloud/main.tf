@@ -1,6 +1,23 @@
 # UpCloud infrastructure module
 # Consolidates networks, routers, servers, storage, and firewall resources
 
+locals {
+  # The default SSH rule remains configurable without changing the public
+  # firewall_rules object contract. When bootstrap_cidr is set, constrain the
+  # rule to that CIDR's first and last addresses.
+  effective_inbound_rules = [
+    for rule in var.firewall_rules.inbound : merge(
+      rule,
+      rule.protocol == "tcp" && rule.destination_port_start == 22 ? {
+        destination_port_start = var.ssh_port
+        destination_port_end   = var.ssh_port
+        source_address_start   = var.bootstrap_cidr == "" ? null : cidrhost(var.bootstrap_cidr, 0)
+        source_address_end     = var.bootstrap_cidr == "" ? null : cidrhost(var.bootstrap_cidr, -1)
+      } : {}
+    )
+  ]
+}
+
 # Network and router: one network with embedded router
 resource "upcloud_router" "node_router" {
   name = var.router_name
@@ -62,7 +79,19 @@ resource "upcloud_server" "node" {
     type    = "disk"
   }
 
-  tags = var.tags
+  # UpCloud provider 5.x models tags as a set of strings. Preserve the
+  # module's map(string) interface and serialize entries as key=value tags.
+  tags = toset([for key, value in var.tags : "${key}=${value}"])
+
+  dynamic "login" {
+    for_each = var.admin_ssh_key == "" ? [] : [var.admin_ssh_key]
+    content {
+      user = var.admin_user
+      keys = [login.value]
+    }
+  }
+
+  user_data = var.user_data == "" ? null : var.user_data
 
   depends_on = [
     upcloud_network.node_network,
@@ -81,7 +110,7 @@ resource "upcloud_firewall_rules" "node_firewall" {
 
   # Inbound rules
   dynamic "firewall_rule" {
-    for_each = var.firewall_rules.inbound
+    for_each = local.effective_inbound_rules
     content {
       action    = "accept"
       direction = "in"
@@ -89,13 +118,16 @@ resource "upcloud_firewall_rules" "node_firewall" {
 
       protocol = firewall_rule.value.protocol
 
-      destination_port_start = firewall_rule.value.destination_port_start
-      destination_port_end   = firewall_rule.value.destination_port_end
+      destination_port_start = firewall_rule.value.protocol == "icmp" ? "" : tostring(firewall_rule.value.destination_port_start)
+      destination_port_end   = firewall_rule.value.protocol == "icmp" ? "" : tostring(firewall_rule.value.destination_port_end)
 
-      source_port_start = firewall_rule.value.source_port_start
-      source_port_end   = firewall_rule.value.source_port_end
+      source_port_start = firewall_rule.value.protocol == "icmp" || firewall_rule.value.source_port_start == null ? "" : tostring(firewall_rule.value.source_port_start)
+      source_port_end   = firewall_rule.value.protocol == "icmp" || firewall_rule.value.source_port_end == null ? "" : tostring(firewall_rule.value.source_port_end)
 
-      icmp_type = firewall_rule.value.icmp_type
+      source_address_start = try(firewall_rule.value.source_address_start, null)
+      source_address_end   = try(firewall_rule.value.source_address_end, null)
+
+      icmp_type = firewall_rule.value.icmp_type == null ? "" : tostring(firewall_rule.value.icmp_type)
     }
   }
 
@@ -109,13 +141,16 @@ resource "upcloud_firewall_rules" "node_firewall" {
 
       protocol = firewall_rule.value.protocol
 
-      destination_port_start = firewall_rule.value.destination_port_start
-      destination_port_end   = firewall_rule.value.destination_port_end
+      destination_port_start = firewall_rule.value.protocol == "icmp" ? "" : tostring(firewall_rule.value.destination_port_start)
+      destination_port_end   = firewall_rule.value.protocol == "icmp" ? "" : tostring(firewall_rule.value.destination_port_end)
 
-      source_port_start = firewall_rule.value.source_port_start
-      source_port_end   = firewall_rule.value.source_port_end
+      source_port_start = firewall_rule.value.protocol == "icmp" || firewall_rule.value.source_port_start == null ? "" : tostring(firewall_rule.value.source_port_start)
+      source_port_end   = firewall_rule.value.protocol == "icmp" || firewall_rule.value.source_port_end == null ? "" : tostring(firewall_rule.value.source_port_end)
 
-      icmp_type = firewall_rule.value.icmp_type
+      source_address_start = try(firewall_rule.value.source_address_start, null)
+      source_address_end   = try(firewall_rule.value.source_address_end, null)
+
+      icmp_type = firewall_rule.value.icmp_type == null ? "" : tostring(firewall_rule.value.icmp_type)
     }
   }
 

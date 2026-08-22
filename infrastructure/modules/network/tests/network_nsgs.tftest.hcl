@@ -90,24 +90,51 @@ run "control_nsg_port_6443_sources_correct" {
 
   # REQ-NET-019: control NSG's port 6443 inbound sources are ONLY ziti and worker
   assert {
-    condition = length([
-      for rule in oci_core_network_security_group_security_rule.control_inbound_ziti :
-      rule if rule.protocol == "6" && rule.tcp_options[0].destination_port_range[0].min == 6443
-    ]) >= 1
+    condition = (oci_core_network_security_group_security_rule.control_inbound_ziti.protocol == "6" &&
+      oci_core_network_security_group_security_rule.control_inbound_ziti.tcp_options[0].destination_port_range[0].min == 6443 &&
+    oci_core_network_security_group_security_rule.control_inbound_ziti.source_type == "NETWORK_SECURITY_GROUP")
     error_message = "REQ-NET-019: control NSG must have inbound rule for 6443 from ziti NSG"
   }
 
   assert {
-    condition = length([
-      for rule in oci_core_network_security_group_security_rule.control_inbound_worker_api :
-      rule if rule.protocol == "6" && rule.tcp_options[0].destination_port_range[0].min == 6443
-    ]) >= 1
+    condition = (oci_core_network_security_group_security_rule.control_inbound_worker_api.protocol == "6" &&
+      oci_core_network_security_group_security_rule.control_inbound_worker_api.tcp_options[0].destination_port_range[0].min == 6443 &&
+    oci_core_network_security_group_security_rule.control_inbound_worker_api.source_type == "NETWORK_SECURITY_GROUP")
     error_message = "REQ-NET-019: control NSG must have inbound rule for 6443 from worker NSG"
   }
 
-  # This check is implicit: if we defined these two rules and no others on 6443,
-  # then they are the only sources. A more thorough test would iterate through
-  # all security rules and verify no other protocol-6 destination port 6443 rules exist.
+  assert {
+    condition = (oci_core_network_security_group_security_rule.control_inbound_ziti.stateless &&
+    oci_core_network_security_group_security_rule.control_inbound_worker_api.stateless)
+    error_message = "REQ-NET-019: Kubernetes API ingress rules must be stateless"
+  }
+}
+
+run "all_ingress_rules_are_stateless" {
+  command = plan
+
+  # OCI requires stateless ingress rules for this platform's NSG design.
+  # Keep this explicit list so a branch cannot silently drop the attribute
+  # from one rule while the rest of the module still plans successfully.
+  assert {
+    condition = alltrue([
+      oci_core_network_security_group_security_rule.ziti_inbound_internet.stateless,
+      oci_core_network_security_group_security_rule.ziti_inbound_worker_status.stateless,
+      oci_core_network_security_group_security_rule.ingress_inbound_http.stateless,
+      oci_core_network_security_group_security_rule.ingress_inbound_https.stateless,
+      oci_core_network_security_group_security_rule.control_inbound_ziti.stateless,
+      oci_core_network_security_group_security_rule.control_inbound_worker_api.stateless,
+      oci_core_network_security_group_security_rule.control_inbound_self.stateless,
+      oci_core_network_security_group_security_rule.worker_inbound_control_api.stateless,
+      oci_core_network_security_group_security_rule.worker_inbound_control_kubelet.stateless,
+      oci_core_network_security_group_security_rule.worker_inbound_control_vxlan.stateless,
+      oci_core_network_security_group_security_rule.worker_inbound_control_geneve.stateless,
+      oci_core_network_security_group_security_rule.worker_inbound_self.stateless,
+      oci_core_network_security_group_security_rule.storage_inbound_worker_iscsi.stateless,
+      oci_core_network_security_group_security_rule.storage_inbound_control_iscsi.stateless,
+    ])
+    error_message = "All NSG ingress rules must set stateless = true"
+  }
 }
 
 run "no_nsg_permits_0_0_0_0_except_ingress_and_ziti" {
@@ -119,30 +146,23 @@ run "no_nsg_permits_0_0_0_0_except_ingress_and_ziti" {
 
   assert {
     condition = alltrue([
-      for rule in oci_core_network_security_group_security_rule.control_inbound_ziti :
-      rule.source != "0.0.0.0/0"
-      ]) && alltrue([
-      for rule in oci_core_network_security_group_security_rule.control_inbound_worker_api :
-      rule.source != "0.0.0.0/0"
+      oci_core_network_security_group_security_rule.control_inbound_ziti.source != "0.0.0.0/0",
+      oci_core_network_security_group_security_rule.control_inbound_worker_api.source != "0.0.0.0/0",
     ])
     error_message = "control NSG must not permit 0.0.0.0/0 ingress (REQ-NET-020)"
   }
 
   assert {
     condition = alltrue([
-      for rule in oci_core_network_security_group_security_rule.worker_inbound_control_api :
-      rule.source != "0.0.0.0/0"
-      ]) && alltrue([
-      for rule in oci_core_network_security_group_security_rule.worker_inbound_control_kubelet :
-      rule.source != "0.0.0.0/0"
+      oci_core_network_security_group_security_rule.worker_inbound_control_api.source != "0.0.0.0/0",
+      oci_core_network_security_group_security_rule.worker_inbound_control_kubelet.source != "0.0.0.0/0",
     ])
     error_message = "worker NSG must not permit 0.0.0.0/0 ingress (REQ-NET-020)"
   }
 
   assert {
     condition = alltrue([
-      for rule in oci_core_network_security_group_security_rule.storage_inbound_worker_iscsi :
-      rule.source != "0.0.0.0/0"
+      oci_core_network_security_group_security_rule.storage_inbound_worker_iscsi.source != "0.0.0.0/0",
     ])
     error_message = "storage NSG must not permit 0.0.0.0/0 ingress (REQ-NET-020)"
   }
@@ -153,26 +173,20 @@ run "ziti_and_ingress_allow_public_ingress" {
 
   # REQ-NET-020: only ingress and ziti NSGs may permit 0.0.0.0/0 ingress
   assert {
-    condition = length([
-      for rule in oci_core_network_security_group_security_rule.ziti_inbound_internet :
-      rule if rule.source == "0.0.0.0/0" && rule.direction == "INGRESS"
-    ]) >= 1
+    condition = (oci_core_network_security_group_security_rule.ziti_inbound_internet.source == "0.0.0.0/0" &&
+    oci_core_network_security_group_security_rule.ziti_inbound_internet.direction == "INGRESS")
     error_message = "ziti NSG must permit 0.0.0.0/0 ingress on port 6262 (Ziti listener, REQ-NET-020)"
   }
 
   assert {
-    condition = length([
-      for rule in oci_core_network_security_group_security_rule.ingress_inbound_http :
-      rule if rule.source == "0.0.0.0/0" && rule.direction == "INGRESS"
-    ]) >= 1
+    condition = (oci_core_network_security_group_security_rule.ingress_inbound_http.source == "0.0.0.0/0" &&
+    oci_core_network_security_group_security_rule.ingress_inbound_http.direction == "INGRESS")
     error_message = "ingress NSG must permit 0.0.0.0/0 ingress on port 80 (REQ-NET-020)"
   }
 
   assert {
-    condition = length([
-      for rule in oci_core_network_security_group_security_rule.ingress_inbound_https :
-      rule if rule.source == "0.0.0.0/0" && rule.direction == "INGRESS"
-    ]) >= 1
+    condition = (oci_core_network_security_group_security_rule.ingress_inbound_https.source == "0.0.0.0/0" &&
+    oci_core_network_security_group_security_rule.ingress_inbound_https.direction == "INGRESS")
     error_message = "ingress NSG must permit 0.0.0.0/0 ingress on port 443 (REQ-NET-020)"
   }
 }
