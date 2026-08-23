@@ -1,0 +1,200 @@
+name: plan-enhanced
+
+on:
+  pull_request:
+    paths:
+      - "infrastructure/**"
+  push:
+    branches: ["main"]
+    paths:
+      - "infrastructure/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write  # For PR comments
+  id-token: write      # For OIDC if needed
+
+concurrency:
+  group: plan-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Zero Trust: No credentials in workflow files
+  TF_IN_AUTOMATION: true
+  TF_CLI_ARGS: "-no-color"
+
+jobs:
+  security-scan:
+    name: Security Scan (Left-Shift)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infrastructure
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Run Checkov IaC Security Scan
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: infrastructure
+          config_file: .checkov.yaml
+          output_format: sarif,cli
+          output_file_path: reports/checkov-results.sarif
+          soft_fail: false  # Block on security failures
+
+      - name: Upload Checkov Results to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: reports/checkov-results.sarif
+          category: checkov-iac-security
+
+  terraform-plan:
+    name: Terraform Plan with Analysis
+    runs-on: ubuntu-latest
+    needs: security-scan  # Only run if security passes
+    defaults:
+      run:
+        working-directory: infrastructure/live/oci/eu-madrid-1/lab
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Terragrunt
+        uses: autero1/action-terragrunt@v3
+        with:
+          terragrunt_version: "0.58.7"
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
+        with:
+          tofu_version: "1.x"
+          cache: true
+
+      - name: Terragrunt Plan
+        id: plan
+        run: |
+          set -euo pipefail
+
+          # Use our secure tg wrapper script
+          ../../scripts/tg plan -out=tfplan -detailed-exitcode || plan_exit=$?
+
+          # Analyze plan results
+          case ${plan_exit:-0} in
+            0)
+              echo "plan_result=no-changes" >> $GITHUB_OUTPUT
+              echo "📊 **No infrastructure changes**" >> plan_summary.md
+              ;;
+            2)
+              echo "plan_result=has-changes" >> $GITHUB_OUTPUT
+
+              # Generate plan in JSON for analysis
+              ../../scripts/tg show -json tfplan > plan.json
+
+              # Count resources
+              to_add=$(jq -r '.resource_changes | map(select(.change.actions == ["create"])) | length' plan.json)
+              to_change=$(jq -r '.resource_changes | map(select(.change.actions == ["update"])) | length' plan.json)
+              to_destroy=$(jq -r '.resource_changes | map(select(.change.actions == ["delete"])) | length' plan.json)
+
+              # Create summary
+              cat >> plan_summary.md << EOF
+          ## 📊 Terraform Plan Summary
+
+          **Resources:**
+          - ✅ **${to_add}** to add
+          - 🔄 **${to_change}** to change
+          - 🗑️ **${to_destroy}** to destroy
+
+          EOF
+
+              # Highlight destructive changes
+              if [ "$to_destroy" -gt 0 ]; then
+                echo "⚠️ **DESTRUCTIVE CHANGES DETECTED**" >> plan_summary.md
+                echo "destructive=true" >> $GITHUB_OUTPUT
+              else
+                echo "destructive=false" >> $GITHUB_OUTPUT
+              fi
+
+              # Add resource details
+              echo "### 📋 Resource Changes" >> plan_summary.md
+              jq -r '.resource_changes[] |
+                select(.change.actions != ["no-op"]) |
+                "- \(.change.actions | map(
+                  if . == "create" then "➕"
+                  elif . == "update" then "🔄"
+                  elif . == "delete" then "🗑️"
+                  else "❓" end
+                ) | join("")) **\(.type).\(.name)**"' plan.json >> plan_summary.md
+
+              echo "" >> plan_summary.md
+              echo "💡 View full plan details in the [workflow logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> plan_summary.md
+              ;;
+            *)
+              echo "plan_result=error" >> $GITHUB_OUTPUT
+              echo "❌ **Terraform plan failed**" >> plan_summary.md
+              exit ${plan_exit}
+              ;;
+          esac
+
+      - name: Comment PR with Plan Summary
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const planSummary = fs.readFileSync('infrastructure/live/oci/eu-madrid-1/lab/plan_summary.md', 'utf8');
+
+            // Find existing plan comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(comment =>
+              comment.user.type === 'Bot' && comment.body.includes('📊 Terraform Plan Summary')
+            );
+
+            const commentBody = `${planSummary}
+
+            <details>
+            <summary>📋 Plan Details</summary>
+
+            **Branch:** \`${{ github.head_ref }}\`
+            **Commit:** ${{ github.sha }}
+            **Workflow:** [View Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+            </details>`;
+
+            if (botComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: commentBody
+              });
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: commentBody
+              });
+            }
+
+      - name: Save Plan Artifact
+        if: steps.plan.outputs.plan_result == 'has-changes'
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan-${{ github.run_id }}
+          path: |
+            infrastructure/live/oci/eu-madrid-1/lab/tfplan
+            infrastructure/live/oci/eu-madrid-1/lab/plan.json
+            infrastructure/live/oci/eu-madrid-1/lab/plan_summary.md
+          retention-days: 90

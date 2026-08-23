@@ -85,6 +85,7 @@ the Requirement → `ARCH-*` ID → diagram artifact → Mermaid nodes chain.
 | [SPEC-NET-004](SPEC-NET-004.md) | Security Lists and purpose-built NSGs | Ready | I03 |
 | [SPEC-NET-005](SPEC-NET-005.md) | Traffic-flow invariants (verification only, no state unit) | Ready | I03 |
 | [SPEC-NET-006](SPEC-NET-006.md) | VCN DNS resolver and DHCP options | Ready | I03 |
+| [SPEC-COMP-001](SPEC-COMP-001.md) | Compute & Talos node foundation (resolves SPIKE-COMP-01) | Ready | I04 |
 
 More Specs are added milestone by milestone rather than all at once — see
 [`docs/00-overview/roadmap.md`](../00-overview/roadmap.md) for the full

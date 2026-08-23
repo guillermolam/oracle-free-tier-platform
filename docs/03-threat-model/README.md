@@ -56,10 +56,14 @@ scratch each time — that reinterpretation happens exactly once, here,
 schema-validated and evidence-checked.
 
 Status: schema (`model/schema/threat-model.schema.json`) and tooling
-(`npm run validate:threat-model`) built and validated against one domain
-(`model/instances/network.yaml`) as a proof of concept. Remaining domains
-(`identity`, `governance`, `cicd`, `kubernetes`, `context`) and DFD L0-L3
-generation from the corpus come next.
+(`npm run validate:threat-model`) built and validated against
+`model/instances/network.yaml` as a proof of concept, then extended across
+all six corpus domains: `network`, `context`, `identity`, `governance`,
+`cicd`, and `kubernetes` are now all populated and pass
+`npm run validate:threat-model` together (211 corpus IDs, zero schema or
+referential-integrity failures). This is still Phase 3A — no DFD, STRIDE,
+attack-tree, or IriusRisk artifact exists yet. DFD L0-L3 generation from
+the corpus is next.
 
 ## First DFD artifact (EPIC-TM-01)
 

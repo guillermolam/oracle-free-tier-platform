@@ -1,0 +1,25 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: cert-manager
+  namespace: cert-manager
+spec:
+  interval: 30m0s
+  releaseName: cert-manager
+  chartRef:
+    kind: OCIRepository
+    name: cert-manager
+    namespace: flux-system
+  dependsOn:
+    - name: argocd
+      namespace: argocd
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  valuesFrom:
+    - kind: ConfigMap
+      name: cert-manager-values
+      valuesKey: values.yaml

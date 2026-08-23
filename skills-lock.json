@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "skills": {
+    "oracle": {
+      "source": "mrud/skills",
+      "sourceType": "github",
+      "skillPath": "oracle/SKILL.md",
+      "computedHash": "18463115d55bd9d08ad9b19b4d2e7a56e47377c2cb645cdc66c77193b1aefb60"
+    },
+    "taskwarrior": {
+      "source": "mrud/skills",
+      "sourceType": "github",
+      "skillPath": "taskwarrior/SKILL.md",
+      "computedHash": "76501443c5e119c7570a8289c951a0d0a46cb1604bf1defafcd2eb4f33bc843d"
+    },
+    "zrok": {
+      "source": "mrud/skills",
+      "sourceType": "github",
+      "skillPath": "zrok/SKILL.md",
+      "computedHash": "1d532b9b08ecf36bcaf2984dbe70b2844ee342b4af88208fcb598dd2aad4e5a4"
+    }
+  }
+}

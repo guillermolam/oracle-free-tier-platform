@@ -1,0 +1,478 @@
+domain: kubernetes
+schema_version: 2.0.0
+model_version: 0.1.0
+generated_from:
+  - { source_type: arch-view, ref: VIEW-K8S-DEPLOYMENT, status: specified }
+  - { source_type: arch-view, ref: VIEW-K8S-RUNTIME, status: specified }
+  - { source_type: arch-view, ref: VIEW-K8S-NETWORK, status: specified }
+  - { source_type: arch-view, ref: VIEW-K8S-SECURITY-BOUNDARIES, status: specified }
+  - { source_type: adr, ref: ADR-0002, status: specified }
+  - { source_type: adr, ref: ADR-0003, status: specified }
+  - { source_type: adr, ref: ADR-0004, status: specified }
+  - { source_type: adr, ref: ADR-0005, status: specified }
+  - { source_type: roadmap, ref: "roadmap.md#SPIKE-RT-01", status: decision-pending }
+  - { source_type: roadmap, ref: "roadmap.md#SPIKE-SPIFFE-01", status: decision-pending }
+
+scopes:
+  - id: SCOPE-K8S-SECRETS-BOUNDARY
+    name: Kubernetes secrets boundary
+    scope_type: other
+    description: OpenBao named as the intended mechanism (I11); policy not yet Spec'd. See DS-K8S-NAMESPACE-SECRETS (governance.yaml) for the concrete data-store shape once specified.
+    state: candidate
+    evidence:
+      - { source_type: arch-view, ref: VIEW-K8S-SECURITY-BOUNDARIES, status: specified }
+
+  - id: SCOPE-K8S-ADMISSION-BOUNDARY
+    name: Kubernetes admission boundary
+    scope_type: other
+    description: Kyverno named as the admission engine (ADR-0004); policy content not yet Spec'd, I14.
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-K8S-SECURITY-BOUNDARIES, status: specified }
+      - { source_type: adr, ref: ADR-0004, status: specified }
+
+  - id: SCOPE-K8S-RUNTIME-SECURITY-BOUNDARY
+    name: Kubernetes runtime security boundary
+    scope_type: other
+    description: No runtime-security tool is named anywhere in this repo -- zero evidence, genuinely undecided (distinct from B4/B6/B7/B9/B10, which at least have a named owning initiative or ADR).
+    state: candidate
+    evidence:
+      - { source_type: arch-view, ref: VIEW-K8S-SECURITY-BOUNDARIES, status: specified }
+
+components:
+  - id: COMP-CILIUM
+    name: Cilium
+    component_type: network-control
+    description: CNI and NetworkPolicy engine -- named in roadmap.md's MVP definition, not yet configured by any Spec, I07.
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-K8S-DEPLOYMENT, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I07", status: planned }
+
+  - id: COMP-ETCD
+    name: etcd
+    component_type: control-plane
+    description: Talos control-plane state store, placed in the Management zone alongside kube-apiserver.
+    trust_zone_ref: ARCH-ZONE-MGMT
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-K8S-DEPLOYMENT, status: specified }
+      - { source_type: adr, ref: ADR-0002, status: specified }
+
+  - id: COMP-KUBELET
+    name: kubelet
+    component_type: controller
+    description: Runs on Talos workers, drives the container runtime via CRI.
+    trust_zone_ref: ARCH-ZONE-WORKLOAD
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-K8S-RUNTIME, status: specified }
+
+  - id: COMP-CONTAINERD
+    name: containerd
+    component_type: controller
+    description: Talos's default CRI shim / OCI-runtime manager (ADR-0002).
+    trust_zone_ref: ARCH-ZONE-WORKLOAD
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-K8S-RUNTIME, status: specified }
+      - { source_type: adr, ref: ADR-0002, status: specified }
+
+  - id: COMP-RUNC
+    name: runc
+    component_type: controller
+    description: The OCI runtime containerd drives -- not shown as a peer of youki; a different abstraction layer (CRI shim vs. OCI runtime).
+    trust_zone_ref: ARCH-ZONE-WORKLOAD
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-K8S-RUNTIME, status: specified }
+
+  - id: COMP-YOUKI
+    name: youki
+    component_type: controller
+    description: Experimental alternative OCI runtime, still under evaluation -- SPIKE-RT-01, open (see GAP-K8S-002).
+    trust_zone_ref: ARCH-ZONE-WORKLOAD
+    state: decision-pending
+    evidence:
+      - { source_type: arch-view, ref: VIEW-K8S-RUNTIME, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#SPIKE-RT-01", status: decision-pending }
+
+  - id: COMP-ESO
+    name: External Secrets Operator
+    component_type: controller
+    description: Named in roadmap.md's MVP definition as OpenBao's Kubernetes-side consumer -- not yet configured, I11.
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-K8S-DEPLOYMENT, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I11", status: planned }
+
+  - id: COMP-CERT-MANAGER-OR-RUNTIME-SECURITY-UNDECIDED
+    name: cert-manager / runtime-security agent (undecided)
+    component_type: other
+    description: No ADR, not named anywhere in this repo -- explicitly undecided, shown as absent rather than omitted silently (VIEW-K8S-DEPLOYMENT's UNDECIDED node).
+    state: candidate
+    evidence:
+      - { source_type: arch-view, ref: VIEW-K8S-DEPLOYMENT, status: specified }
+
+  - id: COMP-NODE-VNIC
+    name: Node VNIC
+    component_type: network-control
+    description: OCI VNIC attached to each Talos node -- carries node-to-node and API-to-node traffic, and is the attachment point Cilium's dataplane sits on top of.
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-K8S-NETWORK, status: specified }
+
+  - id: COMP-CILIUM-IDENTITY
+    name: Cilium identity
+    component_type: other
+    description: Cilium's own workload-identity concept for NetworkPolicy enforcement -- explicitly not conflated with OpenZiti's identity overlay (VIEW-K8S-NETWORK) or with SPIFFE (VIEW-ID-WORKLOAD).
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-K8S-NETWORK, status: specified }
+
+  - id: COMP-HUBBLE
+    name: Hubble
+    component_type: other
+    description: Candidate observability layer for Cilium -- not decided anywhere in this repo.
+    state: candidate
+    evidence:
+      - { source_type: arch-view, ref: VIEW-K8S-NETWORK, status: specified }
+
+  - id: COMP-GATEWAY-API
+    name: Gateway API
+    component_type: other
+    description: Not evaluated -- zero evidence anywhere in this repo.
+    state: candidate
+    evidence:
+      - { source_type: arch-view, ref: VIEW-K8S-NETWORK, status: specified }
+
+  - id: COMP-K8S-POD-GENERIC
+    name: Generic Kubernetes Pod
+    component_type: other
+    description: >-
+      The generic pod shape referenced across VIEW-K8S-NETWORK and
+      VIEW-K8S-SECURITY-BOUNDARIES -- contributes to SPIFFE attestation
+      but is not the SPIFFE identity itself (identity.yaml's
+      IDENT-SPIFFE-WORKLOAD), and is distinct from the ServiceAccount
+      that also contributes to attestation.
+    trust_zone_ref: ARCH-ZONE-WORKLOAD
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-K8S-SECURITY-BOUNDARIES, status: specified }
+
+data_stores:
+  - id: DS-POD-NETWORK
+    name: Pod network
+    trust_zone_ref: ARCH-ZONE-WORKLOAD
+    data_classification: internal
+    description: Pod-to-pod traffic layer, sitting on top of Cilium's dataplane. Pod CIDR is DECISION PENDING -- no Spec sets it yet (see GAP-K8S-003).
+    state: decision-pending
+    evidence:
+      - { source_type: arch-view, ref: VIEW-K8S-NETWORK, status: specified }
+
+  - id: DS-SERVICE-NETWORK
+    name: Service network
+    trust_zone_ref: ARCH-ZONE-WORKLOAD
+    data_classification: internal
+    description: Pod-to-service traffic layer, sitting on top of Cilium's dataplane. Service CIDR is DECISION PENDING -- no Spec sets it yet (see GAP-K8S-004).
+    state: decision-pending
+    evidence:
+      - { source_type: arch-view, ref: VIEW-K8S-NETWORK, status: specified }
+
+trust_boundaries:
+  - id: TB-K8S-B1
+    name: OCI VCN boundary
+    description: The outermost boundary this Kubernetes deployment sits inside -- the security-boundary inventory's own framing of ARCH-NET-VCN, distinct from network.yaml's crossing-specific TB-INTERNET-EDGE.
+    boundary_type: network-perimeter
+    side_a_refs: ["EXTERNAL"]
+    side_b_refs: ["ARCH-NET-VCN"]
+    state: specified
+    evidence:
+      - { source_type: spec, ref: "SPEC-NET-001.md", status: specified }
+      - { source_type: arch-view, ref: VIEW-K8S-SECURITY-BOUNDARIES, status: specified }
+
+  - id: TB-K8S-B2
+    name: Node boundary
+    description: Talos's immutable, minimal OS as the host-level isolation boundary (ADR-0002).
+    boundary_type: physical
+    side_a_refs: ["ARCH-NET-VCN"]
+    side_b_refs: ["ARCH-ZONE-WORKLOAD"]
+    state: planned
+    evidence:
+      - { source_type: adr, ref: ADR-0002, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I04", status: planned }
+
+  - id: TB-K8S-B3
+    name: Control-plane boundary
+    description: Management-zone isolation of the Kubernetes API -- the same boundary REQ-NET-019 enforces at the network layer (network.yaml).
+    boundary_type: network-perimeter
+    side_a_refs: ["ARCH-ZONE-WORKLOAD"]
+    side_b_refs: ["ARCH-ZONE-MGMT"]
+    state: specified
+    evidence:
+      - { source_type: spec, ref: "SPEC-NET-004.md#REQ-NET-019", status: specified }
+
+  - id: TB-K8S-B4
+    name: Namespace boundary
+    description: Candidate only -- no namespace exists in any Spec or ADR yet (I05 has zero depth). See COMP-K8S-NAMESPACE-GENERIC, governance.yaml.
+    boundary_type: administrative-domain
+    side_a_refs: ["ARCH-ZONE-WORKLOAD"]
+    side_b_refs: ["SCOPE-K8S-SECRETS-BOUNDARY"]
+    state: candidate
+    evidence:
+      - { source_type: arch-view, ref: VIEW-GOV-K8S-TENANCY, status: specified }
+
+  - id: TB-K8S-B5
+    name: Pod boundary
+    description: Standard Kubernetes/container-runtime pod isolation, placed once workers and containerd are provisioned.
+    boundary_type: other
+    side_a_refs: ["ARCH-ZONE-WORKLOAD"]
+    side_b_refs: ["SCOPE-K8S-RUNTIME-SECURITY-BOUNDARY"]
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-K8S-SECURITY-BOUNDARIES, status: specified }
+
+  - id: TB-K8S-B6
+    name: ServiceAccount boundary
+    description: Standard Kubernetes ServiceAccount-as-principal mechanism is real; no concrete Role/RoleBinding content is Spec'd yet (identity.yaml's POLICY-K8S-ROLEBINDING-NAMESPACED remains candidate).
+    boundary_type: identity-domain
+    side_a_refs: ["ARCH-ZONE-WORKLOAD"]
+    side_b_refs: ["ARCH-ID-SA"]
+    state: specified
+    evidence:
+      - { source_type: arch-view, ref: VIEW-ID-K8S-RBAC, status: specified }
+
+  - id: TB-K8S-B7
+    name: NetworkPolicy boundary
+    description: Cilium named (roadmap.md); rules not yet Spec'd, I07.
+    boundary_type: network-perimeter
+    side_a_refs: ["ARCH-ZONE-WORKLOAD"]
+    side_b_refs: ["ARCH-K8S-NETWORK"]
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-K8S-NETWORK, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I07", status: planned }
+
+  - id: TB-K8S-B8
+    name: SPIFFE trust domain boundary
+    description: Named in roadmap.md's MVP definition; cross-cluster federation is DECISION PENDING (SPIKE-SPIFFE-01, see GAP-K8S-001).
+    boundary_type: identity-domain
+    side_a_refs: ["ARCH-ZONE-WORKLOAD"]
+    side_b_refs: ["ARCH-ID-SPIFFE"]
+    state: decision-pending
+    evidence:
+      - { source_type: arch-view, ref: VIEW-ID-WORKLOAD, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#SPIKE-SPIFFE-01", status: decision-pending }
+
+  - id: TB-K8S-B9
+    name: Secret boundary
+    description: OpenBao named as the intended mechanism (I11); policy not yet Spec'd.
+    boundary_type: other
+    side_a_refs: ["ARCH-ZONE-WORKLOAD"]
+    side_b_refs: ["SCOPE-K8S-SECRETS-BOUNDARY"]
+    state: planned
+    evidence:
+      - { source_type: roadmap, ref: "roadmap.md#I11", status: planned }
+
+  - id: TB-K8S-B10
+    name: Admission boundary
+    description: Kyverno named (ADR-0004); policy content not yet Spec'd, I14. Rooted at the Management zone, the same layer FLOW-GOV-FLUX-TO-KYVERNO (governance.yaml) reconciles through.
+    boundary_type: administrative-domain
+    side_a_refs: ["ARCH-ZONE-MGMT"]
+    side_b_refs: ["SCOPE-K8S-ADMISSION-BOUNDARY"]
+    state: planned
+    evidence:
+      - { source_type: adr, ref: ADR-0004, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I14", status: planned }
+
+  - id: TB-K8S-B11
+    name: Runtime security boundary
+    description: No tool named anywhere in this repo -- zero evidence, genuinely undecided (not merely unSpec'd like B4/B7/B9/B10, which at least have a named owning initiative).
+    boundary_type: other
+    side_a_refs: ["ARCH-ZONE-WORKLOAD"]
+    side_b_refs: ["SCOPE-K8S-RUNTIME-SECURITY-BOUNDARY"]
+    state: candidate
+    evidence:
+      - { source_type: arch-view, ref: VIEW-K8S-SECURITY-BOUNDARIES, status: specified }
+
+gaps:
+  - id: GAP-K8S-001
+    subject_ref: TB-K8S-B8
+    field: state
+    reason: SPIFFE cross-cluster/cross-trust-domain federation model is DECISION PENDING -- SPIKE-SPIFFE-01 is still open.
+    blocking: true
+    resolution_ref: SPIKE-SPIFFE-01
+    evidence:
+      - { source_type: roadmap, ref: "roadmap.md#SPIKE-SPIFFE-01", status: decision-pending }
+
+  - id: GAP-K8S-002
+    subject_ref: COMP-YOUKI
+    field: state
+    reason: Whether youki becomes a supported alternative OCI runtime to runc is undecided -- SPIKE-RT-01 is still open.
+    blocking: false
+    resolution_ref: SPIKE-RT-01
+    evidence:
+      - { source_type: roadmap, ref: "roadmap.md#SPIKE-RT-01", status: decision-pending }
+
+  - id: GAP-K8S-003
+    subject_ref: DS-POD-NETWORK
+    field: description
+    reason: Pod CIDR value is DECISION PENDING -- no Spec sets it yet. Blocks concrete I07 Cilium configuration.
+    blocking: true
+    evidence:
+      - { source_type: arch-view, ref: VIEW-K8S-NETWORK, status: specified }
+
+  - id: GAP-K8S-004
+    subject_ref: DS-SERVICE-NETWORK
+    field: description
+    reason: Service CIDR value is DECISION PENDING -- no Spec sets it yet. Blocks concrete I07 Cilium configuration.
+    blocking: true
+    evidence:
+      - { source_type: arch-view, ref: VIEW-K8S-NETWORK, status: specified }
+
+data_flows:
+  - id: FLOW-K8S-VCN-TO-VNIC
+    name: OCI VCN to node VNIC
+    description: Node-level network attachment, once Talos nodes are provisioned (I04).
+    source_ref: ARCH-NET-VCN
+    destination_ref: COMP-NODE-VNIC
+    transport: { network_protocol: unknown, ports: [] }
+    direction: outbound
+    authentication: { required: false, mechanisms: [] }
+    authorization: { required: false, mechanisms: [] }
+    security_requirements: { confidentiality: low, integrity: moderate, availability: high }
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-K8S-NETWORK, status: specified }
+
+  - id: FLOW-K8S-VNIC-TO-CILIUM
+    name: Node VNIC to Cilium dataplane
+    description: Cilium's dataplane sits on top of the node VNIC -- PLANNED, I07.
+    source_ref: COMP-NODE-VNIC
+    destination_ref: COMP-CILIUM
+    transport: { network_protocol: unknown, ports: [] }
+    direction: outbound
+    authentication: { required: false, mechanisms: [] }
+    authorization: { required: false, mechanisms: [] }
+    security_requirements: { confidentiality: low, integrity: moderate, availability: high }
+    traffic_class_ref: ARCH-FLOW-CONTROL
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-K8S-NETWORK, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#I07", status: planned }
+
+  - id: FLOW-K8S-VNIC-TO-ZITI-OVERLAY
+    name: Node VNIC to OpenZiti overlay (distinct identity plane)
+    description: Explicitly not conflated with Cilium identity -- OpenZiti provides network-layer reachability only (ADR-0003, see VIEW-ID-ZITI).
+    source_ref: COMP-NODE-VNIC
+    destination_ref: COMP-ZITI-PRIVATE-ROUTER
+    transport: { network_protocol: tcp, application_protocol: tls, ports: [], encrypted: true }
+    direction: outbound
+    authentication: { required: true, mechanisms: [{ type: mtls, state: planned }] }
+    authorization: { required: false, mechanisms: [] }
+    security_requirements: { confidentiality: high, integrity: high, availability: moderate }
+    traffic_class_ref: ARCH-FLOW-ADMIN
+    state: planned
+    evidence:
+      - { source_type: adr, ref: ADR-0003, status: specified }
+      - { source_type: arch-view, ref: VIEW-K8S-NETWORK, status: specified }
+
+  - id: FLOW-K8S-CILIUM-TO-PODNET
+    name: Cilium to pod network
+    source_ref: COMP-CILIUM
+    destination_ref: DS-POD-NETWORK
+    description: Pod-to-pod traffic layer -- CIDR undecided (GAP-K8S-003), existence of the flow itself is not in question.
+    transport: { network_protocol: unknown, ports: [] }
+    direction: outbound
+    authentication: { required: false, mechanisms: [] }
+    authorization: { required: true, mechanisms: [{ type: other, policy_refs: ["POLICY-K8S-NAMESPACE-NETWORKPOLICY"], state: candidate }] }
+    security_requirements: { confidentiality: moderate, integrity: moderate, availability: high }
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-K8S-NETWORK, status: specified }
+
+  - id: FLOW-K8S-CILIUM-TO-SVCNET
+    name: Cilium to service network
+    source_ref: COMP-CILIUM
+    destination_ref: DS-SERVICE-NETWORK
+    description: Pod-to-service traffic layer -- CIDR undecided (GAP-K8S-004), existence of the flow itself is not in question.
+    transport: { network_protocol: unknown, ports: [] }
+    direction: outbound
+    authentication: { required: false, mechanisms: [] }
+    authorization: { required: true, mechanisms: [{ type: other, policy_refs: ["POLICY-K8S-NAMESPACE-NETWORKPOLICY"], state: candidate }] }
+    security_requirements: { confidentiality: moderate, integrity: moderate, availability: high }
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-K8S-NETWORK, status: specified }
+
+  - id: FLOW-K8S-CILIUM-TO-HUBBLE
+    name: Cilium to Hubble (candidate)
+    description: Candidate observability integration -- not decided anywhere in this repo.
+    source_ref: COMP-CILIUM
+    destination_ref: COMP-HUBBLE
+    transport: { network_protocol: unknown, ports: [] }
+    direction: outbound
+    authentication: { required: false, mechanisms: [] }
+    authorization: { required: false, mechanisms: [] }
+    security_requirements: { confidentiality: low, integrity: low, availability: low }
+    state: candidate
+    evidence:
+      - { source_type: arch-view, ref: VIEW-K8S-NETWORK, status: specified }
+
+  - id: FLOW-K8S-CILIUM-TO-GWAPI
+    name: Cilium to Gateway API (candidate)
+    description: Not evaluated -- zero evidence anywhere in this repo.
+    source_ref: COMP-CILIUM
+    destination_ref: COMP-GATEWAY-API
+    transport: { network_protocol: unknown, ports: [] }
+    direction: outbound
+    authentication: { required: false, mechanisms: [] }
+    authorization: { required: false, mechanisms: [] }
+    security_requirements: { confidentiality: low, integrity: low, availability: low }
+    state: candidate
+    evidence:
+      - { source_type: arch-view, ref: VIEW-K8S-NETWORK, status: specified }
+
+  - id: FLOW-K8S-KUBELET-TO-CONTAINERD
+    name: kubelet to containerd (CRI)
+    source_ref: COMP-KUBELET
+    destination_ref: COMP-CONTAINERD
+    description: Standard CRI interface -- Talos default (ADR-0002).
+    transport: { network_protocol: unknown, ports: [] }
+    direction: outbound
+    authentication: { required: false, mechanisms: [] }
+    authorization: { required: false, mechanisms: [] }
+    security_requirements: { confidentiality: low, integrity: high, availability: high }
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-K8S-RUNTIME, status: specified }
+      - { source_type: adr, ref: ADR-0002, status: specified }
+
+  - id: FLOW-K8S-CONTAINERD-TO-RUNC
+    name: containerd to runc (OCI runtime)
+    source_ref: COMP-CONTAINERD
+    destination_ref: COMP-RUNC
+    description: Standard OCI runtime interface.
+    transport: { network_protocol: unknown, ports: [] }
+    direction: outbound
+    authentication: { required: false, mechanisms: [] }
+    authorization: { required: false, mechanisms: [] }
+    security_requirements: { confidentiality: low, integrity: high, availability: high }
+    state: planned
+    evidence:
+      - { source_type: arch-view, ref: VIEW-K8S-RUNTIME, status: specified }
+
+  - id: FLOW-K8S-CONTAINERD-TO-YOUKI
+    name: containerd to youki (experimental alternative)
+    source_ref: COMP-CONTAINERD
+    destination_ref: COMP-YOUKI
+    description: Experimental alternative OCI runtime path -- SPIKE-RT-01 open (see GAP-K8S-002 on COMP-YOUKI).
+    transport: { network_protocol: unknown, ports: [] }
+    direction: outbound
+    authentication: { required: false, mechanisms: [] }
+    authorization: { required: false, mechanisms: [] }
+    security_requirements: { confidentiality: low, integrity: moderate, availability: low }
+    state: candidate
+    evidence:
+      - { source_type: arch-view, ref: VIEW-K8S-RUNTIME, status: specified }
+      - { source_type: roadmap, ref: "roadmap.md#SPIKE-RT-01", status: decision-pending }

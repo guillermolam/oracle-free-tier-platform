@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - flux-system
+  - ../../infrastructure/namespaces
+  - ../../sources
+  - ../../gitops/argocd
+  - ../../gitops/cert-manager
+  - ../../gitops/dex
+  - ../../gitops/openziti-controller
+  - ../../gitops/spire
+  - ../../gitops/openbao
+  - ../../gitops/external-secrets

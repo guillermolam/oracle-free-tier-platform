@@ -1,0 +1,21 @@
+global:
+  spire:
+    clusterName: lab
+    trustDomain: oci-madrid.lab.internal
+    jwtIssuer: https://spire-oidc.lab.internal
+    caSubject:
+      country: ES
+      organization: Lam Cloud Security LLC
+      commonName: oci-madrid.lab.internal
+    persistence:
+      storageClass: m4-local
+    recommendations:
+      enabled: true
+    namespaces:
+      create: false
+      system:
+        name: spire-system
+        create: false
+      server:
+        name: spire-server
+        create: false

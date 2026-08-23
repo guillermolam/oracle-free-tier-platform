@@ -8,9 +8,9 @@ security *architecture* documentation, not the reporting policy.
 
 | Doc | Populated when |
 | --- | --- |
-| `secrets-architecture.md` | I11 (OpenBao, External Secrets Operator, PKI) |
+| `secrets-architecture.md` | landed with the first M4 bootstrap secret flow |
 | `pki-and-cert-lifecycle.md` | I11 EPIC-SEC-03 |
-| `supply-chain.md` | I18 (image signing, SBOM) |
+| `supply-chain.md` | current upstream-artifact baseline plus deferred SLSA path |
 | `network-trust-boundaries.md` | mirrors the future `trust-boundaries.md` described in [`docs/03-threat-model/README.md`](../03-threat-model/README.md) once EPIC-TM-01 lands |
 
 Until then, the authoritative security controls already live and enforced
