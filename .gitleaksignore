@@ -1,0 +1,7 @@
+# Acknowledged historical findings (files deleted from main, still in public history).
+# spike_ed25519: throwaway OpenZiti spike key - treated as burned; never reuse it.
+# POSTGRES_PASSWORD: test placeholders in Terraform test fixtures.
+# Only these exact commit:file:rule:line fingerprints are ignored; new leaks still fail.
+72aabe79a6dc3ec5fd39582fe50daad5dbcd9f5a:infrastructure/modules/docker/tests/container_positive.tftest.hcl:hashicorp-tf-password:60
+72aabe79a6dc3ec5fd39582fe50daad5dbcd9f5a:infrastructure/modules/docker/tests/scenarios.tftest.hcl:hashicorp-tf-password:18
+95ba6d16b0710ce7deace986c3191b3aadf4ffb4:spikes/SPIKE-ZITI-01/spike_ed25519:private-key:1
