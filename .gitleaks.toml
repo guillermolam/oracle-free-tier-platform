@@ -1,0 +1,4 @@
+# gitleaks config (repo-owned; created by repo-guardrails, never overwritten).
+# Add narrow [[allowlists]] for false positives here.
+[extend]
+useDefault = true

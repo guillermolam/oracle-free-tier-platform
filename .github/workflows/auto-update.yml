@@ -1,0 +1,30 @@
+# Managed by repo-guardrails (guillermolam/dotfiles-backup) - local edits are overwritten.
+# Updates dependencies in place and commits straight to the default branch.
+# Failures fail the job, which triggers GitHub's failure notification.
+name: auto-update
+
+on:
+  schedule:
+    - cron: "23 4 * * *" # daily 04:23 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: auto-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    name: Update dependencies (direct commit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Update and commit
+        env:
+          GH_TOKEN: ${{ secrets.AUTO_UPDATE_TOKEN }}
+        run: .github/scripts/auto-update.sh
